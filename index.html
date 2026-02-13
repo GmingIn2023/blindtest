@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Blind Test · Kahoot Mode + Expert</title>
+  <title>Blind Test · Multi-joueurs</title>
   <style>
     /* === DESIGN DARK ÉPURÉ (identique) === */
     * {
@@ -550,7 +550,7 @@
       <div class="radio-group">
         <label class="radio-label"><input type="radio" name="difficulty" value="normal" checked> Normal</label>
         <label class="radio-label"><input type="radio" name="difficulty" value="hard"> Difficile</label>
-        <label class="radio-label"><input type="radio" name="difficulty" value="expert"> 🧠 Expert (effets audio)</label>
+        <label class="radio-label"><input type="radio" name="difficulty" value="expert"> 🧠 Expert (effets sonores expérimentaux)</label>
       </div>
       <div style="margin-top:1rem;">
         <label class="checkbox-label">
@@ -766,7 +766,7 @@
 
     // ==================== ÉTAT GLOBAL ====================
     const GameConfig = {
-      mode: 'speed', // classic, speed, kahoot
+      mode: 'speed',
       difficulty: 'normal',
       blurEnabled: false,
       totalSongs: 5,
@@ -780,13 +780,12 @@
       clientId: null,
       playerName: '',
       playerAvatar: '🐶',
+      mySelectedSong: null, // pour stocker la chanson choisie par le joueur
     };
 
     const GameRound = {
       currentSongIndex: 0,
       audio: null,
-      audioContext: null, // pour les effets
-      source: null,
     };
 
     let roomRef = null;
@@ -915,7 +914,14 @@
       try {
         roomRef = db.ref('rooms/' + LobbyState.roomCode);
         await roomRef.set({
-          config: GameConfig,
+          config: {
+            mode: GameConfig.mode,
+            difficulty: GameConfig.difficulty,
+            blurEnabled: GameConfig.blurEnabled,
+            totalSongs: GameConfig.totalSongs,
+            expectedPlayerCount: GameConfig.expectedPlayerCount,
+            hostSongsCount: GameConfig.hostSongsCount,
+          },
           createdAt: Date.now(),
           status: 'lobby',
           host: 'host',
@@ -927,8 +933,6 @@
             scores: {},
             buzzer: null,
             answerResult: null,
-            // Pour le mode Kahoot, on stocke les propositions
-            choices: null,
           }
         });
 
@@ -1029,6 +1033,16 @@
           return;
         }
 
+        // Récupérer la config de la partie
+        if (roomData.config) {
+          GameConfig.mode = roomData.config.mode;
+          GameConfig.difficulty = roomData.config.difficulty;
+          GameConfig.blurEnabled = roomData.config.blurEnabled;
+          GameConfig.totalSongs = roomData.config.totalSongs;
+          GameConfig.expectedPlayerCount = roomData.config.expectedPlayerCount;
+          GameConfig.hostSongsCount = roomData.config.hostSongsCount;
+        }
+
         playersRef = roomRef.child('players');
         const playerRef = playersRef.child(LobbyState.clientId);
         await playerRef.set({
@@ -1101,22 +1115,17 @@
         }
       }
 
-      // Gestion du buzzer et des popups selon le mode
-      if (gameState.buzzer === null && $('playerBuzzer')) {
-        // Réactiver le buzzer si aucun buzzer en cours
-        $('playerBuzzer').disabled = false;
-        $('playerBuzzerFeedback').textContent = '';
-      } else if (gameState.buzzer === LobbyState.clientId) {
+      // Gestion du buzzer
+      if (gameState.buzzer === LobbyState.clientId) {
         // C'est moi qui ai buzzé
         $('playerBuzzer').disabled = true;
-        // Vérifier si c'est ma propre chanson (interdiction)
         const currentSong = gameState.songs[gameState.currentSongIndex];
-        const mySelectedSong = LobbyState.mySelectedSong; // à définir lors de la sélection
-        if (mySelectedSong && mySelectedSong.title === currentSong.title) {
-          // Ne peut pas répondre à sa propre chanson -> pénalité
+        // Vérifier si c'est ma propre chanson (interdiction)
+        if (LobbyState.mySelectedSong && LobbyState.mySelectedSong.title === currentSong.title) {
+          // Pénalité immédiate
           handleOwnSongBuzz();
         } else {
-          // Afficher la popup appropriée selon le mode
+          // Afficher la popup selon le mode
           if (GameConfig.mode === 'kahoot') {
             showMultipleChoicePopup(gameState);
           } else {
@@ -1127,11 +1136,10 @@
         // Quelqu'un d'autre a buzzé
         $('playerBuzzer').disabled = true;
         $('playerBuzzerFeedback').textContent = '⏳ Quelqu\'un a buzzé...';
-      }
-
-      // Si des propositions sont disponibles (mode kahoot)
-      if (gameState.choices) {
-        // On pourrait les afficher
+      } else if (!gameState.buzzer && $('playerBuzzer')) {
+        // Réactiver le buzzer si aucun buzzer en cours
+        $('playerBuzzer').disabled = false;
+        $('playerBuzzerFeedback').textContent = '';
       }
     }
 
@@ -1275,12 +1283,12 @@
     }
 
     // ==================== SÉLECTION JOUEUR ====================
-    let playerSelectedSong = null;
-
     function initPlayerSelection() {
       playerSelectedSong = null;
       updatePlayerSelectionUI();
     }
+
+    let playerSelectedSong = null;
 
     function updatePlayerSelectionUI() {
       $('playerSelectionCounter').textContent = playerSelectedSong ? '1 / 1' : '0 / 1';
@@ -1479,54 +1487,19 @@
       });
     }
 
-    // Fonction pour jouer l'audio avec effets (mode expert)
-    async function playAudioWithEffects(song) {
-      if (!song.previewUrl) return;
-      if (GameRound.audio) GameRound.audio.pause();
-
-      if (GameConfig.difficulty === 'expert') {
-        // Utiliser l'API Web Audio pour inverser le son
-        if (!GameRound.audioContext) {
-          GameRound.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        const response = await fetch(song.previewUrl);
-        const arrayBuffer = await response.arrayBuffer();
-        const audioBuffer = await GameRound.audioContext.decodeAudioData(arrayBuffer);
-        const source = GameRound.audioContext.createBufferSource();
-        source.buffer = audioBuffer;
-        // Inverser le son en jouant à l'envers (reverse)
-        // On peut créer un nouveau buffer inversé
-        const reversedBuffer = reverseBuffer(audioBuffer);
-        source.buffer = reversedBuffer;
-        source.connect(GameRound.audioContext.destination);
-        source.start();
-        GameRound.source = source;
-      } else {
-        // Lecture normale
-        GameRound.audio = new Audio(song.previewUrl);
-        GameRound.audio.play().catch(console.error);
-      }
-    }
-
-    function reverseBuffer(buffer) {
-      const newBuffer = GameRound.audioContext.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
-      for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
-        const inputData = buffer.getChannelData(channel);
-        const outputData = newBuffer.getChannelData(channel);
-        for (let i = 0; i < buffer.length; i++) {
-          outputData[i] = inputData[buffer.length - 1 - i];
-        }
-      }
-      return newBuffer;
-    }
-
+    // Lecture audio simplifiée (pas d'effets complexes pour éviter les problèmes)
     $('hostPlayBtn').onclick = () => {
       const song = gameSongs[GameRound.currentSongIndex];
       if (!song.previewUrl) {
         alert('Pas d\'extrait audio disponible');
         return;
       }
-      playAudioWithEffects(song);
+      if (GameRound.audio) GameRound.audio.pause();
+      GameRound.audio = new Audio(song.previewUrl);
+      GameRound.audio.play().catch(err => {
+        console.error('Erreur audio:', err);
+        alert('Impossible de jouer l\'audio.');
+      });
     };
 
     $('hostRevealBtn').onclick = () => {
@@ -1549,10 +1522,7 @@
     };
 
     $('hostNextBtn').onclick = async () => {
-      if (GameRound.audio) {
-        GameRound.audio.pause();
-        if (GameRound.source) GameRound.source.stop();
-      }
+      if (GameRound.audio) GameRound.audio.pause();
       if (GameRound.currentSongIndex + 1 < gameSongs.length) {
         GameRound.currentSongIndex++;
         await gameStateRef.update({ currentSongIndex: GameRound.currentSongIndex });
@@ -1576,7 +1546,6 @@
 
       // Vérifier si le joueur a buzzé sur sa propre chanson
       const currentSong = gameSongs[GameRound.currentSongIndex];
-      // On a besoin de savoir quelle chanson ce joueur a choisie
       const selectionsSnapshot = await roomRef.child('selections').once('value');
       const selections = selectionsSnapshot.val() || {};
       const playerSelection = selections[buzzerId]?.songs?.[0];
@@ -1646,8 +1615,8 @@
     // Gérer le cas où le joueur buzz sur sa propre chanson
     async function handleOwnSongBuzz() {
       // Envoyer une pénalité directement
-      const scores = await gameStateRef.child('scores').once('value');
-      const currentScores = scores.val() || {};
+      const scoresSnap = await gameStateRef.child('scores').once('value');
+      const currentScores = scoresSnap.val() || {};
       currentScores[LobbyState.clientId] = Math.max(0, (currentScores[LobbyState.clientId] || 0) - 50);
       await gameStateRef.update({ scores: currentScores, buzzer: null });
       $('playerBuzzerFeedback').innerHTML = '❌ Tu ne peux pas répondre à ta propre chanson ! -50 pts';
@@ -1713,16 +1682,14 @@
       const currentSong = gameState.songs[gameState.currentSongIndex];
       // Générer 6 propositions : la bonne + 5 autres chansons aléatoires du jeu (sauf la bonne)
       let otherSongs = gameState.songs.filter(s => s.title !== currentSong.title);
-      // Si moins de 5 autres, on peut dupliquer ou prendre des chansons d'une banque ? On va juste répéter
+      // Si moins de 5 autres, on duplique aléatoirement
       while (otherSongs.length < 5) {
-        otherSongs.push(...otherSongs);
+        otherSongs = otherSongs.concat(otherSongs);
       }
-      // Mélanger et prendre 5
       shuffleArray(otherSongs);
       const choices = [currentSong, ...otherSongs.slice(0, 5)];
       shuffleArray(choices);
 
-      // Afficher la popup
       const popup = $('multipleChoicePopup');
       const grid = $('choiceGrid');
       grid.innerHTML = '';
@@ -1742,7 +1709,6 @@
         $('choiceTimer').textContent = timeLeft;
         if (timeLeft <= 0) {
           clearInterval(timerInterval);
-          // Timeout : considéré comme faux
           handleChoice(null, currentSong);
         }
       }, 1000);

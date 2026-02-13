@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Blind Test · Multi-joueurs</title>
+  <title>Blind Test · Kahoot Mode + Expert</title>
   <style>
     /* === DESIGN DARK ÉPURÉ (identique) === */
     * {
@@ -445,7 +445,7 @@
       cursor: not-allowed;
       filter: grayscale(1);
     }
-    .answer-popup {
+    .answer-popup, .multiple-choice-popup {
       position: fixed;
       top: 50%;
       left: 50%;
@@ -458,6 +458,26 @@
       max-width: 400px;
       z-index: 1000;
       box-shadow: 0 20px 60px rgba(0,0,0,0.9);
+    }
+    .choice-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.8rem;
+      margin-top: 1.5rem;
+    }
+    .choice-btn {
+      background: #2a3743;
+      border: 2px solid #5e9eff;
+      border-radius: 1rem;
+      padding: 1rem;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .choice-btn:hover {
+      background: #3b6eff;
+      transform: scale(0.98);
     }
 
     .podium {
@@ -522,6 +542,7 @@
       <div class="radio-group">
         <label class="radio-label"><input type="radio" name="gameMode" value="classic"> Classique</label>
         <label class="radio-label"><input type="radio" name="gameMode" value="speed" checked> ⚡ Rapidité</label>
+        <label class="radio-label"><input type="radio" name="gameMode" value="kahoot"> 🎮 Kahoot (choix multiple)</label>
       </div>
     </div>
     <div class="config-group">
@@ -529,6 +550,7 @@
       <div class="radio-group">
         <label class="radio-label"><input type="radio" name="difficulty" value="normal" checked> Normal</label>
         <label class="radio-label"><input type="radio" name="difficulty" value="hard"> Difficile</label>
+        <label class="radio-label"><input type="radio" name="difficulty" value="expert"> 🧠 Expert (effets audio)</label>
       </div>
       <div style="margin-top:1rem;">
         <label class="checkbox-label">
@@ -678,6 +700,7 @@
       <button id="playerBuzzer" class="buzzer-btn">JE SAIS !</button>
       <div id="playerBuzzerFeedback" style="font-size:1.2rem; text-align:center; min-height:3rem;"></div>
     </div>
+    <!-- Popup pour réponse écrite -->
     <div id="answerPopup" class="answer-popup hidden">
       <h3 style="text-align:center; margin-bottom:1rem;">✏️ Tape le titre</h3>
       <input type="text" id="answerInput" placeholder="Titre exact" autofocus>
@@ -685,6 +708,12 @@
         <button id="submitAnswer" style="flex:1;">✅ Valider</button>
         <span id="answerTimer" style="font-size:1.8rem; font-weight:700; color:#ffaa33; min-width:50px; text-align:center;">10</span>
       </div>
+    </div>
+    <!-- Popup pour choix multiple (mode Kahoot) -->
+    <div id="multipleChoicePopup" class="multiple-choice-popup hidden">
+      <h3 style="text-align:center; margin-bottom:1rem;">🎯 Choisis la bonne chanson</h3>
+      <div id="choiceTimer" style="font-size:2rem; font-weight:700; color:#ffaa33; text-align:center; margin-bottom:1rem;">5</div>
+      <div id="choiceGrid" class="choice-grid"></div>
     </div>
   </div>
 
@@ -698,7 +727,7 @@
   <canvas id="confetti" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; display:none;"></canvas>
 </div>
 
-<!-- Firebase SDK compat (version non-module) -->
+<!-- Firebase SDK compat -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
@@ -732,12 +761,12 @@
         <p style="color:#8aaec0;">Vérifie ta configuration Firebase.</p>
         <button onclick="window.location.reload()" style="margin-top:2rem;">🔄 Recharger</button>
       `;
-      return; // arrêter l'exécution
+      return;
     }
 
     // ==================== ÉTAT GLOBAL ====================
     const GameConfig = {
-      mode: 'speed',
+      mode: 'speed', // classic, speed, kahoot
       difficulty: 'normal',
       blurEnabled: false,
       totalSongs: 5,
@@ -756,6 +785,8 @@
     const GameRound = {
       currentSongIndex: 0,
       audio: null,
+      audioContext: null, // pour les effets
+      source: null,
     };
 
     let roomRef = null;
@@ -803,7 +834,6 @@
     const connectedRef = db.ref('.info/connected');
     let connected = false;
 
-    // Timeout de 10 secondes
     const timeoutId = setTimeout(() => {
       if (!connected) {
         console.error("⏰ Timeout: connexion Firebase trop longue");
@@ -822,7 +852,6 @@
       }
     }, 10000);
 
-    // Attendre la connexion
     connectedRef.on('value', (snap) => {
       if (snap.val() === true) {
         connected = true;
@@ -897,13 +926,15 @@
             songs: [],
             scores: {},
             buzzer: null,
+            answerResult: null,
+            // Pour le mode Kahoot, on stocke les propositions
+            choices: null,
           }
         });
 
         playersRef = roomRef.child('players');
         gameStateRef = roomRef.child('gameState');
 
-        // Écouter les joueurs
         const callback = playersRef.on('value', updateConnectedPlayers);
         unsubscribeFunctions.push(() => playersRef.off('value', callback));
 
@@ -1006,11 +1037,8 @@
           joinedAt: Date.now(),
         });
 
-        // Écouter les joueurs
         const unsub1 = playersRef.on('value', updateOtherPlayers);
-        // Écouter le statut
         const unsub2 = roomRef.child('status').on('value', handleRoomStatusChange);
-        // Écouter l'état du jeu
         const unsub3 = roomRef.child('gameState').on('value', handleGameStateChange);
         unsubscribeFunctions.push(
           () => playersRef.off('value', unsub1),
@@ -1073,75 +1101,98 @@
         }
       }
 
+      // Gestion du buzzer et des popups selon le mode
       if (gameState.buzzer === null && $('playerBuzzer')) {
+        // Réactiver le buzzer si aucun buzzer en cours
         $('playerBuzzer').disabled = false;
         $('playerBuzzerFeedback').textContent = '';
       } else if (gameState.buzzer === LobbyState.clientId) {
-        showAnswerPopup();
+        // C'est moi qui ai buzzé
+        $('playerBuzzer').disabled = true;
+        // Vérifier si c'est ma propre chanson (interdiction)
+        const currentSong = gameState.songs[gameState.currentSongIndex];
+        const mySelectedSong = LobbyState.mySelectedSong; // à définir lors de la sélection
+        if (mySelectedSong && mySelectedSong.title === currentSong.title) {
+          // Ne peut pas répondre à sa propre chanson -> pénalité
+          handleOwnSongBuzz();
+        } else {
+          // Afficher la popup appropriée selon le mode
+          if (GameConfig.mode === 'kahoot') {
+            showMultipleChoicePopup(gameState);
+          } else {
+            showAnswerPopup();
+          }
+        }
       } else if (gameState.buzzer && $('playerBuzzer')) {
+        // Quelqu'un d'autre a buzzé
         $('playerBuzzer').disabled = true;
         $('playerBuzzerFeedback').textContent = '⏳ Quelqu\'un a buzzé...';
       }
+
+      // Si des propositions sont disponibles (mode kahoot)
+      if (gameState.choices) {
+        // On pourrait les afficher
+      }
     }
 
-    // ==================== RECHERCHE ITUNES ====================
+    // ==================== RECHERCHE ITUNES ROBUSTE ====================
     async function searchItunes(term) {
-  // Méthode 1 : proxy codetabs (fiable)
-  try {
-    const url = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent('https://itunes.apple.com/search?term='+encodeURIComponent(term)+'&media=music&entity=song&limit=10')}`;
-    const res = await fetch(url);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.results) return data.results;
+      // Méthode 1 : proxy codetabs
+      try {
+        const url = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent('https://itunes.apple.com/search?term='+encodeURIComponent(term)+'&media=music&entity=song&limit=10')}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.results) return data.results;
+        }
+      } catch (e) {
+        console.log('Proxy codetabs failed', e);
+      }
+
+      // Méthode 2 : JSONP
+      try {
+        const jsonp = await new Promise((resolve, reject) => {
+          const callbackName = 'itcallback_' + Date.now();
+          const script = document.createElement('script');
+          const timeout = setTimeout(() => {
+            reject('timeout');
+          }, 6000);
+          window[callbackName] = (data) => {
+            clearTimeout(timeout);
+            document.head.removeChild(script);
+            delete window[callbackName];
+            resolve(data.results || []);
+          };
+          script.onerror = () => {
+            clearTimeout(timeout);
+            document.head.removeChild(script);
+            delete window[callbackName];
+            reject('network');
+          };
+          script.src = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=10&callback=${callbackName}`;
+          document.head.appendChild(script);
+        });
+        return jsonp;
+      } catch (e) {
+        console.log('JSONP failed', e);
+      }
+
+      // Méthode 3 : corsproxy.io
+      try {
+        const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=10`;
+        const proxy = `https://corsproxy.io/?${encodeURIComponent(itunesUrl)}`;
+        const res = await fetch(proxy);
+        if (res.ok) {
+          const data = await res.json();
+          return data.results || [];
+        }
+      } catch (e) {
+        console.log('corsproxy failed', e);
+      }
+
+      return [];
     }
-  } catch (e) {
-    console.log('Proxy codetabs failed', e);
-  }
 
-  // Méthode 2 : JSONP (contourne CORS)
-  try {
-    const jsonp = await new Promise((resolve, reject) => {
-      const callbackName = 'itcallback_' + Date.now();
-      const script = document.createElement('script');
-      const timeout = setTimeout(() => {
-        reject('timeout');
-      }, 6000);
-      window[callbackName] = (data) => {
-        clearTimeout(timeout);
-        document.head.removeChild(script);
-        delete window[callbackName];
-        resolve(data.results || []);
-      };
-      script.onerror = () => {
-        clearTimeout(timeout);
-        document.head.removeChild(script);
-        delete window[callbackName];
-        reject('network');
-      };
-      script.src = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=10&callback=${callbackName}`;
-      document.head.appendChild(script);
-    });
-    return jsonp;
-  } catch (e) {
-    console.log('JSONP failed', e);
-  }
-
-  // Méthode 3 : corsproxy.io (dernier recours)
-  try {
-    const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=10`;
-    const proxy = `https://corsproxy.io/?${encodeURIComponent(itunesUrl)}`;
-    const res = await fetch(proxy);
-    if (res.ok) {
-      const data = await res.json();
-      return data.results || [];
-    }
-  } catch (e) {
-    console.log('corsproxy failed', e);
-  }
-
-  // Si tout échoue, retourner un tableau vide
-  return [];
-}
     // ==================== SÉLECTION HÔTE ====================
     let hostSelectedSongs = [];
 
@@ -1244,6 +1295,8 @@
         songs: [playerSelectedSong],
         done: true,
       });
+      // Stocker la chanson choisie par le joueur pour l'empêcher de répondre
+      LobbyState.mySelectedSong = playerSelectedSong;
       showPhase('waitingSelection');
       watchSelectionProgress();
     }
@@ -1426,18 +1479,54 @@
       });
     }
 
+    // Fonction pour jouer l'audio avec effets (mode expert)
+    async function playAudioWithEffects(song) {
+      if (!song.previewUrl) return;
+      if (GameRound.audio) GameRound.audio.pause();
+
+      if (GameConfig.difficulty === 'expert') {
+        // Utiliser l'API Web Audio pour inverser le son
+        if (!GameRound.audioContext) {
+          GameRound.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        const response = await fetch(song.previewUrl);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await GameRound.audioContext.decodeAudioData(arrayBuffer);
+        const source = GameRound.audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        // Inverser le son en jouant à l'envers (reverse)
+        // On peut créer un nouveau buffer inversé
+        const reversedBuffer = reverseBuffer(audioBuffer);
+        source.buffer = reversedBuffer;
+        source.connect(GameRound.audioContext.destination);
+        source.start();
+        GameRound.source = source;
+      } else {
+        // Lecture normale
+        GameRound.audio = new Audio(song.previewUrl);
+        GameRound.audio.play().catch(console.error);
+      }
+    }
+
+    function reverseBuffer(buffer) {
+      const newBuffer = GameRound.audioContext.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+      for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+        const inputData = buffer.getChannelData(channel);
+        const outputData = newBuffer.getChannelData(channel);
+        for (let i = 0; i < buffer.length; i++) {
+          outputData[i] = inputData[buffer.length - 1 - i];
+        }
+      }
+      return newBuffer;
+    }
+
     $('hostPlayBtn').onclick = () => {
       const song = gameSongs[GameRound.currentSongIndex];
       if (!song.previewUrl) {
         alert('Pas d\'extrait audio disponible');
         return;
       }
-      if (GameRound.audio) GameRound.audio.pause();
-      GameRound.audio = new Audio(song.previewUrl);
-      GameRound.audio.play().catch(err => {
-        console.error('Erreur audio:', err);
-        alert('Impossible de jouer l\'audio.');
-      });
+      playAudioWithEffects(song);
     };
 
     $('hostRevealBtn').onclick = () => {
@@ -1460,7 +1549,10 @@
     };
 
     $('hostNextBtn').onclick = async () => {
-      if (GameRound.audio) GameRound.audio.pause();
+      if (GameRound.audio) {
+        GameRound.audio.pause();
+        if (GameRound.source) GameRound.source.stop();
+      }
       if (GameRound.currentSongIndex + 1 < gameSongs.length) {
         GameRound.currentSongIndex++;
         await gameStateRef.update({ currentSongIndex: GameRound.currentSongIndex });
@@ -1481,6 +1573,23 @@
       const playerSnapshot = await playersRef.child(buzzerId).once('value');
       const player = playerSnapshot.val();
       if (!player) return;
+
+      // Vérifier si le joueur a buzzé sur sa propre chanson
+      const currentSong = gameSongs[GameRound.currentSongIndex];
+      // On a besoin de savoir quelle chanson ce joueur a choisie
+      const selectionsSnapshot = await roomRef.child('selections').once('value');
+      const selections = selectionsSnapshot.val() || {};
+      const playerSelection = selections[buzzerId]?.songs?.[0];
+      if (playerSelection && playerSelection.title === currentSong.title) {
+        // Pénalité immédiate
+        gameScores[buzzerId] = Math.max(0, (gameScores[buzzerId] || 0) - 50);
+        await gameStateRef.update({ scores: gameScores });
+        updateHostScoreboard();
+        // Réinitialiser le buzzer pour permettre à d'autres de buzzer
+        await gameStateRef.update({ buzzer: null });
+        return;
+      }
+
       $('hostBuzzerInfo').classList.remove('hidden');
       $('hostBuzzerInfo').textContent = `⚡ ${player.name} a buzzé ! Attend sa réponse...`;
       const answerRef = gameStateRef.child('answer');
@@ -1533,6 +1642,16 @@
       $('playerBuzzer').disabled = true;
       await gameStateRef.update({ buzzer: LobbyState.clientId });
     };
+
+    // Gérer le cas où le joueur buzz sur sa propre chanson
+    async function handleOwnSongBuzz() {
+      // Envoyer une pénalité directement
+      const scores = await gameStateRef.child('scores').once('value');
+      const currentScores = scores.val() || {};
+      currentScores[LobbyState.clientId] = Math.max(0, (currentScores[LobbyState.clientId] || 0) - 50);
+      await gameStateRef.update({ scores: currentScores, buzzer: null });
+      $('playerBuzzerFeedback').innerHTML = '❌ Tu ne peux pas répondre à ta propre chanson ! -50 pts';
+    }
 
     let answerTimerInterval = null;
     let answerStartTime = 0;
@@ -1587,6 +1706,70 @@
         $('playerBuzzerFeedback').innerHTML = `❌ Mauvaise réponse<br>C'était : ${result.correctTitle}<br>${result.points} pts`;
       }
       gameStateRef.child('answerResult').off('value');
+    }
+
+    // Mode Kahoot : choix multiple
+    async function showMultipleChoicePopup(gameState) {
+      const currentSong = gameState.songs[gameState.currentSongIndex];
+      // Générer 6 propositions : la bonne + 5 autres chansons aléatoires du jeu (sauf la bonne)
+      let otherSongs = gameState.songs.filter(s => s.title !== currentSong.title);
+      // Si moins de 5 autres, on peut dupliquer ou prendre des chansons d'une banque ? On va juste répéter
+      while (otherSongs.length < 5) {
+        otherSongs.push(...otherSongs);
+      }
+      // Mélanger et prendre 5
+      shuffleArray(otherSongs);
+      const choices = [currentSong, ...otherSongs.slice(0, 5)];
+      shuffleArray(choices);
+
+      // Afficher la popup
+      const popup = $('multipleChoicePopup');
+      const grid = $('choiceGrid');
+      grid.innerHTML = '';
+      choices.forEach((song, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'choice-btn';
+        btn.textContent = `${index+1}. ${song.title}`;
+        btn.onclick = () => handleChoice(song, currentSong);
+        grid.appendChild(btn);
+      });
+
+      popup.classList.remove('hidden');
+      let timeLeft = 5;
+      $('choiceTimer').textContent = timeLeft;
+      const timerInterval = setInterval(() => {
+        timeLeft--;
+        $('choiceTimer').textContent = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          // Timeout : considéré comme faux
+          handleChoice(null, currentSong);
+        }
+      }, 1000);
+      // Stocker le timer pour le nettoyer
+      window.choiceTimer = timerInterval;
+    }
+
+    async function handleChoice(selectedSong, correctSong) {
+      if (window.choiceTimer) clearInterval(window.choiceTimer);
+      $('multipleChoicePopup').classList.add('hidden');
+      const isCorrect = selectedSong && selectedSong.title === correctSong.title;
+      let points = 0;
+      if (isCorrect) {
+        points = 500; // forfaitaire pour le mode multiple
+      } else {
+        points = -50;
+      }
+      // Mettre à jour les scores via Firebase
+      const scoresSnap = await gameStateRef.child('scores').once('value');
+      const scores = scoresSnap.val() || {};
+      scores[LobbyState.clientId] = (scores[LobbyState.clientId] || 0) + points;
+      await gameStateRef.update({ scores, buzzer: null, answerResult: { playerId: LobbyState.clientId, correct: isCorrect, points } });
+      if (isCorrect) {
+        $('playerBuzzerFeedback').innerHTML = `✅ Bonne réponse ! +${points} pts`;
+      } else {
+        $('playerBuzzerFeedback').innerHTML = `❌ Mauvaise réponse ! ${points} pts`;
+      }
     }
 
     // ==================== RÉSULTATS ====================

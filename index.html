@@ -1086,18 +1086,62 @@
 
     // ==================== RECHERCHE ITUNES ====================
     async function searchItunes(term) {
-      try {
-        const url = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=10`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Network error');
-        const data = await response.json();
-        return data.results || [];
-      } catch (error) {
-        console.error('iTunes search error:', error);
-        return [];
-      }
+  // Méthode 1 : proxy codetabs (fiable)
+  try {
+    const url = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent('https://itunes.apple.com/search?term='+encodeURIComponent(term)+'&media=music&entity=song&limit=10')}`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.results) return data.results;
     }
+  } catch (e) {
+    console.log('Proxy codetabs failed', e);
+  }
 
+  // Méthode 2 : JSONP (contourne CORS)
+  try {
+    const jsonp = await new Promise((resolve, reject) => {
+      const callbackName = 'itcallback_' + Date.now();
+      const script = document.createElement('script');
+      const timeout = setTimeout(() => {
+        reject('timeout');
+      }, 6000);
+      window[callbackName] = (data) => {
+        clearTimeout(timeout);
+        document.head.removeChild(script);
+        delete window[callbackName];
+        resolve(data.results || []);
+      };
+      script.onerror = () => {
+        clearTimeout(timeout);
+        document.head.removeChild(script);
+        delete window[callbackName];
+        reject('network');
+      };
+      script.src = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=10&callback=${callbackName}`;
+      document.head.appendChild(script);
+    });
+    return jsonp;
+  } catch (e) {
+    console.log('JSONP failed', e);
+  }
+
+  // Méthode 3 : corsproxy.io (dernier recours)
+  try {
+    const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=10`;
+    const proxy = `https://corsproxy.io/?${encodeURIComponent(itunesUrl)}`;
+    const res = await fetch(proxy);
+    if (res.ok) {
+      const data = await res.json();
+      return data.results || [];
+    }
+  } catch (e) {
+    console.log('corsproxy failed', e);
+  }
+
+  // Si tout échoue, retourner un tableau vide
+  return [];
+}
     // ==================== SÉLECTION HÔTE ====================
     let hostSelectedSongs = [];
 

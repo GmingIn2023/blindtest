@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Blind Test · Multi-joueurs</title>
   <style>
-    /* === DESIGN DARK ÉPURÉ (identique) === */
+    /* === DESIGN DARK ÉPURÉ === */
     * {
       margin: 0;
       padding: 0;
@@ -561,6 +561,7 @@
     <div class="config-group">
       <div class="config-title">👥 Nombre de joueurs (hors hôte)</div>
       <input type="number" id="player-count" min="1" max="8" value="2">
+      <p style="color:#ffaa33; margin-top:0.5rem; font-size:0.9rem;">Une fois ce nombre atteint, plus personne ne peut rejoindre.</p>
     </div>
     <div class="config-group">
       <div class="config-title">🎵 Nombre total de chansons</div>
@@ -780,7 +781,7 @@
       clientId: null,
       playerName: '',
       playerAvatar: '🐶',
-      mySelectedSong: null, // pour stocker la chanson choisie par le joueur
+      mySelectedSong: null,
     };
 
     const GameRound = {
@@ -1030,6 +1031,14 @@
         const roomData = snapshot.val();
         if (roomData.status !== 'lobby') {
           alert('❌ Cette partie a déjà commencé');
+          return;
+        }
+
+        // Vérifier le nombre de joueurs déjà connectés
+        const playersSnap = await roomRef.child('players').once('value');
+        const currentPlayers = playersSnap.val() || {};
+        if (Object.keys(currentPlayers).length >= roomData.config.expectedPlayerCount) {
+          alert('❌ Le nombre maximum de joueurs est atteint.');
           return;
         }
 
@@ -1283,12 +1292,12 @@
     }
 
     // ==================== SÉLECTION JOUEUR ====================
+    let playerSelectedSong = null;
+
     function initPlayerSelection() {
       playerSelectedSong = null;
       updatePlayerSelectionUI();
     }
-
-    let playerSelectedSong = null;
 
     function updatePlayerSelectionUI() {
       $('playerSelectionCounter').textContent = playerSelectedSong ? '1 / 1' : '0 / 1';
@@ -1303,7 +1312,6 @@
         songs: [playerSelectedSong],
         done: true,
       });
-      // Stocker la chanson choisie par le joueur pour l'empêcher de répondre
       LobbyState.mySelectedSong = playerSelectedSong;
       showPhase('waitingSelection');
       watchSelectionProgress();
@@ -1487,7 +1495,7 @@
       });
     }
 
-    // Lecture audio simplifiée (pas d'effets complexes pour éviter les problèmes)
+    // Lecture audio simple (pas d'effets complexes pour le moment)
     $('hostPlayBtn').onclick = () => {
       const song = gameSongs[GameRound.currentSongIndex];
       if (!song.previewUrl) {
@@ -1612,9 +1620,7 @@
       await gameStateRef.update({ buzzer: LobbyState.clientId });
     };
 
-    // Gérer le cas où le joueur buzz sur sa propre chanson
     async function handleOwnSongBuzz() {
-      // Envoyer une pénalité directement
       const scoresSnap = await gameStateRef.child('scores').once('value');
       const currentScores = scoresSnap.val() || {};
       currentScores[LobbyState.clientId] = Math.max(0, (currentScores[LobbyState.clientId] || 0) - 50);
@@ -1682,7 +1688,6 @@
       const currentSong = gameState.songs[gameState.currentSongIndex];
       // Générer 6 propositions : la bonne + 5 autres chansons aléatoires du jeu (sauf la bonne)
       let otherSongs = gameState.songs.filter(s => s.title !== currentSong.title);
-      // Si moins de 5 autres, on duplique aléatoirement
       while (otherSongs.length < 5) {
         otherSongs = otherSongs.concat(otherSongs);
       }
@@ -1712,7 +1717,6 @@
           handleChoice(null, currentSong);
         }
       }, 1000);
-      // Stocker le timer pour le nettoyer
       window.choiceTimer = timerInterval;
     }
 
@@ -1722,11 +1726,10 @@
       const isCorrect = selectedSong && selectedSong.title === correctSong.title;
       let points = 0;
       if (isCorrect) {
-        points = 500; // forfaitaire pour le mode multiple
+        points = 500;
       } else {
         points = -50;
       }
-      // Mettre à jour les scores via Firebase
       const scoresSnap = await gameStateRef.child('scores').once('value');
       const scores = scoresSnap.val() || {};
       scores[LobbyState.clientId] = (scores[LobbyState.clientId] || 0) + points;

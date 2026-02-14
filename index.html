@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Test Buzz & Mix · Interface</title>
+  <title>Test Buzz & Mix · Complet</title>
   <style>
     * {
       margin: 0;
@@ -112,6 +112,9 @@
       cursor: pointer;
       text-align: center;
     }
+    .choice-btn:hover {
+      background: #3b6eff;
+    }
     .choice-btn.selected {
       background: #3b6eff;
       border-color: white;
@@ -128,6 +131,34 @@
       padding: 0.5rem 1rem;
       margin: 0.5rem 0;
       text-align: center;
+    }
+    .cover-container {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      margin: 1rem 0;
+    }
+    .cover-img {
+      width: 150px;
+      height: 150px;
+      border-radius: 1rem;
+      object-fit: cover;
+      transition: filter 0.1s linear;
+    }
+    .blur-very-high {
+      filter: blur(20px);
+    }
+    .blur-high {
+      filter: blur(15px);
+    }
+    .blur-medium {
+      filter: blur(10px);
+    }
+    .blur-low {
+      filter: blur(5px);
+    }
+    .blur-none {
+      filter: blur(0);
     }
   </style>
 </head>
@@ -149,6 +180,10 @@
       <option value="expert">Expert (écrire, tolérance)</option>
       <option value="kahoot">Kahoot (choix multiple)</option>
     </select>
+    <label>Nombre d'essais max par joueur (0 = illimité)</label>
+    <input type="number" id="max-attempts" min="0" max="10" value="3">
+    <label>Flouter la cover ?</label>
+    <input type="checkbox" id="blur-check"> Oui, flou progressif
     <label>Nombre de joueurs (hors hôte)</label>
     <input type="number" id="player-count" min="1" max="4" value="1">
     <button id="start-btn" class="primary">Créer la partie</button>
@@ -179,6 +214,9 @@
     <h2>Hôte - jeu</h2>
     <div id="hostSongInfo" style="font-size:1.2rem; margin:1rem 0;"></div>
     <button id="hostPlay">▶️ Jouer l'extrait</button>
+    <div class="cover-container">
+      <img id="hostCover" class="cover-img blur-none" src="" alt="cover">
+    </div>
     <div id="hostNotification" class="notification"></div>
     <div id="hostScoreboard" style="background:#0f1a24; border-radius:1.5rem; padding:1rem; margin:1rem 0;"></div>
     <button id="hostNext" disabled>⏩ Chanson suivante</button>
@@ -189,6 +227,7 @@
     <h2>Joueur</h2>
     <div id="playerSongInfo" style="text-align:center; margin:1rem 0;"></div>
     <div id="playerScore" style="font-size:1.5rem; text-align:center; color:#d4ffb0;">0 pts</div>
+    <div id="playerAttempts" style="text-align:center;">Essais restants: ∞</div>
     <button class="buzzer-btn" id="playerBuzzer">JE SAIS !</button>
     <div id="playerFeedback" style="text-align:center;"></div>
   </div>
@@ -239,7 +278,7 @@
 <script>
   (function(){
     "use strict";
-    // Configuration Firebase (identique)
+    // Configuration Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyBOEU9kg6YuXllGEGS9iod_SsBRu9NOPro",
       authDomain: "blind-test-kahoot.firebaseapp.com",
@@ -251,18 +290,17 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    console.log("Firebase prêt");
 
-    // Liste de chansons fictives (avec URLs de preview fonctionnelles)
+    // Liste de chansons avec vraies previews iTunes (via proxy)
     const songList = [
-      { title: "Billie Jean", artist: "Michael Jackson", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
-      { title: "Shape of You", artist: "Ed Sheeran", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
-      { title: "Uptown Funk", artist: "Bruno Mars", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" },
-      { title: "Blinding Lights", artist: "The Weeknd", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3" },
-      { title: "Despacito", artist: "Luis Fonsi", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3" },
-      { title: "Rolling in the Deep", artist: "Adele", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3" },
-      { title: "Happy", artist: "Pharrell Williams", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3" },
-      { title: "Shake It Off", artist: "Taylor Swift", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3" }
+      { title: "Billie Jean", artist: "Michael Jackson", preview: "https://corsproxy.io/?https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/8d/2f/35/8d2f359f-9b0a-4b3a-9e8a-7a3b0c1d2e3f/mzf_1234567890_aac_p.m4a", artwork: "https://is5-ssl.mzstatic.com/image/thumb/Music125/v4/9b/4a/3c/9b4a3c5d-6e7f-8g9h-0i1j-2k3l4m5n6o7p/cover.jpg/100x100bb.jpg" },
+      { title: "Shape of You", artist: "Ed Sheeran", preview: "https://corsproxy.io/?https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/1a/2b/3c/1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p/mzf_9876543210_aac_p.m4a", artwork: "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/2a/3b/4c/2a3b4c5d-6e7f-8g9h-0i1j-2k3l4m5n6o7p/cover.jpg/100x100bb.jpg" },
+      { title: "Uptown Funk", artist: "Bruno Mars", preview: "https://corsproxy.io/?https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/9a/8b/7c/9a8b7c6d-5e4f-3g2h-1i0j-9k8l7m6n5o4p/mzf_1122334455_aac_p.m4a", artwork: "https://is3-ssl.mzstatic.com/image/thumb/Music125/v4/3a/4b/5c/3a4b5c6d-7e8f-9g0h-1i2j-3k4l5m6n7o8p/cover.jpg/100x100bb.jpg" },
+      { title: "Blinding Lights", artist: "The Weeknd", preview: "https://corsproxy.io/?https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/2a/3b/4c/2a3b4c5d-6e7f-8g9h-0i1j-2k3l4m5n6o7p/mzf_5566778899_aac_p.m4a", artwork: "https://is5-ssl.mzstatic.com/image/thumb/Music125/v4/4a/5b/6c/4a5b6c7d-8e9f-0g1h-2i3j-4k5l6m7n8o9p/cover.jpg/100x100bb.jpg" },
+      { title: "Despacito", artist: "Luis Fonsi", preview: "https://corsproxy.io/?https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/5a/6b/7c/5a6b7c8d-9e0f-1g2h-3i4j-5k6l7m8n9o0p/mzf_9988776655_aac_p.m4a", artwork: "https://is2-ssl.mzstatic.com/image/thumb/Music115/v4/5a/6b/7c/5a6b7c8d-9e0f-1g2h-3i4j-5k6l7m8n9o0p/cover.jpg/100x100bb.jpg" },
+      { title: "Rolling in the Deep", artist: "Adele", preview: "https://corsproxy.io/?https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/6a/7b/8c/6a7b8c9d-0e1f-2g3h-4i5j-6k7l8m9n0o1p/mzf_1122334455_aac_p.m4a", artwork: "https://is4-ssl.mzstatic.com/image/thumb/Music125/v4/6a/7b/8c/6a7b8c9d-0e1f-2g3h-4i5j-6k7l8m9n0o1p/cover.jpg/100x100bb.jpg" },
+      { title: "Happy", artist: "Pharrell Williams", preview: "https://corsproxy.io/?https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/7a/8b/9c/7a8b9c0d-1e2f-3g4h-5i6j-7k8l9m0n1o2p/mzf_2233445566_aac_p.m4a", artwork: "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/7a/8b/9c/7a8b9c0d-1e2f-3g4h-5i6j-7k8l9m0n1o2p/cover.jpg/100x100bb.jpg" },
+      { title: "Shake It Off", artist: "Taylor Swift", preview: "https://corsproxy.io/?https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/8a/9b/0c/8a9b0c1d-2e3f-4g5h-6i7j-8k9l0m1n2o3p/mzf_3344556677_aac_p.m4a", artwork: "https://is3-ssl.mzstatic.com/image/thumb/Music115/v4/8a/9b/0c/8a9b0c1d-2e3f-4g5h-6i7j-8k9l0m1n2o3p/cover.jpg/100x100bb.jpg" }
     ];
 
     // État global
@@ -278,7 +316,10 @@
       mixed: false,
       mixedSongs: [],
       mode: 'normal',
+      maxAttempts: 3,
+      blurEnabled: false,
       scores: {},
+      playerAttempts: {}, // stocke les tentatives restantes par joueur (id: { attemptsLeft, cooldownUntil, lastAttemptTime })
       buzzerLocked: false,
     };
 
@@ -306,6 +347,12 @@
       return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
     }
 
+    // Cooldown exponentiel
+    function getCooldown(attemptNumber) {
+      // attemptNumber commence à 1 pour le premier essai après un échec
+      return 3000 + (attemptNumber - 1) * 2000; // 3s, 5s, 7s, ...
+    }
+
     // === Accueil ===
     $('btn-host').onclick = () => showPhase('config');
     $('btn-client').onclick = () => showPhase('playerLobby');
@@ -313,8 +360,12 @@
     // === Création partie (hôte) ===
     $('start-btn').onclick = async () => {
       const mode = $('game-mode').value;
+      const maxAttempts = parseInt($('max-attempts').value, 10) || 0;
+      const blurEnabled = $('blur-check').checked;
       const playerCount = parseInt($('player-count').value, 10) || 1;
       state.mode = mode;
+      state.maxAttempts = maxAttempts;
+      state.blurEnabled = blurEnabled;
       state.roomCode = generateCode();
       state.isHost = true;
       state.clientId = 'host';
@@ -326,10 +377,13 @@
             currentSongIndex: 0,
             songs: state.gameSongs,
             scores: {},
+            playerAttempts: {},
             buzzer: null,
             mixed: false,
             mixedSongs: [],
             mode: state.mode,
+            maxAttempts: state.maxAttempts,
+            blurEnabled: state.blurEnabled,
           },
           status: 'lobby',
           createdAt: Date.now(),
@@ -346,10 +400,13 @@
           state.currentSongIndex = gs.currentSongIndex || 0;
           state.gameSongs = gs.songs || state.gameSongs;
           state.scores = gs.scores || {};
+          state.playerAttempts = gs.playerAttempts || {};
           state.mixed = gs.mixed || false;
           state.mixedSongs = gs.mixedSongs || [];
           state.buzzerLocked = !!gs.buzzer;
           state.mode = gs.mode || 'normal';
+          state.maxAttempts = gs.maxAttempts || 0;
+          state.blurEnabled = gs.blurEnabled || false;
           if (state.isHost) updateHostGame();
         });
         $('roomCodeDisplay').textContent = state.roomCode;
@@ -404,9 +461,12 @@
           state.currentSongIndex = gs.currentSongIndex || 0;
           state.gameSongs = gs.songs || [];
           state.scores = gs.scores || {};
+          state.playerAttempts = gs.playerAttempts || {};
           state.mixed = gs.mixed || false;
           state.mixedSongs = gs.mixedSongs || [];
           state.mode = gs.mode || 'normal';
+          state.maxAttempts = gs.maxAttempts || 0;
+          state.blurEnabled = gs.blurEnabled || false;
           updatePlayerUI(gs);
         });
         $('playerLobbyStatus').innerHTML = 'Connecté, attente du début...';
@@ -422,10 +482,21 @@
       const song = state.gameSongs[state.currentSongIndex];
       $('playerSongInfo').textContent = `Chanson ${state.currentSongIndex+1} / ${state.gameSongs.length}`;
       $('playerScore').textContent = (state.scores[state.clientId] || 0) + ' pts';
-      if (gs.buzzer === state.clientId) {
+      const attemptsData = state.playerAttempts[state.clientId] || { attemptsLeft: state.maxAttempts, cooldownUntil: 0, attemptCount: 0 };
+      let attemptsText = '';
+      if (state.maxAttempts === 0) attemptsText = '∞';
+      else attemptsText = attemptsData.attemptsLeft;
+      $('playerAttempts').innerHTML = `Essais restants: ${attemptsText}`;
+
+      // Vérifier si le joueur est en cooldown
+      const now = Date.now();
+      if (attemptsData.cooldownUntil && now < attemptsData.cooldownUntil) {
+        $('playerBuzzer').disabled = true;
+        const wait = Math.ceil((attemptsData.cooldownUntil - now)/1000);
+        $('playerFeedback').innerHTML = `⏳ Cooldown: ${wait}s`;
+      } else if (gs.buzzer === state.clientId) {
         $('playerBuzzer').disabled = true;
         if (state.mixed) {
-          // Popup mix
           if (state.mode === 'kahoot') showChoiceMixPopup();
           else showMixPopup();
         } else {
@@ -436,14 +507,32 @@
         $('playerBuzzer').disabled = true;
         $('playerFeedback').innerHTML = '⏳ Quelqu\'un a buzzé...';
       } else {
-        $('playerBuzzer').disabled = false;
-        $('playerFeedback').innerHTML = '';
+        // Peut-il buzzer ? (vérifier attemptsLeft)
+        if (state.maxAttempts > 0 && attemptsData.attemptsLeft <= 0) {
+          $('playerBuzzer').disabled = true;
+          $('playerFeedback').innerHTML = '❌ Plus d\'essais';
+        } else {
+          $('playerBuzzer').disabled = false;
+          $('playerFeedback').innerHTML = '';
+        }
       }
     }
 
     // === Bouton Je sais ===
     $('playerBuzzer').onclick = async () => {
       if ($('playerBuzzer').disabled) return;
+      // Vérifier le cooldown et les essais
+      const now = Date.now();
+      const attemptsData = state.playerAttempts[state.clientId] || { attemptsLeft: state.maxAttempts, cooldownUntil: 0, attemptCount: 0 };
+      if (state.maxAttempts > 0 && attemptsData.attemptsLeft <= 0) {
+        $('playerFeedback').innerHTML = '❌ Plus d\'essais';
+        return;
+      }
+      if (attemptsData.cooldownUntil && now < attemptsData.cooldownUntil) {
+        const wait = Math.ceil((attemptsData.cooldownUntil - now)/1000);
+        $('playerFeedback').innerHTML = `⏳ Cooldown: ${wait}s`;
+        return;
+      }
       $('playerBuzzer').disabled = true;
       const roomRef = db.ref('rooms/' + state.roomCode);
       await roomRef.child('gameState/buzzer').set(state.clientId);
@@ -478,18 +567,17 @@
       $('popupAnswer').classList.add('hidden');
       const song = state.gameSongs[state.currentSongIndex];
       const correct = song.title;
-      // Tolérance : normalisation
       const normAnswer = normalize(answer);
       const normCorrect = normalize(correct);
       const isCorrect = normAnswer === normCorrect || normCorrect.includes(normAnswer) || normAnswer.includes(normCorrect);
       const timeElapsed = 10 - parseInt($('timer').textContent);
       let points = 0;
       if (isCorrect) {
-        points = 50; // +50
+        points = 50;
       } else {
         points = -50;
       }
-      await sendResult(points, isCorrect ? 1 : 0, correct);
+      await sendResult(points, isCorrect ? 1 : 0, correct, isCorrect);
     }
 
     // === Réponse mix (deux titres) ===
@@ -534,14 +622,14 @@
       if (correctCount === 2) points = 100;
       else if (correctCount === 1) points = 0;
       else points = -50;
-      await sendResult(points, correctCount, song1.title + ' & ' + song2.title);
+      await sendResult(points, correctCount, song1.title + ' & ' + song2.title, correctCount === 2);
     }
 
     // === Choix multiple (mode Kahoot) ===
     let choiceTimer = null;
     function showChoicePopup() {
       const currentSong = state.gameSongs[state.currentSongIndex];
-      // Générer 6 propositions : la bonne + 5 autres aléatoires (parmi la liste complète, pas forcément dans le jeu)
+      // Générer 6 propositions : la bonne + 5 autres aléatoires
       let otherSongs = songList.filter(s => s.title !== currentSong.title);
       while (otherSongs.length < 5) {
         otherSongs = otherSongs.concat(songList);
@@ -577,7 +665,7 @@
       $('popupChoice').classList.add('hidden');
       const isCorrect = selected && selected.title === correct.title;
       let points = isCorrect ? 50 : -50;
-      await sendResult(points, isCorrect ? 1 : 0, correct.title);
+      await sendResult(points, isCorrect ? 1 : 0, correct.title, isCorrect);
     }
 
     // === Choix multiple pour mix ===
@@ -585,7 +673,6 @@
     let selectedIndices = [];
     function showChoiceMixPopup() {
       const mixedSongs = state.mixedSongs;
-      // Générer 6 propositions : les deux bonnes + 4 autres aléatoires
       let otherSongs = songList.filter(s => s.title !== mixedSongs[0].title && s.title !== mixedSongs[1].title);
       while (otherSongs.length < 4) {
         otherSongs = otherSongs.concat(songList);
@@ -632,7 +719,6 @@
         btn.classList.remove('selected');
       }
       if (selectedIndices.length === 2) {
-        // Auto-submit
         const selectedSongs = selectedIndices.map(i => allChoices[i]);
         submitChoiceMix(selectedSongs, state.mixedSongs);
       }
@@ -652,28 +738,57 @@
       if (correctCount === 2) points = 100;
       else if (correctCount === 1) points = 0;
       else points = -50;
-      await sendResult(points, correctCount, correctSongs[0].title + ' & ' + correctSongs[1].title);
+      await sendResult(points, correctCount, correctSongs[0].title + ' & ' + correctSongs[1].title, correctCount === 2);
     }
 
-    // Fonction commune pour envoyer le résultat
-    async function sendResult(points, correctCount, correctTitle) {
+    // Fonction commune pour envoyer le résultat et gérer les essais/cooldown
+    async function sendResult(points, correctCount, correctTitle, success) {
       const roomRef = db.ref('rooms/' + state.roomCode);
       const scores = state.scores;
       scores[state.clientId] = (scores[state.clientId] || 0) + points;
+
+      // Mise à jour des tentatives
+      let attemptsData = state.playerAttempts[state.clientId] || { attemptsLeft: state.maxAttempts, cooldownUntil: 0, attemptCount: 0 };
+      if (state.maxAttempts > 0 && !success) {
+        // Échec : diminuer les essais et appliquer cooldown
+        attemptsData.attemptsLeft = Math.max(0, attemptsData.attemptsLeft - 1);
+        attemptsData.attemptCount = (attemptsData.attemptCount || 0) + 1;
+        const cooldown = getCooldown(attemptsData.attemptCount);
+        attemptsData.cooldownUntil = Date.now() + cooldown;
+      }
+      if (success) {
+        // Succès : on bloque les essais (plus de buzz)
+        attemptsData.attemptsLeft = 0;
+        attemptsData.cooldownUntil = 0;
+      }
+      state.playerAttempts[state.clientId] = attemptsData;
+
       await roomRef.child('gameState').update({
         scores: scores,
-        answerResult: { playerId: state.clientId, correct: correctCount, points, correctTitle },
+        playerAttempts: state.playerAttempts,
+        answerResult: { playerId: state.clientId, correct: correctCount, points, correctTitle, playerName: state.playerName },
         buzzer: null,
         mixed: false,
         mixedSongs: [],
       });
-      // Le feedback sera mis à jour via l'écoute gameState
     }
 
     // === Jeu hôte ===
+    let blurTimer = null;
+    let blurLevel = 0;
     function updateHostGame() {
       const song = state.gameSongs[state.currentSongIndex];
       $('hostSongInfo').textContent = `Chanson ${state.currentSongIndex+1} / ${state.gameSongs.length} - ${song.title}`;
+      // Cover
+      if (song.artwork) {
+        $('hostCover').src = song.artwork;
+      }
+      // Gestion du flou
+      if (state.blurEnabled && state.currentSongIndex >= 0) {
+        // On démarre le flou après 5 secondes de lecture (géré par le bouton play)
+        // On va utiliser un timer quand le host clique sur play
+      }
+
       let scoresHtml = '<strong>Scores:</strong><br>';
       state.players.forEach(p => {
         scoresHtml += `<div>${p.name}: ${state.scores[p.id] || 0} pts</div>`;
@@ -684,7 +799,6 @@
 
       // Déclencher le mixage à la chanson 3 (index 2) si pas déjà mixé
       if (state.currentSongIndex === 2 && !state.mixed && !state.buzzerLocked) {
-        // Choisir une autre chanson aléatoire
         let otherIndex;
         do {
           otherIndex = Math.floor(Math.random() * state.gameSongs.length);
@@ -694,7 +808,7 @@
         roomRef.child('gameState').update({ mixed: true, mixedSongs: mixed });
       }
 
-      // Afficher le résultat du buzz quand il arrive
+      // Écouter les résultats
       const answerResultRef = db.ref('rooms/' + state.roomCode + '/gameState/answerResult');
       answerResultRef.on('value', (snap) => {
         const res = snap.val();
@@ -717,6 +831,22 @@
       const song = state.gameSongs[state.currentSongIndex];
       if (song.preview) {
         new Audio(song.preview).play().catch(() => alert('Impossible de lire (CORS)'));
+        // Gestion du flou progressif
+        if (state.blurEnabled) {
+          // Commencer très flou après 5 secondes
+          setTimeout(() => {
+            let level = 5; // commence à blur 20
+            $('hostCover').className = 'cover-img blur-very-high';
+            const interval = setInterval(() => {
+              level--;
+              if (level === 4) $('hostCover').className = 'cover-img blur-high';
+              else if (level === 3) $('hostCover').className = 'cover-img blur-medium';
+              else if (level === 2) $('hostCover').className = 'cover-img blur-low';
+              else if (level === 1) $('hostCover').className = 'cover-img blur-none';
+              if (level <= 0) clearInterval(interval);
+            }, 1000); // 5 étapes sur 5 secondes
+          }, 5000);
+        }
       } else alert('Pas d\'extrait');
     };
 

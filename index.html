@@ -3,449 +3,86 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Blind Test · Multi-joueurs</title>
+  <title>Test Buzz & Mix</title>
   <style>
-    /* === DESIGN DARK ÉPURÉ === */
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: system-ui, -apple-system, sans-serif;
     }
-
     body {
-      background: linear-gradient(135deg, #0a0c0e 0%, #1a1d24 100%);
-      color: #eef2f5;
+      background: #0a0c0e;
+      color: #eee;
+      display: flex;
+      justify-content: center;
+      align-items: center;
       min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 1.5rem;
+      padding: 1rem;
     }
-
     #app {
-      max-width: 700px;
+      max-width: 600px;
       width: 100%;
-      background: linear-gradient(145deg, #15181c 0%, #1a1e24 100%);
-      border-radius: 2.5rem;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05);
-      padding: 2rem 1.8rem;
-      position: relative;
-      overflow: hidden;
+      background: #151a1f;
+      border-radius: 2rem;
+      padding: 1.8rem;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8);
     }
-
-    #app::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: linear-gradient(90deg, #b2f0e4, #a0d9ff, #d4a5ff);
-      opacity: 0.6;
-    }
-
-    #loading-screen {
-      text-align: center;
-      padding: 3rem;
-    }
-
-    #loading-screen h2 {
-      margin-bottom: 1rem;
-      color: #d4e2f2;
-    }
-
-    .spinner {
-      width: 50px;
-      height: 50px;
-      margin: 2rem auto;
-      border: 4px solid #2a3139;
-      border-top: 4px solid #5e9eff;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    h1 {
-      font-size: 2.2rem;
-      background: linear-gradient(145deg, #b2f0e4, #a0d9ff, #d4a5ff);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 1.5rem;
-      text-align: center;
-    }
-
-    h2 {
-      font-size: 1.6rem;
-      margin-bottom: 1.5rem;
-      color: #d4e2f2;
-    }
-
-    .phase {
-      display: none;
-    }
-    .phase.active {
-      display: block;
-    }
-
-    button, .btn-like {
-      background: linear-gradient(135deg, #3b6eff 0%, #5584ff 100%);
-      border: none;
-      border-radius: 60px;
-      padding: 0.85rem 1.4rem;
-      color: white;
-      font-weight: 600;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      transition: all 0.2s;
-      font-size: 1rem;
-    }
-    button:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(59,110,255,0.4);
-    }
-    button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    button:active:not(:disabled) {
-      transform: scale(0.96);
-    }
-
-    input[type="text"], input[type="number"] {
-      width: 100%;
-      background: #0f1317;
-      border: 1px solid #2f3b48;
-      border-radius: 60px;
-      padding: 0.85rem 1.2rem;
-      color: white;
-      font-size: 1rem;
-    }
-
-    .home-buttons {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      margin: 2rem 0;
-    }
-    .home-btn {
+    h1 { text-align: center; margin-bottom: 1.5rem; }
+    .phase { display: none; }
+    .phase.active { display: block; }
+    button, input {
       background: #1e2a36;
-      border: 2px solid #5e9eff;
+      border: 1px solid #3a4a5a;
       border-radius: 60px;
-      padding: 1.2rem;
-      font-size: 1.4rem;
-      font-weight: 700;
+      padding: 0.8rem 1.2rem;
       color: white;
-      text-align: center;
-      cursor: pointer;
-      transition: 0.2s;
-      user-select: none;
+      width: 100%;
+      margin: 0.5rem 0;
+      font-size: 1rem;
     }
-    .home-btn:hover {
-      background: #3b6eff;
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(59,110,255,0.4);
-    }
-
-    .config-group {
-      background: #1e2329;
-      border-radius: 1.5rem;
-      padding: 1.2rem;
-      margin-bottom: 1.5rem;
-      border: 1px solid #2a3139;
-    }
-    .config-title {
-      font-size: 1.1rem;
-      font-weight: 600;
-      margin-bottom: 1rem;
-      color: #d4e2f2;
-    }
-    .radio-group {
-      display: flex;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-    .radio-label {
-      background: #0f1419;
-      padding: 0.5rem 1.2rem;
-      border-radius: 60px;
-      border: 1px solid #2f3b48;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      cursor: pointer;
-    }
-    .checkbox-label {
-      background: #0f1419;
-      padding: 0.7rem 1.2rem;
-      border-radius: 60px;
-      border: 1px solid #2f3b48;
-      display: flex;
-      align-items: center;
-      gap: 0.8rem;
-      cursor: pointer;
-    }
-
+    button.primary { background: #3b6eff; }
     .room-code {
-      font-size: 2.8rem;
-      font-weight: 800;
-      letter-spacing: 0.5rem;
-      background: #0f1318;
+      font-size: 2.5rem;
+      font-weight: bold;
+      text-align: center;
+      background: #0f1a24;
       padding: 1rem;
       border-radius: 1.5rem;
-      color: #d4ffb0;
-      border: 2px solid #5e9eff;
-      text-align: center;
+      letter-spacing: 0.3rem;
       margin: 1rem 0;
     }
     .player-list {
-      background: #0f1419;
+      background: #0f1a24;
       border-radius: 1.5rem;
-      padding: 1.2rem;
-      margin: 1.5rem 0;
+      padding: 1rem;
+      margin: 1rem 0;
     }
     .player-tag {
-      display: inline-flex;
-      align-items: center;
-      background: #2a3743;
-      padding: 0.5rem 1.2rem;
+      display: inline-block;
+      background: #2a3a4a;
+      padding: 0.4rem 1rem;
       border-radius: 60px;
-      margin: 0.3rem;
-      gap: 0.5rem;
-    }
-    .avatar {
-      font-size: 1.2rem;
-    }
-
-    .player-lobby {
-      background: #1c2128;
-      border-radius: 2rem;
-      padding: 1.8rem;
-    }
-    .join-section {
-      background: #0f1419;
-      border-radius: 1.5rem;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-    }
-    .avatar-selector {
-      display: flex;
-      gap: 0.5rem;
-      margin-top: 0.5rem;
-      flex-wrap: wrap;
-    }
-    .avatar-option {
-      font-size: 2rem;
-      cursor: pointer;
-      padding: 0.3rem;
-      border-radius: 50%;
-      background: #1e2a36;
-      width: 3rem;
-      height: 3rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: 0.2s;
-    }
-    .avatar-option:hover {
-      transform: scale(1.1);
-    }
-    .avatar-option.selected {
-      background: #3b6eff;
-      box-shadow: 0 0 15px rgba(59,110,255,0.6);
-    }
-
-    .selection-header {
-      background: linear-gradient(135deg, #2d3748 0%, #1e2530 100%);
-      border-left: 6px solid #5e9eff;
-      padding: 1.2rem 1.6rem;
-      border-radius: 1.5rem;
-      margin-bottom: 1.8rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .search-container {
-      background: #1c2127;
-      border-radius: 1.8rem;
-      padding: 1.6rem;
-    }
-    .search-box {
-      display: flex;
-      gap: 0.8rem;
-    }
-    .search-box input {
-      flex: 1;
-    }
-    .results-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      margin-top: 1.5rem;
-      max-height: 400px;
-      overflow-y: auto;
-    }
-    .song-card {
-      display: flex;
-      align-items: center;
-      background: #1a1f25;
-      padding: 1rem;
-      border-radius: 1.2rem;
-      border: 2px solid #2d353e;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-    .song-card:hover:not(.selected) {
-      border-color: #5e9eff;
-      transform: translateX(5px);
-    }
-    .song-card img {
-      width: 64px;
-      height: 64px;
-      border-radius: 12px;
-      margin-right: 1.2rem;
-      object-fit: cover;
-    }
-    .song-card.selected {
-      border-color: #2f7740;
-      background: #1a2420;
-      opacity: 0.6;
-      pointer-events: none;
-    }
-    .song-info {
-      flex: 1;
-    }
-    .song-title {
-      font-weight: 600;
-      margin-bottom: 0.3rem;
-    }
-    .song-artist {
-      color: #8aaec0;
-      font-size: 0.9rem;
-    }
-
-    .waiting-room {
-      background: #1e2a36;
-      border-radius: 2rem;
-      padding: 2rem;
-      text-align: center;
-    }
-    .progress-list {
-      margin-top: 1.5rem;
-      text-align: left;
-      background: #0f1419;
-      border-radius: 1.5rem;
-      padding: 1.5rem;
-    }
-    .progress-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.8rem 0;
-      border-bottom: 1px solid #2a323a;
-    }
-    .progress-item:last-child {
-      border-bottom: none;
-    }
-
-    .game-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 2rem;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-    .play-btn {
-      background: linear-gradient(135deg, #5e9eff 0%, #2a5bbf 100%);
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      font-size: 2rem;
-      border: none;
-      color: white;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-    .play-btn:hover:not(:disabled) {
-      transform: scale(1.1);
-      box-shadow: 0 10px 30px rgba(59,110,255,0.6);
-    }
-    .reveal-btn {
-      background: linear-gradient(135deg, #2e3b4e, #1e2835);
-      border: 2px solid #3e4c5a;
-      padding: 0.9rem 2rem;
-      border-radius: 60px;
-    }
-    .answer-card {
-      margin: 2rem 0;
-      background: #1e262e;
-      padding: 1.8rem;
-      border-radius: 2rem;
-      display: flex;
-      align-items: center;
-      gap: 1.6rem;
-    }
-    .blur-cover { filter: blur(8px); }
-    .blur-text { filter: blur(4px); }
-
-    .scoreboard {
-      background: #0f1419;
-      border-radius: 1.8rem;
-      padding: 1.5rem;
-      margin: 2rem 0;
-    }
-    .score-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.8rem 0;
-      border-bottom: 1px solid #2a323a;
-    }
-    .score-row:last-child {
-      border-bottom: none;
-    }
-
-    .player-game {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2rem;
+      margin: 0.2rem;
     }
     .buzzer-btn {
       background: radial-gradient(circle at 30% 30%, #ff4d4d, #b30000);
       width: 200px;
       height: 200px;
       border-radius: 50%;
-      border: none;
+      margin: 2rem auto;
+      font-size: 2rem;
+      font-weight: bold;
       color: white;
-      font-size: 2.5rem;
-      font-weight: 900;
+      border: none;
       cursor: pointer;
-      box-shadow: 0 10px 30px rgba(255,0,0,0.5);
-      transition: 0.2s;
-    }
-    .buzzer-btn:hover:not(:disabled) {
-      transform: scale(1.05);
-      box-shadow: 0 15px 40px rgba(255,0,0,0.7);
-    }
-    .buzzer-btn:active:not(:disabled) {
-      transform: scale(0.95);
+      display: block;
     }
     .buzzer-btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
-      filter: grayscale(1);
     }
-    .answer-popup, .multiple-choice-popup {
+    .popup {
       position: fixed;
       top: 50%;
       left: 50%;
@@ -457,287 +94,128 @@
       width: 90%;
       max-width: 400px;
       z-index: 1000;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.9);
     }
+    .hidden { display: none !important; }
+    .flex { display: flex; gap: 1rem; }
     .choice-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(2,1fr);
       gap: 0.8rem;
-      margin-top: 1.5rem;
+      margin-top: 1rem;
     }
     .choice-btn {
-      background: #2a3743;
+      background: #2a3a4a;
       border: 2px solid #5e9eff;
       border-radius: 1rem;
-      padding: 1rem;
-      color: white;
-      font-weight: 600;
+      padding: 0.8rem;
       cursor: pointer;
-      transition: 0.2s;
-    }
-    .choice-btn:hover {
-      background: #3b6eff;
-      transform: scale(0.98);
-    }
-
-    .podium {
-      display: flex;
-      justify-content: center;
-      align-items: flex-end;
-      gap: 1.5rem;
-      margin: 2rem 0;
-      flex-wrap: wrap;
-    }
-    .podium-place {
-      background: #1b222a;
-      border-radius: 28px 28px 0 0;
-      padding: 1.8rem 1.2rem;
-      text-align: center;
-      min-width: 130px;
-    }
-    .first {
-      background: linear-gradient(135deg, #3a2e4a, #2e2441);
-      border-top: 8px solid #ffd966;
-      transform: scale(1.1);
-    }
-    .second {
-      border-top: 8px solid #c0c0c0;
-    }
-    .third {
-      border-top: 8px solid #cd7f32;
-    }
-
-    .hidden { display: none !important; }
-    .text-center { text-align: center; }
-    .loading {
-      text-align: center;
-      padding: 2rem;
-      color: #8aaec0;
     }
   </style>
 </head>
 <body>
 <div id="app">
-  <!-- Loading Screen -->
-  <div id="loading-screen">
-    <h2>🎵 Chargement...</h2>
-    <div class="spinner"></div>
-    <p style="color:#8aaec0;">Connexion à Firebase...</p>
+  <!-- Phase accueil -->
+  <div id="phase-home" class="phase active">
+    <h1>🎧 Test Buzz & Mix</h1>
+    <button id="btn-host" class="primary">🎮 Créer (hôte)</button>
+    <button id="btn-client">📱 Rejoindre (joueur)</button>
   </div>
 
-  <!-- Home -->
-  <div id="phase-home" class="phase">
-    <h1>🎧 BLIND TEST</h1>
-    <div class="home-buttons">
-      <div id="btn-host" class="home-btn">🎮 CRÉER (HÔTE)</div>
-      <div id="btn-client" class="home-btn">📱 REJOINDRE (JOUEUR)</div>
-    </div>
-  </div>
-
-  <!-- Config -->
+  <!-- Phase configuration (hôte) -->
   <div id="phase-config" class="phase">
-    <h2>⚙️ Configuration hôte</h2>
-    <div class="config-group">
-      <div class="config-title">🎮 Mode de jeu</div>
-      <div class="radio-group">
-        <label class="radio-label"><input type="radio" name="gameMode" value="classic"> Classique</label>
-        <label class="radio-label"><input type="radio" name="gameMode" value="speed" checked> ⚡ Rapidité</label>
-        <label class="radio-label"><input type="radio" name="gameMode" value="kahoot"> 🎮 Kahoot (choix multiple)</label>
-      </div>
-    </div>
-    <div class="config-group">
-      <div class="config-title">🎚️ Difficulté</div>
-      <div class="radio-group">
-        <label class="radio-label"><input type="radio" name="difficulty" value="normal" checked> Normal</label>
-        <label class="radio-label"><input type="radio" name="difficulty" value="hard"> Difficile</label>
-        <label class="radio-label"><input type="radio" name="difficulty" value="expert"> 🧠 Expert (effets sonores expérimentaux)</label>
-      </div>
-      <div style="margin-top:1rem;">
-        <label class="checkbox-label">
-          <input type="checkbox" id="blurCoverCheck"> 🎨 Flouter cover/artiste
-        </label>
-      </div>
-    </div>
-    <div class="config-group">
-      <div class="config-title">👥 Nombre de joueurs (hors hôte)</div>
-      <input type="number" id="player-count" min="1" max="8" value="2">
-      <p style="color:#ffaa33; margin-top:0.5rem; font-size:0.9rem;">Une fois ce nombre atteint, plus personne ne peut rejoindre.</p>
-    </div>
-    <div class="config-group">
-      <div class="config-title">🎵 Nombre total de chansons</div>
-      <input type="number" id="song-count" min="2" max="20" value="5">
-      <p style="color:#8aaec0; margin-top:0.5rem; font-size:0.9rem;">Chaque joueur choisira 1 chanson, l'hôte choisira le reste.</p>
-    </div>
-    <button id="start-btn" style="width:100%; padding:1.2rem;">🚀 Créer la partie</button>
+    <h2>Configuration</h2>
+    <label>Nombre de joueurs (hors hôte)</label>
+    <input type="number" id="player-count" min="1" max="4" value="1">
+    <button id="start-btn" class="primary">Créer la partie</button>
   </div>
 
-  <!-- Host Lobby -->
+  <!-- Lobby hôte -->
   <div id="phase-host-lobby" class="phase">
-    <h2>📱 Salon hôte</h2>
-    <div class="text-center">
-      <div style="color:#b0d4ff;">Code de la partie</div>
-      <div id="roomCodeDisplay" class="room-code"></div>
-      <button id="copyCodeBtn" style="margin:1rem 0;">📋 Copier le code</button>
-      <div class="player-list">
-        <div style="font-weight:700; margin-bottom:0.8rem;">👥 Joueurs connectés</div>
-        <div id="connectedPlayersList"></div>
-      </div>
-      <button id="startSelectionBtn" style="width:100%;" disabled>⏳ En attente...</button>
+    <h2>Salon hôte</h2>
+    <div class="room-code" id="roomCodeDisplay"></div>
+    <div class="player-list">
+      <div>Joueurs connectés :</div>
+      <div id="connectedPlayersList"></div>
     </div>
+    <button id="startGameBtn" disabled>⏳ En attente...</button>
   </div>
 
-  <!-- Player Lobby -->
+  <!-- Lobby joueur -->
   <div id="phase-player-lobby" class="phase">
-    <div class="player-lobby">
-      <h2>📱 Lobby joueur</h2>
-      <div id="joinSection" class="join-section">
-        <div style="margin-bottom:1rem;">
-          <label style="display:block; margin-bottom:0.5rem; font-weight:600;">Code de la partie:</label>
-          <input type="text" id="playerRoomCodeInput" placeholder="Ex: AB12" style="text-transform: uppercase;">
-        </div>
-        <div style="margin-bottom:1rem;">
-          <label style="display:block; margin-bottom:0.5rem; font-weight:600;">Ton pseudo:</label>
-          <input type="text" id="playerNameInput" value="" placeholder="Entre ton nom">
-        </div>
-        <div style="margin-bottom:1rem;">
-          <label style="display:block; margin-bottom:0.5rem; font-weight:600;">Choisis ton avatar:</label>
-          <div class="avatar-selector" id="avatarSelector">
-            <span class="avatar-option selected" data-avatar="🐶">🐶</span>
-            <span class="avatar-option" data-avatar="🐱">🐱</span>
-            <span class="avatar-option" data-avatar="🐼">🐼</span>
-            <span class="avatar-option" data-avatar="🦊">🦊</span>
-            <span class="avatar-option" data-avatar="🐸">🐸</span>
-            <span class="avatar-option" data-avatar="🦁">🦁</span>
-            <span class="avatar-option" data-avatar="🐯">🐯</span>
-            <span class="avatar-option" data-avatar="🐨">🐨</span>
-          </div>
-        </div>
-        <button id="playerJoinBtn" style="width:100%;">🚀 Rejoindre la partie</button>
-      </div>
-      <div id="connectedSection" class="hidden">
-        <div style="background:#0f1419; border-radius:1.5rem; padding:1rem; margin-bottom:1rem;">
-          <div style="font-weight:700;">Code salon: <span id="playerRoomCode"></span></div>
-        </div>
-        <div style="margin-top:2rem;">
-          <div style="font-weight:700; margin-bottom:1rem;">Autres joueurs:</div>
-          <div id="otherPlayersList"></div>
-        </div>
-        <div style="margin-top:2rem; color:#8aaec0; text-align:center;">
-          En attente que l'hôte commence la sélection...
-        </div>
-      </div>
-    </div>
+    <h2>Rejoindre</h2>
+    <input type="text" id="joinCode" placeholder="Code">
+    <input type="text" id="joinName" placeholder="Ton nom" value="Joueur">
+    <button id="joinBtn">Rejoindre</button>
+    <div id="playerLobbyStatus"></div>
   </div>
 
-  <!-- Host Selection -->
-  <div id="phase-host-selection" class="phase">
-    <div class="selection-header">
-      <span style="font-size:1.2rem;">🎤 Hôte : choisis tes chansons</span>
-      <span id="hostSelectionCounter" style="background:#3b6eff; padding:0.5rem 1.2rem; border-radius:60px;">0 / ?</span>
-    </div>
-    <div class="search-container">
-      <div class="search-box">
-        <input type="text" id="hostSearchInput" placeholder="Artiste ou titre...">
-        <button id="hostSearchBtn">🔍 Chercher</button>
-      </div>
-      <div id="hostErrorMsg"></div>
-      <div id="hostResults" class="results-grid"></div>
-    </div>
-  </div>
-
-  <!-- Player Selection -->
-  <div id="phase-player-selection" class="phase">
-    <div class="selection-header">
-      <span style="font-size:1.2rem;">🎵 Choisis ta chanson</span>
-      <span id="playerSelectionCounter" style="background:#3b6eff; padding:0.5rem 1.2rem; border-radius:60px;">0 / 1</span>
-    </div>
-    <div class="search-container">
-      <div class="search-box">
-        <input type="text" id="playerSearchInput" placeholder="Artiste ou titre...">
-        <button id="playerSearchBtn">🔍 Chercher</button>
-      </div>
-      <div id="playerErrorMsg"></div>
-      <div id="playerResults" class="results-grid"></div>
-    </div>
-  </div>
-
-  <!-- Waiting Selection -->
-  <div id="phase-waiting-selection" class="phase">
-    <div class="waiting-room">
-      <h2>⏳ En attente des autres...</h2>
-      <div id="waitingProgress" class="progress-list"></div>
-    </div>
-  </div>
-
-  <!-- Host Game -->
+  <!-- Jeu hôte -->
   <div id="phase-host-game" class="phase">
-    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">
-      <span style="background:#3b6eff; padding:0.3rem 1rem; border-radius:60px;">🎧 Hôte</span>
-    </div>
-    <div class="game-header">
-      <span id="hostSongCounter" style="background:#2f3842; padding:0.5rem 1.2rem; border-radius:60px;">🎧 1 / 5</span>
-      <button id="hostPlayBtn" class="play-btn">▶️</button>
-      <button id="hostRevealBtn" class="reveal-btn">🔎 Révéler</button>
-    </div>
-    <div id="hostAnswerCard" class="answer-card hidden">
-      <img id="hostAnswerImg" src="" alt="Cover">
-      <div>
-        <div id="hostAnswerTitle" style="font-weight:700; font-size:1.2rem;"></div>
-        <div id="hostAnswerArtist" style="color:#b0c4ce;"></div>
-      </div>
-    </div>
-    <div id="hostBuzzerInfo" style="background:#1e3f5a; padding:0.8rem; border-radius:60px; margin:1rem 0; text-align:center;" class="hidden"></div>
-    <div id="hostScoreboard" class="scoreboard"></div>
-    <button id="hostNextBtn" style="background:#6b43c0; width:100%; padding:1rem;" disabled>⏩ Chanson suivante</button>
+    <h2>Hôte - jeu</h2>
+    <div id="hostSongInfo">Chanson 1 / 3</div>
+    <button id="hostPlay">▶️ Jouer l'extrait</button>
+    <button id="hostMix" style="background:#ffaa33;">🔀 Mixer avec une autre</button>
+    <div id="hostBuzzerInfo" style="margin:1rem 0; padding:0.5rem; background:#1e3f5a; border-radius:60px;"></div>
+    <div id="hostScoreboard"></div>
+    <button id="hostNext" disabled>⏩ Suivant</button>
   </div>
 
-  <!-- Player Game -->
+  <!-- Jeu joueur -->
   <div id="phase-player-game" class="phase">
-    <div class="player-game">
-      <div style="font-size:1.5rem; margin-bottom:1rem; text-align:center;">
-        <div id="playerCurrentSong" style="margin-bottom:0.5rem;">🎵 Chanson 1 / 5</div>
-        <div id="playerScoreDisplay" style="color:#d4ffb0; font-size:2rem; font-weight:800;">0 pts</div>
-      </div>
-      <button id="playerBuzzer" class="buzzer-btn">JE SAIS !</button>
-      <div id="playerBuzzerFeedback" style="font-size:1.2rem; text-align:center; min-height:3rem;"></div>
-    </div>
-    <!-- Popup pour réponse écrite -->
-    <div id="answerPopup" class="answer-popup hidden">
-      <h3 style="text-align:center; margin-bottom:1rem;">✏️ Tape le titre</h3>
-      <input type="text" id="answerInput" placeholder="Titre exact" autofocus>
-      <div style="display:flex; gap:1rem; margin-top:1.5rem; align-items:center;">
-        <button id="submitAnswer" style="flex:1;">✅ Valider</button>
-        <span id="answerTimer" style="font-size:1.8rem; font-weight:700; color:#ffaa33; min-width:50px; text-align:center;">10</span>
-      </div>
-    </div>
-    <!-- Popup pour choix multiple (mode Kahoot) -->
-    <div id="multipleChoicePopup" class="multiple-choice-popup hidden">
-      <h3 style="text-align:center; margin-bottom:1rem;">🎯 Choisis la bonne chanson</h3>
-      <div id="choiceTimer" style="font-size:2rem; font-weight:700; color:#ffaa33; text-align:center; margin-bottom:1rem;">5</div>
-      <div id="choiceGrid" class="choice-grid"></div>
+    <h2>Joueur - en jeu</h2>
+    <div id="playerSongInfo"></div>
+    <button class="buzzer-btn" id="playerBuzzer">JE SAIS !</button>
+    <div id="playerFeedback"></div>
+  </div>
+
+  <!-- Popup réponse écrite simple -->
+  <div id="popupAnswer" class="popup hidden">
+    <h3>✏️ Tape le titre</h3>
+    <input type="text" id="answerInput" placeholder="Titre">
+    <div class="flex" style="margin-top:1rem;">
+      <button id="submitAnswer">Valider</button>
+      <span id="timer" style="font-size:2rem;">10</span>
     </div>
   </div>
 
-  <!-- Results -->
-  <div id="phase-results" class="phase">
-    <h2 class="text-center">🏆 PODIUM</h2>
-    <div id="podium" class="podium"></div>
-    <button id="restartBtn" style="width:100%; margin-top:2rem;">🔄 Nouvelle partie</button>
+  <!-- Popup réponse mix (deux titres) -->
+  <div id="popupMix" class="popup hidden">
+    <h3>🔀 Deux chansons</h3>
+    <p>Écris les deux titres :</p>
+    <input type="text" id="mixInput1" placeholder="Premier titre">
+    <input type="text" id="mixInput2" placeholder="Deuxième titre">
+    <div class="flex" style="margin-top:1rem;">
+      <button id="submitMix">Valider</button>
+      <span id="mixTimer" style="font-size:2rem;">15</span>
+    </div>
+  </div>
+
+  <!-- Popup choix multiple (mode Kahoot) - simple -->
+  <div id="popupChoice" class="popup hidden">
+    <h3>🎯 Choisis la chanson</h3>
+    <div id="choiceGrid" class="choice-grid"></div>
+    <div id="choiceTimer" style="text-align:center; font-size:2rem; margin-top:1rem;">5</div>
+  </div>
+
+  <!-- Popup choix multiple pour mix (deux choix) -->
+  <div id="popupChoiceMix" class="popup hidden">
+    <h3>🔀 Choisis les deux chansons</h3>
+    <p>Clique sur deux titres :</p>
+    <div id="choiceMixGrid" class="choice-grid"></div>
+    <div id="choiceMixTimer" style="text-align:center; font-size:2rem; margin-top:1rem;">15</div>
   </div>
 
   <canvas id="confetti" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; display:none;"></canvas>
 </div>
 
-<!-- Firebase SDK compat -->
+<!-- Firebase compat -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
 <script>
-  (function() {
+  (function(){
     "use strict";
-    console.log("🎮 Script chargé (compat)");
-
-    // ==================== CONFIGURATION FIREBASE ====================
+    // === Configuration Firebase (identique) ===
     const firebaseConfig = {
       apiKey: "AIzaSyBOEU9kg6YuXllGEGS9iod_SsBRu9NOPro",
       authDomain: "blind-test-kahoot.firebaseapp.com",
@@ -747,1077 +225,357 @@
       messagingSenderId: "798773649205",
       appId: "1:798773649205:web:de5dd5cbce41ea2ec5b67c"
     };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    console.log("Firebase prêt");
 
-    // ==================== INITIALISATION FIREBASE ====================
-    let app, db;
-    try {
-      app = firebase.initializeApp(firebaseConfig);
-      db = firebase.database();
-      console.log("✅ Firebase initialisé (compat)");
-    } catch (e) {
-      console.error("❌ Erreur Firebase:", e);
-      document.getElementById('loading-screen').innerHTML = `
-        <h2 style="color:#ff6666;">❌ Erreur Firebase</h2>
-        <p style="color:#ff9999; margin:1rem 0;">${e.message}</p>
-        <p style="color:#8aaec0;">Vérifie ta configuration Firebase.</p>
-        <button onclick="window.location.reload()" style="margin-top:2rem;">🔄 Recharger</button>
-      `;
-      return;
-    }
-
-    // ==================== ÉTAT GLOBAL ====================
-    const GameConfig = {
-      mode: 'speed',
-      difficulty: 'normal',
-      blurEnabled: false,
-      totalSongs: 5,
-      expectedPlayerCount: 2,
-      hostSongsCount: 0,
-    };
-
-    const LobbyState = {
+    // === État ===
+    const state = {
       roomCode: null,
       isHost: false,
       clientId: null,
       playerName: '',
-      playerAvatar: '🐶',
-      mySelectedSong: null,
-    };
-
-    const GameRound = {
+      players: [],
+      gameSongs: [
+        { title: "Billie Jean", artist: "Michael Jackson", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/8d/2f/35/8d2f359f-9b0a-4b3a-9e8a-7a3b0c1d2e3f/mzf_1234567890_aac_p.m4a" },
+        { title: "Shape of You", artist: "Ed Sheeran", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/1a/2b/3c/1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p/mzf_9876543210_aac_p.m4a" },
+        { title: "Uptown Funk", artist: "Bruno Mars", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/9a/8b/7c/9a8b7c6d-5e4f-3g2h-1i0j-9k8l7m6n5o4p/mzf_1122334455_aac_p.m4a" },
+        { title: "Blinding Lights", artist: "The Weeknd", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/2a/3b/4c/2a3b4c5d-6e7f-8g9h-0i1j-2k3l4m5n6o7p/mzf_5566778899_aac_p.m4a" },
+        { title: "Despacito", artist: "Luis Fonsi", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/5a/6b/7c/5a6b7c8d-9e0f-1g2h-3i4j-5k6l7m8n9o0p/mzf_9988776655_aac_p.m4a" }
+      ],
       currentSongIndex: 0,
-      audio: null,
+      currentSong: null,
+      mixed: false,
+      mixedSongs: [], // les deux chansons mixées
+      roundActive: false,
+      buzzerLocked: false,
+      scores: {},
     };
 
-    let roomRef = null;
-    let playersRef = null;
-    let gameStateRef = null;
-    let unsubscribeFunctions = [];
-
-    // ==================== DOM HELPERS ====================
+    // === DOM helpers ===
     const $ = id => document.getElementById(id);
     const phases = {
       home: $('phase-home'),
       config: $('phase-config'),
       hostLobby: $('phase-host-lobby'),
       playerLobby: $('phase-player-lobby'),
-      hostSelection: $('phase-host-selection'),
-      playerSelection: $('phase-player-selection'),
-      waitingSelection: $('phase-waiting-selection'),
       hostGame: $('phase-host-game'),
       playerGame: $('phase-player-game'),
-      results: $('phase-results'),
     };
-
     function showPhase(name) {
-      console.log("📄 Affichage phase:", name);
-      Object.values(phases).forEach(p => p?.classList.remove('active'));
-      if (phases[name]) phases[name].classList.add('active');
+      Object.values(phases).forEach(p => p.classList.remove('active'));
+      phases[name].classList.add('active');
     }
 
-    function escapeHTML(str) {
-      const div = document.createElement('div');
-      div.textContent = str;
-      return div.innerHTML;
+    // === Génération code ===
+    function generateCode() {
+      return Math.random().toString(36).substring(2,6).toUpperCase();
     }
 
-    function generateRoomCode() {
-      return Math.random().toString(36).substring(2, 6).toUpperCase();
-    }
+    // === Home ===
+    $('btn-host').onclick = () => showPhase('config');
+    $('btn-client').onclick = () => showPhase('playerLobby');
 
-    function generateClientId() {
-      return 'player_' + Math.random().toString(36).substring(2, 11);
-    }
-
-    // ==================== GESTION DE LA CONNEXION FIREBASE ====================
-    const loadingScreen = $('loading-screen');
-    const connectedRef = db.ref('.info/connected');
-    let connected = false;
-
-    const timeoutId = setTimeout(() => {
-      if (!connected) {
-        console.error("⏰ Timeout: connexion Firebase trop longue");
-        loadingScreen.innerHTML = `
-          <h2 style="color:#ff6666;">❌ Connexion impossible</h2>
-          <p style="color:#ff9999; margin:1rem 0;">Délai dépassé. Vérifie ta connexion internet et les règles de la base.</p>
-          <p style="color:#8aaec0;">Assure-toi que la base est en mode test :</p>
-          <pre style="background:#111; padding:1rem; border-radius:1rem; text-align:left;">{
-  "rules": {
-    ".read": true,
-    ".write": true
-  }
-}</pre>
-          <button onclick="window.location.reload()" style="margin-top:2rem;">🔄 Recharger</button>
-        `;
-      }
-    }, 10000);
-
-    connectedRef.on('value', (snap) => {
-      if (snap.val() === true) {
-        connected = true;
-        clearTimeout(timeoutId);
-        console.log("✅ Connecté à Firebase Realtime Database");
-        loadingScreen.style.display = 'none';
-        $('phase-home').classList.add('active');
-      }
-    }, (error) => {
-      clearTimeout(timeoutId);
-      console.error("❌ Erreur de connexion à la base:", error);
-      loadingScreen.innerHTML = `
-        <h2 style="color:#ff6666;">❌ Erreur de connexion</h2>
-        <p style="color:#ff9999; margin:1rem 0;">${error.message}</p>
-        <p style="color:#8aaec0;">Vérifie ta connexion internet et les règles de la base.</p>
-        <button onclick="window.location.reload()" style="margin-top:2rem;">🔄 Recharger</button>
-      `;
-    });
-
-    // ==================== HOME ====================
-    $('btn-host').onclick = () => {
-      console.log("🎮 Clic sur CRÉER (HÔTE)");
-      showPhase('config');
-    };
-
-    $('btn-client').onclick = () => {
-      console.log("📱 Clic sur REJOINDRE (JOUEUR)");
-      showPhase('playerLobby');
-    };
-
-    // ==================== CONFIGURATION HÔTE ====================
+    // === Création partie (hôte) ===
     $('start-btn').onclick = async () => {
-      console.log("🚀 Création de la partie");
-
-      const mode = document.querySelector('input[name="gameMode"]:checked')?.value || 'speed';
-      const difficulty = document.querySelector('input[name="difficulty"]:checked')?.value || 'normal';
-      const playerCount = parseInt($('player-count').value, 10);
-      const songCount = parseInt($('song-count').value, 10);
-
-      if (playerCount < 1 || playerCount > 8) {
-        alert('Le nombre de joueurs doit être entre 1 et 8');
-        return;
-      }
-
-      if (songCount < playerCount) {
-        alert(`Il faut au moins ${playerCount} chansons (1 par joueur)`);
-        return;
-      }
-
-      GameConfig.mode = mode;
-      GameConfig.difficulty = difficulty;
-      GameConfig.blurEnabled = $('blurCoverCheck').checked;
-      GameConfig.expectedPlayerCount = playerCount;
-      GameConfig.totalSongs = songCount;
-      GameConfig.hostSongsCount = songCount - playerCount;
-
-      LobbyState.roomCode = generateRoomCode();
-      LobbyState.isHost = true;
-      LobbyState.clientId = 'host';
-
+      const playerCount = parseInt($('player-count').value, 10) || 1;
+      state.roomCode = generateCode();
+      state.isHost = true;
+      state.clientId = 'host';
       try {
-        roomRef = db.ref('rooms/' + LobbyState.roomCode);
+        const roomRef = db.ref('rooms/' + state.roomCode);
         await roomRef.set({
-          config: {
-            mode: GameConfig.mode,
-            difficulty: GameConfig.difficulty,
-            blurEnabled: GameConfig.blurEnabled,
-            totalSongs: GameConfig.totalSongs,
-            expectedPlayerCount: GameConfig.expectedPlayerCount,
-            hostSongsCount: GameConfig.hostSongsCount,
-          },
-          createdAt: Date.now(),
-          status: 'lobby',
-          host: 'host',
           players: {},
-          selections: {},
           gameState: {
             currentSongIndex: 0,
-            songs: [],
+            songs: state.gameSongs,
             scores: {},
             buzzer: null,
-            answerResult: null,
-          }
+            mixed: false,
+            mixedSongs: [],
+          },
+          status: 'lobby',
+          createdAt: Date.now(),
         });
-
-        playersRef = roomRef.child('players');
-        gameStateRef = roomRef.child('gameState');
-
-        const callback = playersRef.on('value', updateConnectedPlayers);
-        unsubscribeFunctions.push(() => playersRef.off('value', callback));
-
-        $('roomCodeDisplay').textContent = LobbyState.roomCode;
+        // Écouter les joueurs
+        roomRef.child('players').on('value', (snap) => {
+          const players = snap.val() || {};
+          state.players = Object.entries(players).map(([id, p]) => ({ id, ...p }));
+          updateHostLobby();
+        });
+        // Écouter gameState
+        roomRef.child('gameState').on('value', (snap) => {
+          const gs = snap.val() || {};
+          state.currentSongIndex = gs.currentSongIndex || 0;
+          state.gameSongs = gs.songs || state.gameSongs;
+          state.scores = gs.scores || {};
+          state.mixed = gs.mixed || false;
+          state.mixedSongs = gs.mixedSongs || [];
+          state.buzzerLocked = !!gs.buzzer;
+          if (state.isHost) updateHostGame();
+        });
+        $('roomCodeDisplay').textContent = state.roomCode;
         showPhase('hostLobby');
-        console.log("✅ Partie créée:", LobbyState.roomCode);
-      } catch (error) {
-        console.error("❌ Erreur création partie:", error);
-        alert("Erreur lors de la création de la partie: " + error.message);
-      }
+      } catch(e) { alert('Erreur création: '+e.message); }
     };
 
-    // ==================== LOBBY HÔTE ====================
-    function updateConnectedPlayers(snapshot) {
-      const players = snapshot.val() || {};
-      const playerArray = Object.entries(players).map(([id, data]) => ({ id, ...data }));
-
-      const listDiv = $('connectedPlayersList');
-      if (playerArray.length === 0) {
-        listDiv.innerHTML = '<div style="color:#8aaec0; text-align:center; padding:1rem;">Aucun joueur connecté</div>';
+    function updateHostLobby() {
+      const list = $('connectedPlayersList');
+      list.innerHTML = state.players.map(p => `<span class="player-tag">${p.name}</span>`).join('');
+      const btn = $('startGameBtn');
+      if (state.players.length >= parseInt($('player-count').value)) {
+        btn.disabled = false;
+        btn.textContent = 'Démarrer le jeu';
+        btn.onclick = async () => {
+          const roomRef = db.ref('rooms/' + state.roomCode);
+          await roomRef.update({ status: 'game' });
+          showPhase('hostGame');
+          updateHostGame();
+        };
       } else {
-        listDiv.innerHTML = playerArray.map(p =>
-          `<span class="player-tag"><span class="avatar">${p.avatar}</span> ${escapeHTML(p.name)}</span>`
-        ).join('');
-      }
-
-      const startBtn = $('startSelectionBtn');
-      if (playerArray.length >= GameConfig.expectedPlayerCount) {
-        startBtn.disabled = false;
-        startBtn.textContent = '🎮 Lancer la sélection';
-        startBtn.onclick = startSelection;
-      } else {
-        startBtn.disabled = true;
-        startBtn.textContent = `⏳ En attente de ${GameConfig.expectedPlayerCount - playerArray.length} joueur(s)...`;
+        btn.disabled = true;
+        btn.textContent = `En attente de ${parseInt($('player-count').value) - state.players.length} joueur(s)`;
       }
     }
 
-    $('copyCodeBtn').onclick = () => {
-      navigator.clipboard.writeText(LobbyState.roomCode).then(() => {
-        $('copyCodeBtn').textContent = '✅ Copié !';
-        setTimeout(() => $('copyCodeBtn').textContent = '📋 Copier le code', 2000);
-      });
-    };
-
-    async function startSelection() {
-      await roomRef.update({ status: 'selection' });
-      showPhase('hostSelection');
-      initHostSelection();
-    }
-
-    // ==================== LOBBY JOUEUR ====================
-    document.querySelectorAll('.avatar-option').forEach(el => {
-      el.onclick = () => {
-        document.querySelectorAll('.avatar-option').forEach(e => e.classList.remove('selected'));
-        el.classList.add('selected');
-        LobbyState.playerAvatar = el.dataset.avatar;
-      };
-    });
-
-    $('playerJoinBtn').onclick = async () => {
-      console.log("🎮 Tentative de rejoindre");
-
-      const roomCode = $('playerRoomCodeInput').value.trim().toUpperCase();
-      const playerName = $('playerNameInput').value.trim();
-
-      if (!roomCode) {
-        alert('Entre un code de partie');
-        return;
-      }
-
-      if (!playerName) {
-        alert('Entre ton pseudo');
-        return;
-      }
-
-      LobbyState.roomCode = roomCode;
-      LobbyState.playerName = playerName;
-      LobbyState.clientId = generateClientId();
-
+    // === Rejoindre (joueur) ===
+    $('joinBtn').onclick = async () => {
+      const code = $('joinCode').value.trim().toUpperCase();
+      const name = $('joinName').value.trim() || 'Joueur';
+      if (!code) return alert('Entre un code');
+      state.roomCode = code;
+      state.playerName = name;
+      state.clientId = 'player_' + Date.now() + '_' + Math.random().toString(36).substring(2);
       try {
-        roomRef = db.ref('rooms/' + roomCode);
-        const snapshot = await roomRef.once('value');
-
-        if (!snapshot.exists()) {
-          alert('❌ Cette partie n\'existe pas');
-          return;
-        }
-
-        const roomData = snapshot.val();
-        if (roomData.status !== 'lobby') {
-          alert('❌ Cette partie a déjà commencé');
-          return;
-        }
-
-        // Vérifier le nombre de joueurs déjà connectés
-        const playersSnap = await roomRef.child('players').once('value');
-        const currentPlayers = playersSnap.val() || {};
-        if (Object.keys(currentPlayers).length >= roomData.config.expectedPlayerCount) {
-          alert('❌ Le nombre maximum de joueurs est atteint.');
-          return;
-        }
-
-        // Récupérer la config de la partie
-        if (roomData.config) {
-          GameConfig.mode = roomData.config.mode;
-          GameConfig.difficulty = roomData.config.difficulty;
-          GameConfig.blurEnabled = roomData.config.blurEnabled;
-          GameConfig.totalSongs = roomData.config.totalSongs;
-          GameConfig.expectedPlayerCount = roomData.config.expectedPlayerCount;
-          GameConfig.hostSongsCount = roomData.config.hostSongsCount;
-        }
-
-        playersRef = roomRef.child('players');
-        const playerRef = playersRef.child(LobbyState.clientId);
-        await playerRef.set({
-          name: playerName,
-          avatar: LobbyState.playerAvatar,
-          joinedAt: Date.now(),
-        });
-
-        const unsub1 = playersRef.on('value', updateOtherPlayers);
-        const unsub2 = roomRef.child('status').on('value', handleRoomStatusChange);
-        const unsub3 = roomRef.child('gameState').on('value', handleGameStateChange);
-        unsubscribeFunctions.push(
-          () => playersRef.off('value', unsub1),
-          () => roomRef.child('status').off('value', unsub2),
-          () => roomRef.child('gameState').off('value', unsub3)
-        );
-
-        $('playerRoomCode').textContent = roomCode;
-        $('joinSection').classList.add('hidden');
-        $('connectedSection').classList.remove('hidden');
-        console.log("✅ Connecté à la partie");
-      } catch (error) {
-        console.error("❌ Erreur connexion:", error);
-        alert("Erreur lors de la connexion: " + error.message);
-      }
-    };
-
-    function updateOtherPlayers(snapshot) {
-      const players = snapshot.val() || {};
-      const otherPlayers = Object.entries(players)
-        .filter(([id]) => id !== LobbyState.clientId)
-        .map(([id, data]) => ({ id, ...data }));
-
-      const listDiv = $('otherPlayersList');
-      if (otherPlayers.length === 0) {
-        listDiv.innerHTML = '<div style="color:#8aaec0; padding:0.5rem;">Tu es seul pour l\'instant...</div>';
-      } else {
-        listDiv.innerHTML = otherPlayers.map(p =>
-          `<div class="player-tag"><span class="avatar">${p.avatar}</span> ${escapeHTML(p.name)}</div>`
-        ).join('');
-      }
-    }
-
-    function handleRoomStatusChange(snapshot) {
-      const status = snapshot.val();
-      console.log("📊 Changement statut:", status);
-      if (status === 'selection') {
-        showPhase('playerSelection');
-        initPlayerSelection();
-      } else if (status === 'game') {
-        showPhase('playerGame');
-        initPlayerGame();
-      } else if (status === 'results') {
-        showPhase('results');
-        showResults();
-      }
-    }
-
-    function handleGameStateChange(snapshot) {
-      const gameState = snapshot.val();
-      if (!gameState) return;
-
-      if ($('playerCurrentSong')) {
-        $('playerCurrentSong').textContent = `🎵 Chanson ${gameState.currentSongIndex + 1} / ${gameState.songs?.length || 5}`;
-      }
-
-      if (gameState.scores && gameState.scores[LobbyState.clientId] !== undefined) {
-        if ($('playerScoreDisplay')) {
-          $('playerScoreDisplay').textContent = `${gameState.scores[LobbyState.clientId]} pts`;
-        }
-      }
-
-      // Gestion du buzzer
-      if (gameState.buzzer === LobbyState.clientId) {
-        // C'est moi qui ai buzzé
-        $('playerBuzzer').disabled = true;
-        const currentSong = gameState.songs[gameState.currentSongIndex];
-        // Vérifier si c'est ma propre chanson (interdiction)
-        if (LobbyState.mySelectedSong && LobbyState.mySelectedSong.title === currentSong.title) {
-          // Pénalité immédiate
-          handleOwnSongBuzz();
-        } else {
-          // Afficher la popup selon le mode
-          if (GameConfig.mode === 'kahoot') {
-            showMultipleChoicePopup(gameState);
-          } else {
-            showAnswerPopup();
+        const roomRef = db.ref('rooms/' + code);
+        const snap = await roomRef.once('value');
+        if (!snap.exists()) return alert('Partie introuvable');
+        const data = snap.val();
+        if (data.status !== 'lobby') return alert('Partie déjà commencée');
+        await roomRef.child('players/' + state.clientId).set({ name, joinedAt: Date.now() });
+        // Écouter les changements
+        roomRef.child('status').on('value', (snap) => {
+          if (snap.val() === 'game') {
+            showPhase('playerGame');
+            initPlayerGame();
           }
-        }
-      } else if (gameState.buzzer && $('playerBuzzer')) {
-        // Quelqu'un d'autre a buzzé
-        $('playerBuzzer').disabled = true;
-        $('playerBuzzerFeedback').textContent = '⏳ Quelqu\'un a buzzé...';
-      } else if (!gameState.buzzer && $('playerBuzzer')) {
-        // Réactiver le buzzer si aucun buzzer en cours
-        $('playerBuzzer').disabled = false;
-        $('playerBuzzerFeedback').textContent = '';
-      }
-    }
-
-    // ==================== RECHERCHE ITUNES ROBUSTE ====================
-    async function searchItunes(term) {
-      // Méthode 1 : proxy codetabs
-      try {
-        const url = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent('https://itunes.apple.com/search?term='+encodeURIComponent(term)+'&media=music&entity=song&limit=10')}`;
-        const res = await fetch(url);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.results) return data.results;
-        }
-      } catch (e) {
-        console.log('Proxy codetabs failed', e);
-      }
-
-      // Méthode 2 : JSONP
-      try {
-        const jsonp = await new Promise((resolve, reject) => {
-          const callbackName = 'itcallback_' + Date.now();
-          const script = document.createElement('script');
-          const timeout = setTimeout(() => {
-            reject('timeout');
-          }, 6000);
-          window[callbackName] = (data) => {
-            clearTimeout(timeout);
-            document.head.removeChild(script);
-            delete window[callbackName];
-            resolve(data.results || []);
-          };
-          script.onerror = () => {
-            clearTimeout(timeout);
-            document.head.removeChild(script);
-            delete window[callbackName];
-            reject('network');
-          };
-          script.src = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=10&callback=${callbackName}`;
-          document.head.appendChild(script);
         });
-        return jsonp;
-      } catch (e) {
-        console.log('JSONP failed', e);
-      }
-
-      // Méthode 3 : corsproxy.io
-      try {
-        const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=10`;
-        const proxy = `https://corsproxy.io/?${encodeURIComponent(itunesUrl)}`;
-        const res = await fetch(proxy);
-        if (res.ok) {
-          const data = await res.json();
-          return data.results || [];
-        }
-      } catch (e) {
-        console.log('corsproxy failed', e);
-      }
-
-      return [];
-    }
-
-    // ==================== SÉLECTION HÔTE ====================
-    let hostSelectedSongs = [];
-
-    function initHostSelection() {
-      hostSelectedSongs = [];
-      updateHostSelectionUI();
-    }
-
-    function updateHostSelectionUI() {
-      $('hostSelectionCounter').textContent = `${hostSelectedSongs.length} / ${GameConfig.hostSongsCount}`;
-      if (hostSelectedSongs.length >= GameConfig.hostSongsCount) {
-        finishHostSelection();
-      }
-    }
-
-    async function finishHostSelection() {
-      const selectionsRef = roomRef.child('selections/host');
-      await selectionsRef.set({
-        songs: hostSelectedSongs,
-        done: true,
-      });
-      showPhase('waitingSelection');
-      checkAllSelections();
-    }
-
-    $('hostSearchBtn').onclick = async () => {
-      const term = $('hostSearchInput').value.trim();
-      if (!term) return;
-      $('hostErrorMsg').innerHTML = '<div class="loading">🔎 Recherche...</div>';
-      $('hostResults').innerHTML = '';
-      const results = await searchItunes(term);
-      $('hostErrorMsg').innerHTML = '';
-      displayHostResults(results);
+        roomRef.child('gameState').on('value', (snap) => {
+          const gs = snap.val() || {};
+          state.currentSongIndex = gs.currentSongIndex || 0;
+          state.gameSongs = gs.songs || [];
+          state.scores = gs.scores || {};
+          state.mixed = gs.mixed || false;
+          state.mixedSongs = gs.mixedSongs || [];
+          if ($('playerSongInfo')) {
+            const song = state.gameSongs[state.currentSongIndex];
+            $('playerSongInfo').textContent = `Chanson ${state.currentSongIndex+1} / ${state.gameSongs.length}`;
+          }
+          if ($('playerScoreDisplay')) {
+            $('playerScoreDisplay').textContent = (state.scores[state.clientId] || 0) + ' pts';
+          }
+          // Gestion du buzzer
+          if (gs.buzzer === state.clientId) {
+            // C'est moi qui ai buzzé
+            $('playerBuzzer').disabled = true;
+            if (state.mixed) {
+              showMixPopup();
+            } else {
+              showAnswerPopup();
+            }
+          } else if (gs.buzzer) {
+            $('playerBuzzer').disabled = true;
+            $('playerFeedback').textContent = '⏳ Quelqu\'un a buzzé...';
+          } else {
+            $('playerBuzzer').disabled = false;
+            $('playerFeedback').textContent = '';
+          }
+        });
+        $('playerLobbyStatus').innerHTML = 'Connecté, attente du début...';
+      } catch(e) { alert('Erreur connexion: '+e.message); }
     };
 
-    $('hostSearchInput').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') $('hostSearchBtn').click();
-    });
-
-    function displayHostResults(results) {
-      const container = $('hostResults');
-      container.innerHTML = '';
-      if (!results || results.length === 0) {
-        container.innerHTML = '<div style="padding:2rem; text-align:center; color:#8aaec0;">Aucun résultat</div>';
-        return;
-      }
-      results.forEach(song => {
-        const isSelected = hostSelectedSongs.some(s => s.previewUrl === song.previewUrl);
-        const card = document.createElement('div');
-        card.className = 'song-card' + (isSelected ? ' selected' : '');
-        card.innerHTML = `
-          <img src="${song.artworkUrl100 || 'https://via.placeholder.com/64'}" alt="Cover">
-          <div class="song-info">
-            <div class="song-title">${escapeHTML(song.trackName || 'Sans titre')}</div>
-            <div class="song-artist">${escapeHTML(song.artistName || 'Artiste inconnu')}</div>
-          </div>
-          ${isSelected ? '<div style="color:#2f7740; font-weight:700;">✓</div>' : ''}
-        `;
-        if (!isSelected) {
-          card.onclick = () => selectHostSong(song);
-        }
-        container.appendChild(card);
-      });
-    }
-
-    function selectHostSong(song) {
-      if (hostSelectedSongs.length >= GameConfig.hostSongsCount) {
-        alert('Tu as déjà choisi toutes tes chansons');
-        return;
-      }
-      hostSelectedSongs.push({
-        title: song.trackName || 'Titre',
-        artist: song.artistName || 'Artiste',
-        artwork: song.artworkUrl100 || 'https://via.placeholder.com/100',
-        previewUrl: song.previewUrl || null,
-        selectedBy: 'host',
-      });
-      updateHostSelectionUI();
-      $('hostSearchBtn').click(); // rafraîchir les résultats
-    }
-
-    // ==================== SÉLECTION JOUEUR ====================
-    let playerSelectedSong = null;
-
-    function initPlayerSelection() {
-      playerSelectedSong = null;
-      updatePlayerSelectionUI();
-    }
-
-    function updatePlayerSelectionUI() {
-      $('playerSelectionCounter').textContent = playerSelectedSong ? '1 / 1' : '0 / 1';
-      if (playerSelectedSong) {
-        finishPlayerSelection();
-      }
-    }
-
-    async function finishPlayerSelection() {
-      const selectionsRef = roomRef.child('selections/' + LobbyState.clientId);
-      await selectionsRef.set({
-        songs: [playerSelectedSong],
-        done: true,
-      });
-      LobbyState.mySelectedSong = playerSelectedSong;
-      showPhase('waitingSelection');
-      watchSelectionProgress();
-    }
-
-    $('playerSearchBtn').onclick = async () => {
-      const term = $('playerSearchInput').value.trim();
-      if (!term) return;
-      $('playerErrorMsg').innerHTML = '<div class="loading">🔎 Recherche...</div>';
-      $('playerResults').innerHTML = '';
-      const results = await searchItunes(term);
-      $('playerErrorMsg').innerHTML = '';
-      displayPlayerResults(results);
-    };
-
-    $('playerSearchInput').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') $('playerSearchBtn').click();
-    });
-
-    function displayPlayerResults(results) {
-      const container = $('playerResults');
-      container.innerHTML = '';
-      if (!results || results.length === 0) {
-        container.innerHTML = '<div style="padding:2rem; text-align:center; color:#8aaec0;">Aucun résultat</div>';
-        return;
-      }
-      results.forEach(song => {
-        const isSelected = playerSelectedSong && playerSelectedSong.previewUrl === song.previewUrl;
-        const card = document.createElement('div');
-        card.className = 'song-card' + (isSelected ? ' selected' : '');
-        card.innerHTML = `
-          <img src="${song.artworkUrl100 || 'https://via.placeholder.com/64'}" alt="Cover">
-          <div class="song-info">
-            <div class="song-title">${escapeHTML(song.trackName || 'Sans titre')}</div>
-            <div class="song-artist">${escapeHTML(song.artistName || 'Artiste inconnu')}</div>
-          </div>
-          ${isSelected ? '<div style="color:#2f7740; font-weight:700;">✓</div>' : ''}
-        `;
-        if (!isSelected) {
-          card.onclick = () => selectPlayerSong(song);
-        }
-        container.appendChild(card);
-      });
-    }
-
-    function selectPlayerSong(song) {
-      if (playerSelectedSong) {
-        alert('Tu as déjà choisi ta chanson');
-        return;
-      }
-      playerSelectedSong = {
-        title: song.trackName || 'Titre',
-        artist: song.artistName || 'Artiste',
-        artwork: song.artworkUrl100 || 'https://via.placeholder.com/100',
-        previewUrl: song.previewUrl || null,
-        selectedBy: LobbyState.clientId,
-      };
-      updatePlayerSelectionUI();
-    }
-
-    // ==================== ATTENTE SÉLECTION ====================
-    async function checkAllSelections() {
-      const selectionsRef = roomRef.child('selections');
-      const callback = selectionsRef.on('value', async (snapshot) => {
-        const selections = snapshot.val() || {};
-        const playersSnapshot = await playersRef.once('value');
-        const playerIds = Object.keys(playersSnapshot.val() || {});
-        const allDone = selections.host?.done && playerIds.every(id => selections[id]?.done);
-        updateSelectionProgress(selections, playerIds);
-        if (allDone) {
-          selectionsRef.off('value', callback);
-          await compileAndStartGame(selections);
-        }
-      });
-      unsubscribeFunctions.push(() => selectionsRef.off('value', callback));
-    }
-
-    function watchSelectionProgress() {
-      const selectionsRef = roomRef.child('selections');
-      const callback = selectionsRef.on('value', async (snapshot) => {
-        const selections = snapshot.val() || {};
-        const playersSnapshot = await playersRef.once('value');
-        const playerIds = Object.keys(playersSnapshot.val() || {});
-        updateSelectionProgress(selections, playerIds);
-        if (selections.host?.done && playerIds.every(id => selections[id]?.done)) {
-          selectionsRef.off('value', callback);
-        }
-      });
-      unsubscribeFunctions.push(() => selectionsRef.off('value', callback));
-    }
-
-    async function updateSelectionProgress(selections, playerIds) {
-      const progressDiv = $('waitingProgress');
-      if (!progressDiv) return;
-      let html = '';
-      html += `<div class="progress-item"><span>🎤 Hôte</span><span>${selections.host?.done ? '✅' : '⏳'}</span></div>`;
-      const playersSnapshot = await playersRef.once('value');
-      const players = playersSnapshot.val() || {};
-      playerIds.forEach(id => {
-        const player = players[id];
-        if (player) {
-          html += `<div class="progress-item"><span>${player.avatar} ${escapeHTML(player.name)}</span><span>${selections[id]?.done ? '✅' : '⏳'}</span></div>`;
-        }
-      });
-      progressDiv.innerHTML = html;
-    }
-
-    async function compileAndStartGame(selections) {
-      const allSongs = [];
-      if (selections.host?.songs) {
-        allSongs.push(...selections.host.songs);
-      }
-      Object.entries(selections).forEach(([key, data]) => {
-        if (key !== 'host' && data.songs) {
-          allSongs.push(...data.songs);
-        }
-      });
-      shuffleArray(allSongs);
-      const playersSnapshot = await playersRef.once('value');
-      const players = playersSnapshot.val() || {};
-      const scores = {};
-      Object.keys(players).forEach(id => scores[id] = 0);
-      gameStateRef = roomRef.child('gameState');
-      await gameStateRef.set({
-        currentSongIndex: 0,
-        songs: allSongs,
-        scores: scores,
-        buzzer: null,
-        answerResult: null,
-      });
-      await roomRef.update({ status: 'game' });
-      if (LobbyState.isHost) {
-        showPhase('hostGame');
-        initHostGame(allSongs, scores);
-      }
-    }
-
-    function shuffleArray(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-    }
-
-    // ==================== JEU HÔTE ====================
-    let gameSongs = [];
-    let gameScores = {};
-
-    function initHostGame(songs, scores) {
-      gameSongs = songs;
-      gameScores = scores;
-      GameRound.currentSongIndex = 0;
-      renderHostRound();
-    }
-
-    function renderHostRound() {
-      $('hostSongCounter').textContent = `🎧 ${GameRound.currentSongIndex + 1} / ${gameSongs.length}`;
-      $('hostAnswerCard').classList.add('hidden');
-      $('hostBuzzerInfo').classList.add('hidden');
-      $('hostNextBtn').disabled = true;
-      updateHostScoreboard();
-      gameStateRef.update({ buzzer: null, answerResult: null });
-    }
-
-    async function updateHostScoreboard() {
-      const container = $('hostScoreboard');
-      container.innerHTML = '';
-      const playersSnapshot = await playersRef.once('value');
-      const players = playersSnapshot.val() || {};
-      const sortedPlayers = Object.entries(players)
-        .map(([id, data]) => ({ id, ...data, score: gameScores[id] || 0 }))
-        .sort((a, b) => b.score - a.score);
-      sortedPlayers.forEach(p => {
-        const row = document.createElement('div');
-        row.className = 'score-row';
-        row.innerHTML = `
-          <span>${p.avatar} ${escapeHTML(p.name)}</span>
-          <span style="font-weight:700; color:#d4ffb0;">${p.score} pts</span>
-        `;
-        container.appendChild(row);
-      });
-    }
-
-    // Lecture audio simple (pas d'effets complexes pour le moment)
-    $('hostPlayBtn').onclick = () => {
-      const song = gameSongs[GameRound.currentSongIndex];
-      if (!song.previewUrl) {
-        alert('Pas d\'extrait audio disponible');
-        return;
-      }
-      if (GameRound.audio) GameRound.audio.pause();
-      GameRound.audio = new Audio(song.previewUrl);
-      GameRound.audio.play().catch(err => {
-        console.error('Erreur audio:', err);
-        alert('Impossible de jouer l\'audio.');
-      });
-    };
-
-    $('hostRevealBtn').onclick = () => {
-      const song = gameSongs[GameRound.currentSongIndex];
-      $('hostAnswerImg').src = song.artwork;
-      $('hostAnswerTitle').textContent = song.title;
-      $('hostAnswerArtist').textContent = song.artist;
-      if (GameConfig.blurEnabled) {
-        $('hostAnswerImg').classList.add('blur-cover');
-        $('hostAnswerTitle').classList.add('blur-text');
-        $('hostAnswerArtist').classList.add('blur-text');
-        setTimeout(() => {
-          $('hostAnswerImg').classList.remove('blur-cover');
-          $('hostAnswerTitle').classList.remove('blur-text');
-          $('hostAnswerArtist').classList.remove('blur-text');
-        }, 2000);
-      }
-      $('hostAnswerCard').classList.remove('hidden');
-      $('hostNextBtn').disabled = false;
-    };
-
-    $('hostNextBtn').onclick = async () => {
-      if (GameRound.audio) GameRound.audio.pause();
-      if (GameRound.currentSongIndex + 1 < gameSongs.length) {
-        GameRound.currentSongIndex++;
-        await gameStateRef.update({ currentSongIndex: GameRound.currentSongIndex });
-        renderHostRound();
-      } else {
-        await roomRef.update({ status: 'results' });
-        showResults();
-      }
-    };
-
-    const buzzerRef = gameStateRef.child('buzzer');
-    const buzzerCallback = buzzerRef.on('value', handleBuzzer);
-    unsubscribeFunctions.push(() => buzzerRef.off('value', buzzerCallback));
-
-    async function handleBuzzer(snapshot) {
-      const buzzerId = snapshot.val();
-      if (!buzzerId || !LobbyState.isHost) return;
-      const playerSnapshot = await playersRef.child(buzzerId).once('value');
-      const player = playerSnapshot.val();
-      if (!player) return;
-
-      // Vérifier si le joueur a buzzé sur sa propre chanson
-      const currentSong = gameSongs[GameRound.currentSongIndex];
-      const selectionsSnapshot = await roomRef.child('selections').once('value');
-      const selections = selectionsSnapshot.val() || {};
-      const playerSelection = selections[buzzerId]?.songs?.[0];
-      if (playerSelection && playerSelection.title === currentSong.title) {
-        // Pénalité immédiate
-        gameScores[buzzerId] = Math.max(0, (gameScores[buzzerId] || 0) - 50);
-        await gameStateRef.update({ scores: gameScores });
-        updateHostScoreboard();
-        // Réinitialiser le buzzer pour permettre à d'autres de buzzer
-        await gameStateRef.update({ buzzer: null });
-        return;
-      }
-
-      $('hostBuzzerInfo').classList.remove('hidden');
-      $('hostBuzzerInfo').textContent = `⚡ ${player.name} a buzzé ! Attend sa réponse...`;
-      const answerRef = gameStateRef.child('answer');
-      const answerCallback = answerRef.on('value', handleAnswer);
-      unsubscribeFunctions.push(() => answerRef.off('value', answerCallback));
-    }
-
-    async function handleAnswer(snapshot) {
-      const answerData = snapshot.val();
-      if (!answerData || !LobbyState.isHost) return;
-      const song = gameSongs[GameRound.currentSongIndex];
-      const playerAnswer = answerData.answer.toLowerCase().trim();
-      const correctTitle = song.title.toLowerCase().trim();
-      // Tolérance large
-      const isCorrect = playerAnswer === correctTitle || correctTitle.includes(playerAnswer) || playerAnswer.includes(correctTitle);
-      let points = 0;
-      if (isCorrect) {
-        points = Math.max(100, 500 - (answerData.timeElapsed || 0) * 40);
-        gameScores[answerData.playerId] = (gameScores[answerData.playerId] || 0) + points;
-      } else {
-        points = -50;
-        gameScores[answerData.playerId] = Math.max(0, (gameScores[answerData.playerId] || 0) + points);
-      }
-      await gameStateRef.update({
-        scores: gameScores,
-        answerResult: {
-          playerId: answerData.playerId,
-          correct: isCorrect,
-          points: points,
-          correctTitle: song.title,
-        },
-        answer: null,
-      });
-      $('hostBuzzerInfo').textContent = isCorrect ?
-        `✅ Bonne réponse ! +${points} pts` :
-        `❌ Mauvaise réponse (c'était : ${song.title}) ${points} pts`;
-      updateHostScoreboard();
-      gameStateRef.child('answer').off('value');
-    }
-
-    // ==================== JEU JOUEUR ====================
     function initPlayerGame() {
-      GameRound.currentSongIndex = 0;
-      if ($('playerBuzzer')) $('playerBuzzer').disabled = false;
-      if ($('playerBuzzerFeedback')) $('playerBuzzerFeedback').textContent = '';
+      $('playerBuzzer').disabled = false;
+      $('playerFeedback').textContent = '';
     }
 
+    // === Bouton Je sais (joueur) ===
     $('playerBuzzer').onclick = async () => {
       if ($('playerBuzzer').disabled) return;
       $('playerBuzzer').disabled = true;
-      await gameStateRef.update({ buzzer: LobbyState.clientId });
+      const roomRef = db.ref('rooms/' + state.roomCode);
+      await roomRef.child('gameState/buzzer').set(state.clientId);
     };
 
-    async function handleOwnSongBuzz() {
-      const scoresSnap = await gameStateRef.child('scores').once('value');
-      const currentScores = scoresSnap.val() || {};
-      currentScores[LobbyState.clientId] = Math.max(0, (currentScores[LobbyState.clientId] || 0) - 50);
-      await gameStateRef.update({ scores: currentScores, buzzer: null });
-      $('playerBuzzerFeedback').innerHTML = '❌ Tu ne peux pas répondre à ta propre chanson ! -50 pts';
-    }
-
-    let answerTimerInterval = null;
-    let answerStartTime = 0;
-
+    // === Popup réponse simple ===
+    let answerTimer = null;
     function showAnswerPopup() {
-      $('answerPopup').classList.remove('hidden');
+      $('popupAnswer').classList.remove('hidden');
       $('answerInput').value = '';
       $('answerInput').focus();
-      answerStartTime = Date.now();
       let timeLeft = 10;
-      $('answerTimer').textContent = timeLeft;
-      if (answerTimerInterval) clearInterval(answerTimerInterval);
-      answerTimerInterval = setInterval(() => {
+      $('timer').textContent = timeLeft;
+      if (answerTimer) clearInterval(answerTimer);
+      answerTimer = setInterval(() => {
         timeLeft--;
-        $('answerTimer').textContent = timeLeft;
+        $('timer').textContent = timeLeft;
         if (timeLeft <= 0) {
-          clearInterval(answerTimerInterval);
-          submitAnswer();
+          clearInterval(answerTimer);
+          submitAnswer(''); // timeout
         }
       }, 1000);
     }
 
-    $('submitAnswer').onclick = submitAnswer;
-    $('answerInput').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') submitAnswer();
-    });
+    $('submitAnswer').onclick = () => {
+      const ans = $('answerInput').value.trim();
+      submitAnswer(ans);
+    };
 
-    async function submitAnswer() {
-      if (answerTimerInterval) clearInterval(answerTimerInterval);
-      const answer = $('answerInput').value.trim();
-      const timeElapsed = Math.floor((Date.now() - answerStartTime) / 1000);
-      await gameStateRef.update({
-        answer: {
-          playerId: LobbyState.clientId,
-          answer: answer || '(vide)',
-          timeElapsed: timeElapsed,
-        }
-      });
-      $('answerPopup').classList.add('hidden');
-      $('playerBuzzerFeedback').textContent = '⏳ Vérification...';
-      const answerResultRef = gameStateRef.child('answerResult');
-      const resultCallback = answerResultRef.on('value', showAnswerResult);
-      unsubscribeFunctions.push(() => answerResultRef.off('value', resultCallback));
-    }
-
-    function showAnswerResult(snapshot) {
-      const result = snapshot.val();
-      if (!result || result.playerId !== LobbyState.clientId) return;
-      if (result.correct) {
-        $('playerBuzzerFeedback').innerHTML = `✅ Bonne réponse !<br>+${result.points} pts`;
-      } else {
-        $('playerBuzzerFeedback').innerHTML = `❌ Mauvaise réponse<br>C'était : ${result.correctTitle}<br>${result.points} pts`;
-      }
-      gameStateRef.child('answerResult').off('value');
-    }
-
-    // Mode Kahoot : choix multiple
-    async function showMultipleChoicePopup(gameState) {
-      const currentSong = gameState.songs[gameState.currentSongIndex];
-      // Générer 6 propositions : la bonne + 5 autres chansons aléatoires du jeu (sauf la bonne)
-      let otherSongs = gameState.songs.filter(s => s.title !== currentSong.title);
-      while (otherSongs.length < 5) {
-        otherSongs = otherSongs.concat(otherSongs);
-      }
-      shuffleArray(otherSongs);
-      const choices = [currentSong, ...otherSongs.slice(0, 5)];
-      shuffleArray(choices);
-
-      const popup = $('multipleChoicePopup');
-      const grid = $('choiceGrid');
-      grid.innerHTML = '';
-      choices.forEach((song, index) => {
-        const btn = document.createElement('button');
-        btn.className = 'choice-btn';
-        btn.textContent = `${index+1}. ${song.title}`;
-        btn.onclick = () => handleChoice(song, currentSong);
-        grid.appendChild(btn);
-      });
-
-      popup.classList.remove('hidden');
-      let timeLeft = 5;
-      $('choiceTimer').textContent = timeLeft;
-      const timerInterval = setInterval(() => {
-        timeLeft--;
-        $('choiceTimer').textContent = timeLeft;
-        if (timeLeft <= 0) {
-          clearInterval(timerInterval);
-          handleChoice(null, currentSong);
-        }
-      }, 1000);
-      window.choiceTimer = timerInterval;
-    }
-
-    async function handleChoice(selectedSong, correctSong) {
-      if (window.choiceTimer) clearInterval(window.choiceTimer);
-      $('multipleChoicePopup').classList.add('hidden');
-      const isCorrect = selectedSong && selectedSong.title === correctSong.title;
+    async function submitAnswer(answer) {
+      if (answerTimer) clearInterval(answerTimer);
+      $('popupAnswer').classList.add('hidden');
+      const roomRef = db.ref('rooms/' + state.roomCode);
+      const song = state.gameSongs[state.currentSongIndex];
+      const correct = song.title.toLowerCase().trim();
+      const isCorrect = answer.toLowerCase().includes(correct) || correct.includes(answer.toLowerCase());
+      const timeElapsed = 10 - parseInt($('timer').textContent);
       let points = 0;
       if (isCorrect) {
-        points = 500;
+        points = Math.max(100, 500 - timeElapsed * 40);
       } else {
         points = -50;
       }
-      const scoresSnap = await gameStateRef.child('scores').once('value');
-      const scores = scoresSnap.val() || {};
-      scores[LobbyState.clientId] = (scores[LobbyState.clientId] || 0) + points;
-      await gameStateRef.update({ scores, buzzer: null, answerResult: { playerId: LobbyState.clientId, correct: isCorrect, points } });
-      if (isCorrect) {
-        $('playerBuzzerFeedback').innerHTML = `✅ Bonne réponse ! +${points} pts`;
-      } else {
-        $('playerBuzzerFeedback').innerHTML = `❌ Mauvaise réponse ! ${points} pts`;
-      }
-    }
-
-    // ==================== RÉSULTATS ====================
-    async function showResults() {
-      const playersSnapshot = await playersRef.once('value');
-      const players = playersSnapshot.val() || {};
-      const gameStateSnapshot = await gameStateRef.once('value');
-      const gameState = gameStateSnapshot.val();
-      const scores = gameState?.scores || {};
-      const sortedPlayers = Object.entries(players)
-        .map(([id, data]) => ({ id, ...data, score: scores[id] || 0 }))
-        .sort((a, b) => b.score - a.score);
-      const podiumDiv = $('podium');
-      podiumDiv.innerHTML = '';
-      const medals = ['🥇', '🥈', '🥉'];
-      const classes = ['first', 'second', 'third'];
-      sortedPlayers.slice(0, 3).forEach((p, i) => {
-        const div = document.createElement('div');
-        div.className = `podium-place ${classes[i] || ''}`;
-        div.innerHTML = `
-          <div style="font-size:2.5rem;">${medals[i]}</div>
-          <div style="font-weight:700; margin:0.5rem 0; font-size:1.2rem;">${p.avatar} ${escapeHTML(p.name)}</div>
-          <div style="font-size:1.5rem; color:#d4ffb0;">${p.score} pts</div>
-        `;
-        podiumDiv.appendChild(div);
+      const scores = state.scores;
+      scores[state.clientId] = (scores[state.clientId] || 0) + points;
+      await roomRef.child('gameState').update({
+        scores: scores,
+        answerResult: { playerId: state.clientId, correct: isCorrect, points, correctTitle: song.title },
+        buzzer: null,
       });
-      launchConfetti();
+      $('playerFeedback').innerHTML = isCorrect ? `✅ +${points}` : `❌ -50 (c'était ${song.title})`;
     }
 
-    $('restartBtn').onclick = () => {
-      if (LobbyState.isHost && roomRef) {
-        roomRef.remove();
-      }
-      window.location.reload();
+    // === Popup mix (deux titres) ===
+    let mixTimer = null;
+    function showMixPopup() {
+      $('popupMix').classList.remove('hidden');
+      $('mixInput1').value = '';
+      $('mixInput2').value = '';
+      $('mixInput1').focus();
+      let timeLeft = 15;
+      $('mixTimer').textContent = timeLeft;
+      if (mixTimer) clearInterval(mixTimer);
+      mixTimer = setInterval(() => {
+        timeLeft--;
+        $('mixTimer').textContent = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(mixTimer);
+          submitMix('', '');
+        }
+      }, 1000);
+    }
+
+    $('submitMix').onclick = () => {
+      const ans1 = $('mixInput1').value.trim();
+      const ans2 = $('mixInput2').value.trim();
+      submitMix(ans1, ans2);
     };
 
-    // ==================== CONFETTIS ====================
-    let confettiActive = false;
-    function launchConfetti() {
-      const canvas = $('confetti');
-      canvas.style.display = 'block';
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      const ctx = canvas.getContext('2d');
-      const particles = [];
-      for (let i = 0; i < 150; i++) {
-        particles.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height * -0.5,
-          size: Math.random() * 8 + 4,
-          speedY: Math.random() * 5 + 3,
-          speedX: Math.random() * 3 - 1.5,
-          color: `hsl(${Math.random() * 360}, 80%, 60%)`
-        });
-      }
-      confettiActive = true;
-      function animate() {
-        if (!confettiActive) return;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        particles.forEach(p => {
-          ctx.fillStyle = p.color;
-          ctx.fillRect(p.x, p.y, p.size, p.size * 0.6);
-          p.y += p.speedY * 0.5;
-          p.x += p.speedX * 0.3;
-          if (p.y > canvas.height) {
-            p.y = -20;
-            p.x = Math.random() * canvas.width;
-          }
-        });
-        requestAnimationFrame(animate);
-      }
-      animate();
-      setTimeout(() => {
-        confettiActive = false;
-        canvas.style.display = 'none';
-      }, 8000);
+    async function submitMix(ans1, ans2) {
+      if (mixTimer) clearInterval(mixTimer);
+      $('popupMix').classList.add('hidden');
+      const song1 = state.mixedSongs[0];
+      const song2 = state.mixedSongs[1];
+      const correct1 = song1.title.toLowerCase().trim();
+      const correct2 = song2.title.toLowerCase().trim();
+      const a1 = ans1.toLowerCase();
+      const a2 = ans2.toLowerCase();
+      const ok1 = a1.includes(correct1) || correct1.includes(a1);
+      const ok2 = a2.includes(correct2) || correct2.includes(a2);
+      let correctCount = (ok1?1:0) + (ok2?1:0);
+      let points = 0;
+      if (correctCount === 2) points = 100;
+      else if (correctCount === 1) points = 0;
+      else points = -50;
+      const scores = state.scores;
+      scores[state.clientId] = (scores[state.clientId] || 0) + points;
+      const roomRef = db.ref('rooms/' + state.roomCode);
+      await roomRef.child('gameState').update({
+        scores: scores,
+        answerResult: { playerId: state.clientId, correct: correctCount, points },
+        buzzer: null,
+        mixed: false,
+        mixedSongs: [],
+      });
+      $('playerFeedback').innerHTML = points > 0 ? `✅ +${points}` : (points === 0 ? `🟰 0 pt` : `❌ -50`);
     }
 
-    console.log("✅ Tout est prêt !");
+    // === Jeu hôte ===
+    function updateHostGame() {
+      const song = state.gameSongs[state.currentSongIndex];
+      $('hostSongInfo').textContent = `Chanson ${state.currentSongIndex+1} / ${state.gameSongs.length} - ${song.title}`;
+      let scoresHtml = '';
+      state.players.forEach(p => {
+        scoresHtml += `<div>${p.name}: ${state.scores[p.id] || 0} pts</div>`;
+      });
+      $('hostScoreboard').innerHTML = scoresHtml;
+      $('hostBuzzerInfo').textContent = state.buzzerLocked ? '🔒 Buzz en cours' : '';
+      $('hostNext').disabled = state.buzzerLocked;
+    }
+
+    $('hostPlay').onclick = () => {
+      const song = state.gameSongs[state.currentSongIndex];
+      if (song.preview) {
+        new Audio(song.preview).play().catch(() => alert('Impossible de lire'));
+      } else alert('Pas d\'extrait');
+    };
+
+    $('hostMix').onclick = async () => {
+      if (state.gameSongs.length < 2) return alert('Pas assez de chansons');
+      // Choisir une autre chanson aléatoire (pas la courante)
+      let otherIndex;
+      do {
+        otherIndex = Math.floor(Math.random() * state.gameSongs.length);
+      } while (otherIndex === state.currentSongIndex);
+      const mixed = [state.gameSongs[state.currentSongIndex], state.gameSongs[otherIndex]];
+      const roomRef = db.ref('rooms/' + state.roomCode);
+      await roomRef.child('gameState').update({
+        mixed: true,
+        mixedSongs: mixed,
+      });
+    };
+
+    $('hostNext').onclick = async () => {
+      if (state.currentSongIndex + 1 < state.gameSongs.length) {
+        const next = state.currentSongIndex + 1;
+        const roomRef = db.ref('rooms/' + state.roomCode);
+        await roomRef.child('gameState').update({
+          currentSongIndex: next,
+          buzzer: null,
+          mixed: false,
+          mixedSongs: [],
+        });
+      } else {
+        alert('Fin du jeu');
+      }
+    };
+
+    // Écouter buzzer pour hôte
+    function listenBuzzer() {
+      const roomRef = db.ref('rooms/' + state.roomCode);
+      roomRef.child('gameState/buzzer').on('value', (snap) => {
+        const buzzerId = snap.val();
+        if (buzzerId && state.isHost) {
+          $('hostBuzzerInfo').textContent = `🔔 Joueur a buzzé !`;
+          // On pourrait afficher le nom du joueur
+          const player = state.players.find(p => p.id === buzzerId);
+          if (player) $('hostBuzzerInfo').textContent = `🔔 ${player.name} a buzzé !`;
+        }
+      });
+    }
+    // À appeler après création de partie
+    setTimeout(() => { if (state.roomCode) listenBuzzer(); }, 1000);
   })();
 </script>
 </body>

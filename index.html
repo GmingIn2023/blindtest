@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Test Buzz & Mix · Complet</title>
+  <title>Blind Test · Buzz & Mix</title>
   <style>
     * {
       margin: 0;
@@ -145,28 +145,18 @@
       object-fit: cover;
       transition: filter 0.1s linear;
     }
-    .blur-very-high {
-      filter: blur(20px);
-    }
-    .blur-high {
-      filter: blur(15px);
-    }
-    .blur-medium {
-      filter: blur(10px);
-    }
-    .blur-low {
-      filter: blur(5px);
-    }
-    .blur-none {
-      filter: blur(0);
-    }
+    .blur-very-high { filter: blur(20px); }
+    .blur-high { filter: blur(15px); }
+    .blur-medium { filter: blur(10px); }
+    .blur-low { filter: blur(5px); }
+    .blur-none { filter: blur(0); }
   </style>
 </head>
 <body>
 <div id="app">
   <!-- Phase accueil -->
   <div id="phase-home" class="phase active">
-    <h1>🎧 Test Buzz & Mix</h1>
+    <h1>🎧 Blind Test · Buzz & Mix</h1>
     <button id="btn-host" class="primary">🎮 Créer (hôte)</button>
     <button id="btn-client">📱 Rejoindre (joueur)</button>
   </div>
@@ -180,7 +170,7 @@
       <option value="expert">Expert (écrire, tolérance)</option>
       <option value="kahoot">Kahoot (choix multiple)</option>
     </select>
-    <label>Nombre d'essais max par joueur (0 = illimité)</label>
+    <label>Nombre d'essais max par joueur par round (0 = illimité)</label>
     <input type="number" id="max-attempts" min="0" max="10" value="3">
     <label>Flouter la cover ?</label>
     <input type="checkbox" id="blur-check"> Oui, flou progressif
@@ -291,16 +281,16 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Liste de chansons avec vraies previews iTunes (via proxy)
+    // Liste de chansons avec extraits SoundHelix (libres de droits) et covers placeholder
     const songList = [
-      { title: "Billie Jean", artist: "Michael Jackson", preview: "https://corsproxy.io/?https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/8d/2f/35/8d2f359f-9b0a-4b3a-9e8a-7a3b0c1d2e3f/mzf_1234567890_aac_p.m4a", artwork: "https://is5-ssl.mzstatic.com/image/thumb/Music125/v4/9b/4a/3c/9b4a3c5d-6e7f-8g9h-0i1j-2k3l4m5n6o7p/cover.jpg/100x100bb.jpg" },
-      { title: "Shape of You", artist: "Ed Sheeran", preview: "https://corsproxy.io/?https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/1a/2b/3c/1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p/mzf_9876543210_aac_p.m4a", artwork: "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/2a/3b/4c/2a3b4c5d-6e7f-8g9h-0i1j-2k3l4m5n6o7p/cover.jpg/100x100bb.jpg" },
-      { title: "Uptown Funk", artist: "Bruno Mars", preview: "https://corsproxy.io/?https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/9a/8b/7c/9a8b7c6d-5e4f-3g2h-1i0j-9k8l7m6n5o4p/mzf_1122334455_aac_p.m4a", artwork: "https://is3-ssl.mzstatic.com/image/thumb/Music125/v4/3a/4b/5c/3a4b5c6d-7e8f-9g0h-1i2j-3k4l5m6n7o8p/cover.jpg/100x100bb.jpg" },
-      { title: "Blinding Lights", artist: "The Weeknd", preview: "https://corsproxy.io/?https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/2a/3b/4c/2a3b4c5d-6e7f-8g9h-0i1j-2k3l4m5n6o7p/mzf_5566778899_aac_p.m4a", artwork: "https://is5-ssl.mzstatic.com/image/thumb/Music125/v4/4a/5b/6c/4a5b6c7d-8e9f-0g1h-2i3j-4k5l6m7n8o9p/cover.jpg/100x100bb.jpg" },
-      { title: "Despacito", artist: "Luis Fonsi", preview: "https://corsproxy.io/?https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/5a/6b/7c/5a6b7c8d-9e0f-1g2h-3i4j-5k6l7m8n9o0p/mzf_9988776655_aac_p.m4a", artwork: "https://is2-ssl.mzstatic.com/image/thumb/Music115/v4/5a/6b/7c/5a6b7c8d-9e0f-1g2h-3i4j-5k6l7m8n9o0p/cover.jpg/100x100bb.jpg" },
-      { title: "Rolling in the Deep", artist: "Adele", preview: "https://corsproxy.io/?https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/6a/7b/8c/6a7b8c9d-0e1f-2g3h-4i5j-6k7l8m9n0o1p/mzf_1122334455_aac_p.m4a", artwork: "https://is4-ssl.mzstatic.com/image/thumb/Music125/v4/6a/7b/8c/6a7b8c9d-0e1f-2g3h-4i5j-6k7l8m9n0o1p/cover.jpg/100x100bb.jpg" },
-      { title: "Happy", artist: "Pharrell Williams", preview: "https://corsproxy.io/?https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/7a/8b/9c/7a8b9c0d-1e2f-3g4h-5i6j-7k8l9m0n1o2p/mzf_2233445566_aac_p.m4a", artwork: "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/7a/8b/9c/7a8b9c0d-1e2f-3g4h-5i6j-7k8l9m0n1o2p/cover.jpg/100x100bb.jpg" },
-      { title: "Shake It Off", artist: "Taylor Swift", preview: "https://corsproxy.io/?https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/8a/9b/0c/8a9b0c1d-2e3f-4g5h-6i7j-8k9l0m1n2o3p/mzf_3344556677_aac_p.m4a", artwork: "https://is3-ssl.mzstatic.com/image/thumb/Music115/v4/8a/9b/0c/8a9b0c1d-2e3f-4g5h-6i7j-8k9l0m1n2o3p/cover.jpg/100x100bb.jpg" }
+      { title: "Billie Jean", artist: "Michael Jackson", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", artwork: "https://via.placeholder.com/150/1e2a36/5e9eff?text=🎵" },
+      { title: "Shape of You", artist: "Ed Sheeran", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", artwork: "https://via.placeholder.com/150/1e2a36/5e9eff?text=🎵" },
+      { title: "Uptown Funk", artist: "Bruno Mars", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3", artwork: "https://via.placeholder.com/150/1e2a36/5e9eff?text=🎵" },
+      { title: "Blinding Lights", artist: "The Weeknd", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3", artwork: "https://via.placeholder.com/150/1e2a36/5e9eff?text=🎵" },
+      { title: "Despacito", artist: "Luis Fonsi", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3", artwork: "https://via.placeholder.com/150/1e2a36/5e9eff?text=🎵" },
+      { title: "Rolling in the Deep", artist: "Adele", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3", artwork: "https://via.placeholder.com/150/1e2a36/5e9eff?text=🎵" },
+      { title: "Happy", artist: "Pharrell Williams", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3", artwork: "https://via.placeholder.com/150/1e2a36/5e9eff?text=🎵" },
+      { title: "Shake It Off", artist: "Taylor Swift", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3", artwork: "https://via.placeholder.com/150/1e2a36/5e9eff?text=🎵" }
     ];
 
     // État global
@@ -310,7 +300,7 @@
       clientId: null,
       playerName: '',
       players: [],
-      gameSongs: songList.slice(0, 5), // on prend 5 chansons
+      gameSongs: songList.slice(0, 5),
       currentSongIndex: 0,
       currentSong: null,
       mixed: false,
@@ -319,7 +309,7 @@
       maxAttempts: 3,
       blurEnabled: false,
       scores: {},
-      playerAttempts: {}, // stocke les tentatives restantes par joueur (id: { attemptsLeft, cooldownUntil, lastAttemptTime })
+      playerAttempts: {}, // stocké dans Firebase pour chaque round
       buzzerLocked: false,
     };
 
@@ -342,15 +332,14 @@
       return Math.random().toString(36).substring(2,6).toUpperCase();
     }
 
-    // Normalisation pour tolérance
+    // Normalisation pour tolérance (enlève accents, caractères spéciaux)
     function normalize(str) {
       return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
     }
 
-    // Cooldown exponentiel
+    // Cooldown exponentiel (3s,5s,7s,...)
     function getCooldown(attemptNumber) {
-      // attemptNumber commence à 1 pour le premier essai après un échec
-      return 3000 + (attemptNumber - 1) * 2000; // 3s, 5s, 7s, ...
+      return 3000 + (attemptNumber - 1) * 2000;
     }
 
     // === Accueil ===
@@ -377,7 +366,7 @@
             currentSongIndex: 0,
             songs: state.gameSongs,
             scores: {},
-            playerAttempts: {},
+            playerAttempts: {}, // réinitialisé à chaque round
             buzzer: null,
             mixed: false,
             mixedSongs: [],
@@ -424,6 +413,8 @@
         btn.textContent = 'Démarrer le jeu';
         btn.onclick = async () => {
           const roomRef = db.ref('rooms/' + state.roomCode);
+          // Réinitialiser les tentatives pour le premier round
+          await roomRef.child('gameState/playerAttempts').set({});
           await roomRef.update({ status: 'game' });
           showPhase('hostGame');
           updateHostGame();
@@ -488,7 +479,6 @@
       else attemptsText = attemptsData.attemptsLeft;
       $('playerAttempts').innerHTML = `Essais restants: ${attemptsText}`;
 
-      // Vérifier si le joueur est en cooldown
       const now = Date.now();
       if (attemptsData.cooldownUntil && now < attemptsData.cooldownUntil) {
         $('playerBuzzer').disabled = true;
@@ -507,7 +497,6 @@
         $('playerBuzzer').disabled = true;
         $('playerFeedback').innerHTML = '⏳ Quelqu\'un a buzzé...';
       } else {
-        // Peut-il buzzer ? (vérifier attemptsLeft)
         if (state.maxAttempts > 0 && attemptsData.attemptsLeft <= 0) {
           $('playerBuzzer').disabled = true;
           $('playerFeedback').innerHTML = '❌ Plus d\'essais';
@@ -521,7 +510,6 @@
     // === Bouton Je sais ===
     $('playerBuzzer').onclick = async () => {
       if ($('playerBuzzer').disabled) return;
-      // Vérifier le cooldown et les essais
       const now = Date.now();
       const attemptsData = state.playerAttempts[state.clientId] || { attemptsLeft: state.maxAttempts, cooldownUntil: 0, attemptCount: 0 };
       if (state.maxAttempts > 0 && attemptsData.attemptsLeft <= 0) {
@@ -629,7 +617,6 @@
     let choiceTimer = null;
     function showChoicePopup() {
       const currentSong = state.gameSongs[state.currentSongIndex];
-      // Générer 6 propositions : la bonne + 5 autres aléatoires
       let otherSongs = songList.filter(s => s.title !== currentSong.title);
       while (otherSongs.length < 5) {
         otherSongs = otherSongs.concat(songList);
@@ -747,17 +734,14 @@
       const scores = state.scores;
       scores[state.clientId] = (scores[state.clientId] || 0) + points;
 
-      // Mise à jour des tentatives
       let attemptsData = state.playerAttempts[state.clientId] || { attemptsLeft: state.maxAttempts, cooldownUntil: 0, attemptCount: 0 };
       if (state.maxAttempts > 0 && !success) {
-        // Échec : diminuer les essais et appliquer cooldown
         attemptsData.attemptsLeft = Math.max(0, attemptsData.attemptsLeft - 1);
         attemptsData.attemptCount = (attemptsData.attemptCount || 0) + 1;
         const cooldown = getCooldown(attemptsData.attemptCount);
         attemptsData.cooldownUntil = Date.now() + cooldown;
       }
       if (success) {
-        // Succès : on bloque les essais (plus de buzz)
         attemptsData.attemptsLeft = 0;
         attemptsData.cooldownUntil = 0;
       }
@@ -775,19 +759,16 @@
 
     // === Jeu hôte ===
     let blurTimer = null;
-    let blurLevel = 0;
+    let blurInterval = null;
     function updateHostGame() {
       const song = state.gameSongs[state.currentSongIndex];
       $('hostSongInfo').textContent = `Chanson ${state.currentSongIndex+1} / ${state.gameSongs.length} - ${song.title}`;
-      // Cover
       if (song.artwork) {
         $('hostCover').src = song.artwork;
       }
-      // Gestion du flou
-      if (state.blurEnabled && state.currentSongIndex >= 0) {
-        // On démarre le flou après 5 secondes de lecture (géré par le bouton play)
-        // On va utiliser un timer quand le host clique sur play
-      }
+      // Réinitialiser le flou quand on change de chanson
+      if (blurInterval) clearInterval(blurInterval);
+      $('hostCover').className = 'cover-img blur-none';
 
       let scoresHtml = '<strong>Scores:</strong><br>';
       state.players.forEach(p => {
@@ -831,20 +812,21 @@
       const song = state.gameSongs[state.currentSongIndex];
       if (song.preview) {
         new Audio(song.preview).play().catch(() => alert('Impossible de lire (CORS)'));
-        // Gestion du flou progressif
+        // Gestion du flou progressif si activé
         if (state.blurEnabled) {
-          // Commencer très flou après 5 secondes
+          // Commencer après 5 secondes
+          if (blurInterval) clearInterval(blurInterval);
           setTimeout(() => {
-            let level = 5; // commence à blur 20
+            let level = 5;
             $('hostCover').className = 'cover-img blur-very-high';
-            const interval = setInterval(() => {
+            blurInterval = setInterval(() => {
               level--;
               if (level === 4) $('hostCover').className = 'cover-img blur-high';
               else if (level === 3) $('hostCover').className = 'cover-img blur-medium';
               else if (level === 2) $('hostCover').className = 'cover-img blur-low';
               else if (level === 1) $('hostCover').className = 'cover-img blur-none';
-              if (level <= 0) clearInterval(interval);
-            }, 1000); // 5 étapes sur 5 secondes
+              if (level <= 0) clearInterval(blurInterval);
+            }, 1000);
           }, 5000);
         }
       } else alert('Pas d\'extrait');
@@ -854,11 +836,13 @@
       if (state.currentSongIndex + 1 < state.gameSongs.length) {
         const next = state.currentSongIndex + 1;
         const roomRef = db.ref('rooms/' + state.roomCode);
+        // Réinitialiser les tentatives pour le nouveau round
         await roomRef.child('gameState').update({
           currentSongIndex: next,
           buzzer: null,
           mixed: false,
           mixedSongs: [],
+          playerAttempts: {}, // remet à zéro les essais pour tous les joueurs
         });
       } else {
         alert('Fin du jeu');

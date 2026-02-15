@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Blind Test · Buzz & Mix</title>
+  <title>Test Buzz & Mix · V3</title>
   <style>
     * {
       margin: 0;
@@ -98,32 +98,12 @@
     }
     .hidden { display: none !important; }
     .flex { display: flex; gap: 1rem; align-items: center; }
-    .choice-grid {
-      display: grid;
-      grid-template-columns: repeat(2,1fr);
-      gap: 0.8rem;
-      margin-top: 1rem;
-    }
-    .choice-btn {
-      background: #2a3a4a;
-      border: 2px solid #5e9eff;
-      border-radius: 1rem;
-      padding: 0.8rem;
-      cursor: pointer;
-      text-align: center;
-    }
-    .choice-btn:hover {
-      background: #3b6eff;
-    }
-    .choice-btn.selected {
-      background: #3b6eff;
-      border-color: white;
-    }
-    .timer {
-      font-size: 2rem;
+    .timer-big {
+      font-size: 2.5rem;
       font-weight: bold;
       color: #ffaa33;
       text-align: center;
+      font-family: monospace;
     }
     .notification {
       background: #1e3f5a;
@@ -150,13 +130,17 @@
     .blur-medium { filter: blur(10px); }
     .blur-low { filter: blur(5px); }
     .blur-none { filter: blur(0); }
+    .cooldown-timer {
+      font-size: 1.2rem;
+      color: #ffaa33;
+    }
   </style>
 </head>
 <body>
 <div id="app">
   <!-- Phase accueil -->
   <div id="phase-home" class="phase active">
-    <h1>🎧 Blind Test · Buzz & Mix</h1>
+    <h1>🎧 Test Buzz & Mix</h1>
     <button id="btn-host" class="primary">🎮 Créer (hôte)</button>
     <button id="btn-client">📱 Rejoindre (joueur)</button>
   </div>
@@ -167,13 +151,12 @@
     <label>Mode de jeu</label>
     <select id="game-mode">
       <option value="normal">Normal (écrire titre)</option>
-      <option value="expert">Expert (écrire, tolérance)</option>
       <option value="kahoot">Kahoot (choix multiple)</option>
     </select>
     <label>Nombre d'essais max par joueur par round (0 = illimité)</label>
     <input type="number" id="max-attempts" min="0" max="10" value="3">
     <label>Flouter la cover ?</label>
-    <input type="checkbox" id="blur-check"> Oui, flou progressif
+    <input type="checkbox" id="blur-check" checked>
     <label>Nombre de joueurs (hors hôte)</label>
     <input type="number" id="player-count" min="1" max="4" value="1">
     <button id="start-btn" class="primary">Créer la partie</button>
@@ -201,9 +184,10 @@
 
   <!-- Jeu hôte -->
   <div id="phase-host-game" class="phase">
-    <h2>Hôte - jeu</h2>
+    <h2>Hôte</h2>
     <div id="hostSongInfo" style="font-size:1.2rem; margin:1rem 0;"></div>
-    <button id="hostPlay">▶️ Jouer l'extrait</button>
+    <button id="hostPlay" class="primary">▶️ Jouer l'extrait</button>
+    <div class="timer-big" id="hostTimer">00:00.0</div>
     <div class="cover-container">
       <img id="hostCover" class="cover-img blur-none" src="" alt="cover">
     </div>
@@ -214,48 +198,38 @@
 
   <!-- Jeu joueur -->
   <div id="phase-player-game" class="phase">
-    <h2>Joueur</h2>
+    <h2 id="playerNameHeader">Joueur</h2>
     <div id="playerSongInfo" style="text-align:center; margin:1rem 0;"></div>
+    <div class="timer-big" id="playerTimer">00:00.0</div>
     <div id="playerScore" style="font-size:1.5rem; text-align:center; color:#d4ffb0;">0 pts</div>
     <div id="playerAttempts" style="text-align:center;">Essais restants: ∞</div>
+    <div id="cooldownDisplay" class="cooldown-timer" style="text-align:center;"></div>
     <button class="buzzer-btn" id="playerBuzzer">JE SAIS !</button>
     <div id="playerFeedback" style="text-align:center;"></div>
   </div>
 
-  <!-- Popup réponse écrite simple -->
+  <!-- Popup réponse écrite (mode normal) -->
   <div id="popupAnswer" class="popup hidden">
     <h3>✏️ Tape le titre</h3>
     <input type="text" id="answerInput" placeholder="Titre">
     <div class="flex" style="margin-top:1rem;">
       <button id="submitAnswer">Valider</button>
-      <span id="timer" class="timer">10</span>
-    </div>
-  </div>
-
-  <!-- Popup réponse mix (deux titres) -->
-  <div id="popupMix" class="popup hidden">
-    <h3>🔀 Deux chansons</h3>
-    <p>Écris les deux titres :</p>
-    <input type="text" id="mixInput1" placeholder="Premier titre">
-    <input type="text" id="mixInput2" placeholder="Deuxième titre">
-    <div class="flex" style="margin-top:1rem;">
-      <button id="submitMix">Valider</button>
-      <span id="mixTimer" class="timer">15</span>
+      <span id="timer" class="timer-big" style="font-size:1.8rem;">10</span>
     </div>
   </div>
 
   <!-- Popup choix multiple (mode Kahoot) -->
   <div id="popupChoice" class="popup hidden">
     <h3>🎯 Choisis la chanson</h3>
-    <div id="choiceGrid" class="choice-grid"></div>
-    <div id="choiceTimer" class="timer" style="margin-top:1rem;">5</div>
+    <div id="choiceGrid" class="choice-grid" style="display:grid; grid-template-columns:repeat(2,1fr); gap:0.5rem;"></div>
+    <div id="choiceTimer" class="timer-big" style="margin-top:1rem;">5</div>
   </div>
 
-  <!-- Popup choix multiple pour mix (deux choix) -->
-  <div id="popupChoiceMix" class="popup hidden">
-    <h3>🔀 Choisis les deux chansons</h3>
-    <div id="choiceMixGrid" class="choice-grid"></div>
-    <div id="choiceMixTimer" class="timer" style="margin-top:1rem;">15</div>
+  <!-- Popup de résultat (Bravo / Faux) -->
+  <div id="popupResult" class="popup hidden">
+    <h3 id="resultTitle"></h3>
+    <p id="resultMessage"></p>
+    <button id="closeResult">OK</button>
   </div>
 
   <canvas id="confetti" style="display:none;"></canvas>
@@ -281,16 +255,13 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Liste de chansons avec extraits SoundHelix (libres de droits) et covers placeholder
+    // Liste de chansons avec artworks (via placeholder pour éviter CORS)
     const songList = [
-      { title: "Billie Jean", artist: "Michael Jackson", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", artwork: "https://via.placeholder.com/150/1e2a36/5e9eff?text=🎵" },
-      { title: "Shape of You", artist: "Ed Sheeran", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", artwork: "https://via.placeholder.com/150/1e2a36/5e9eff?text=🎵" },
-      { title: "Uptown Funk", artist: "Bruno Mars", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3", artwork: "https://via.placeholder.com/150/1e2a36/5e9eff?text=🎵" },
-      { title: "Blinding Lights", artist: "The Weeknd", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3", artwork: "https://via.placeholder.com/150/1e2a36/5e9eff?text=🎵" },
-      { title: "Despacito", artist: "Luis Fonsi", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3", artwork: "https://via.placeholder.com/150/1e2a36/5e9eff?text=🎵" },
-      { title: "Rolling in the Deep", artist: "Adele", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3", artwork: "https://via.placeholder.com/150/1e2a36/5e9eff?text=🎵" },
-      { title: "Happy", artist: "Pharrell Williams", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3", artwork: "https://via.placeholder.com/150/1e2a36/5e9eff?text=🎵" },
-      { title: "Shake It Off", artist: "Taylor Swift", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3", artwork: "https://via.placeholder.com/150/1e2a36/5e9eff?text=🎵" }
+      { title: "Billie Jean", artist: "Michael Jackson", artwork: "https://via.placeholder.com/150/1e2a36/ffffff?text=🎵" },
+      { title: "Shape of You", artist: "Ed Sheeran", artwork: "https://via.placeholder.com/150/2a3b4c/ffffff?text=🎵" },
+      { title: "Uptown Funk", artist: "Bruno Mars", artwork: "https://via.placeholder.com/150/3c4d5e/ffffff?text=🎵" },
+      { title: "Blinding Lights", artist: "The Weeknd", artwork: "https://via.placeholder.com/150/4e5f6g/ffffff?text=🎵" },
+      { title: "Despacito", artist: "Luis Fonsi", artwork: "https://via.placeholder.com/150/5f6g7h/ffffff?text=🎵" }
     ];
 
     // État global
@@ -300,17 +271,17 @@
       clientId: null,
       playerName: '',
       players: [],
-      gameSongs: songList.slice(0, 5),
+      gameSongs: songList,
       currentSongIndex: 0,
-      currentSong: null,
-      mixed: false,
-      mixedSongs: [],
       mode: 'normal',
       maxAttempts: 3,
       blurEnabled: false,
       scores: {},
-      playerAttempts: {}, // stocké dans Firebase pour chaque round
+      playerAttempts: {}, // { id: { attemptsLeft, cooldownUntil, attemptCount } }
       buzzerLocked: false,
+      roundStartTime: 0,
+      roundTimerInterval: null,
+      roundActive: false,
     };
 
     // DOM helpers
@@ -332,14 +303,23 @@
       return Math.random().toString(36).substring(2,6).toUpperCase();
     }
 
-    // Normalisation pour tolérance (enlève accents, caractères spéciaux)
+    // Normalisation pour tolérance
     function normalize(str) {
       return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
     }
 
-    // Cooldown exponentiel (3s,5s,7s,...)
-    function getCooldown(attemptNumber) {
-      return 3000 + (attemptNumber - 1) * 2000;
+    // Cooldown exponentiel: 3s, 5s, 7s, ...
+    function getCooldown(attemptCount) {
+      return 3000 + (attemptCount - 1) * 2000;
+    }
+
+    // Formatage du timer (minutes:secondes.dixièmes)
+    function formatTimer(ms) {
+      let seconds = Math.floor(ms / 1000);
+      let tenth = Math.floor((ms % 1000) / 100);
+      let minutes = Math.floor(seconds / 60);
+      seconds = seconds % 60;
+      return `${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}.${tenth}`;
     }
 
     // === Accueil ===
@@ -366,13 +346,13 @@
             currentSongIndex: 0,
             songs: state.gameSongs,
             scores: {},
-            playerAttempts: {}, // réinitialisé à chaque round
+            playerAttempts: {},
             buzzer: null,
-            mixed: false,
-            mixedSongs: [],
             mode: state.mode,
             maxAttempts: state.maxAttempts,
             blurEnabled: state.blurEnabled,
+            roundStartTime: 0,
+            roundActive: false,
           },
           status: 'lobby',
           createdAt: Date.now(),
@@ -390,13 +370,14 @@
           state.gameSongs = gs.songs || state.gameSongs;
           state.scores = gs.scores || {};
           state.playerAttempts = gs.playerAttempts || {};
-          state.mixed = gs.mixed || false;
-          state.mixedSongs = gs.mixedSongs || [];
           state.buzzerLocked = !!gs.buzzer;
           state.mode = gs.mode || 'normal';
           state.maxAttempts = gs.maxAttempts || 0;
           state.blurEnabled = gs.blurEnabled || false;
+          state.roundStartTime = gs.roundStartTime || 0;
+          state.roundActive = gs.roundActive || false;
           if (state.isHost) updateHostGame();
+          if (!state.isHost) updatePlayerGame(gs);
         });
         $('roomCodeDisplay').textContent = state.roomCode;
         showPhase('hostLobby');
@@ -413,8 +394,6 @@
         btn.textContent = 'Démarrer le jeu';
         btn.onclick = async () => {
           const roomRef = db.ref('rooms/' + state.roomCode);
-          // Réinitialiser les tentatives pour le premier round
-          await roomRef.child('gameState/playerAttempts').set({});
           await roomRef.update({ status: 'game' });
           showPhase('hostGame');
           updateHostGame();
@@ -444,7 +423,7 @@
         roomRef.child('status').on('value', (snap) => {
           if (snap.val() === 'game') {
             showPhase('playerGame');
-            initPlayerGame();
+            $('playerNameHeader').textContent = state.playerName;
           }
         });
         roomRef.child('gameState').on('value', (snap) => {
@@ -453,80 +432,103 @@
           state.gameSongs = gs.songs || [];
           state.scores = gs.scores || {};
           state.playerAttempts = gs.playerAttempts || {};
-          state.mixed = gs.mixed || false;
-          state.mixedSongs = gs.mixedSongs || [];
           state.mode = gs.mode || 'normal';
           state.maxAttempts = gs.maxAttempts || 0;
           state.blurEnabled = gs.blurEnabled || false;
-          updatePlayerUI(gs);
+          state.roundStartTime = gs.roundStartTime || 0;
+          state.roundActive = gs.roundActive || false;
+          state.buzzerLocked = !!gs.buzzer;
+          updatePlayerGame(gs);
         });
         $('playerLobbyStatus').innerHTML = 'Connecté, attente du début...';
       } catch(e) { alert('Erreur connexion: '+e.message); }
     };
 
-    function initPlayerGame() {
-      $('playerBuzzer').disabled = false;
-      $('playerFeedback').innerHTML = '';
-    }
-
-    function updatePlayerUI(gs) {
+    // === Mise à jour interface joueur ===
+    function updatePlayerGame(gs) {
       const song = state.gameSongs[state.currentSongIndex];
       $('playerSongInfo').textContent = `Chanson ${state.currentSongIndex+1} / ${state.gameSongs.length}`;
       $('playerScore').textContent = (state.scores[state.clientId] || 0) + ' pts';
+
+      // Gestion des essais et cooldown
       const attemptsData = state.playerAttempts[state.clientId] || { attemptsLeft: state.maxAttempts, cooldownUntil: 0, attemptCount: 0 };
-      let attemptsText = '';
-      if (state.maxAttempts === 0) attemptsText = '∞';
-      else attemptsText = attemptsData.attemptsLeft;
+      let attemptsText = state.maxAttempts === 0 ? '∞' : attemptsData.attemptsLeft;
       $('playerAttempts').innerHTML = `Essais restants: ${attemptsText}`;
 
       const now = Date.now();
       if (attemptsData.cooldownUntil && now < attemptsData.cooldownUntil) {
-        $('playerBuzzer').disabled = true;
-        const wait = Math.ceil((attemptsData.cooldownUntil - now)/1000);
-        $('playerFeedback').innerHTML = `⏳ Cooldown: ${wait}s`;
-      } else if (gs.buzzer === state.clientId) {
-        $('playerBuzzer').disabled = true;
-        if (state.mixed) {
-          if (state.mode === 'kahoot') showChoiceMixPopup();
-          else showMixPopup();
-        } else {
-          if (state.mode === 'kahoot') showChoicePopup();
-          else showAnswerPopup();
+        const remaining = Math.ceil((attemptsData.cooldownUntil - now)/1000);
+        $('cooldownDisplay').innerHTML = `⏳ Cooldown: ${remaining}s`;
+        // Mise à jour dynamique (toutes les secondes)
+        if (!window.cooldownInterval) {
+          window.cooldownInterval = setInterval(() => {
+            const newNow = Date.now();
+            if (attemptsData.cooldownUntil && newNow < attemptsData.cooldownUntil) {
+              const rem = Math.ceil((attemptsData.cooldownUntil - newNow)/1000);
+              $('cooldownDisplay').innerHTML = `⏳ Cooldown: ${rem}s`;
+            } else {
+              $('cooldownDisplay').innerHTML = '';
+              clearInterval(window.cooldownInterval);
+              window.cooldownInterval = null;
+            }
+          }, 1000);
         }
+      } else {
+        $('cooldownDisplay').innerHTML = '';
+        if (window.cooldownInterval) {
+          clearInterval(window.cooldownInterval);
+          window.cooldownInterval = null;
+        }
+      }
+
+      // Gestion du buzzer
+      if (gs.buzzer === state.clientId) {
+        $('playerBuzzer').disabled = true;
+        // Afficher la popup selon le mode
+        if (state.mode === 'kahoot') showChoicePopup();
+        else showAnswerPopup();
       } else if (gs.buzzer) {
         $('playerBuzzer').disabled = true;
         $('playerFeedback').innerHTML = '⏳ Quelqu\'un a buzzé...';
       } else {
+        // Peut-il buzzer ?
         if (state.maxAttempts > 0 && attemptsData.attemptsLeft <= 0) {
           $('playerBuzzer').disabled = true;
           $('playerFeedback').innerHTML = '❌ Plus d\'essais';
+        } else if (attemptsData.cooldownUntil && now < attemptsData.cooldownUntil) {
+          $('playerBuzzer').disabled = true;
         } else {
           $('playerBuzzer').disabled = false;
           $('playerFeedback').innerHTML = '';
         }
       }
+
+      // Timer synchro
+      if (state.roundActive && state.roundStartTime > 0) {
+        const elapsed = Date.now() - state.roundStartTime;
+        $('playerTimer').textContent = formatTimer(elapsed);
+      } else {
+        $('playerTimer').textContent = '00:00.0';
+      }
     }
 
-    // === Bouton Je sais ===
+    // === Bouton Je sais (joueur) ===
     $('playerBuzzer').onclick = async () => {
       if ($('playerBuzzer').disabled) return;
-      const now = Date.now();
+      // Vérifier cooldown et essais
       const attemptsData = state.playerAttempts[state.clientId] || { attemptsLeft: state.maxAttempts, cooldownUntil: 0, attemptCount: 0 };
+      const now = Date.now();
       if (state.maxAttempts > 0 && attemptsData.attemptsLeft <= 0) {
         $('playerFeedback').innerHTML = '❌ Plus d\'essais';
         return;
       }
-      if (attemptsData.cooldownUntil && now < attemptsData.cooldownUntil) {
-        const wait = Math.ceil((attemptsData.cooldownUntil - now)/1000);
-        $('playerFeedback').innerHTML = `⏳ Cooldown: ${wait}s`;
-        return;
-      }
+      if (attemptsData.cooldownUntil && now < attemptsData.cooldownUntil) return;
       $('playerBuzzer').disabled = true;
       const roomRef = db.ref('rooms/' + state.roomCode);
       await roomRef.child('gameState/buzzer').set(state.clientId);
     };
 
-    // === Réponse écrite simple ===
+    // === Popup réponse écrite ===
     let answerTimer = null;
     function showAnswerPopup() {
       $('popupAnswer').classList.remove('hidden');
@@ -558,78 +560,38 @@
       const normAnswer = normalize(answer);
       const normCorrect = normalize(correct);
       const isCorrect = normAnswer === normCorrect || normCorrect.includes(normAnswer) || normAnswer.includes(normCorrect);
-      const timeElapsed = 10 - parseInt($('timer').textContent);
+      const elapsed = state.roundActive ? Date.now() - state.roundStartTime : 0;
       let points = 0;
       if (isCorrect) {
-        points = 50;
+        if (state.mode === 'kahoot') {
+          // points basés sur le temps (max 100, perd 5 par seconde)
+          const seconds = elapsed / 1000;
+          points = Math.max(20, 100 - Math.floor(seconds * 5));
+        } else {
+          points = 50;
+        }
       } else {
         points = -50;
       }
-      await sendResult(points, isCorrect ? 1 : 0, correct, isCorrect);
+      await sendResult(points, isCorrect, correct, elapsed, isCorrect);
     }
 
-    // === Réponse mix (deux titres) ===
-    let mixTimer = null;
-    function showMixPopup() {
-      $('popupMix').classList.remove('hidden');
-      $('mixInput1').value = '';
-      $('mixInput2').value = '';
-      $('mixInput1').focus();
-      let timeLeft = 15;
-      $('mixTimer').textContent = timeLeft;
-      if (mixTimer) clearInterval(mixTimer);
-      mixTimer = setInterval(() => {
-        timeLeft--;
-        $('mixTimer').textContent = timeLeft;
-        if (timeLeft <= 0) {
-          clearInterval(mixTimer);
-          submitMix('', '');
-        }
-      }, 1000);
-    }
-
-    $('submitMix').onclick = () => {
-      const ans1 = $('mixInput1').value.trim();
-      const ans2 = $('mixInput2').value.trim();
-      submitMix(ans1, ans2);
-    };
-
-    async function submitMix(ans1, ans2) {
-      if (mixTimer) clearInterval(mixTimer);
-      $('popupMix').classList.add('hidden');
-      const song1 = state.mixedSongs[0];
-      const song2 = state.mixedSongs[1];
-      const norm1 = normalize(song1.title);
-      const norm2 = normalize(song2.title);
-      const a1 = normalize(ans1);
-      const a2 = normalize(ans2);
-      const ok1 = a1 === norm1 || norm1.includes(a1) || a1.includes(norm1);
-      const ok2 = a2 === norm2 || norm2.includes(a2) || a2.includes(norm2);
-      let correctCount = (ok1?1:0) + (ok2?1:0);
-      let points = 0;
-      if (correctCount === 2) points = 100;
-      else if (correctCount === 1) points = 0;
-      else points = -50;
-      await sendResult(points, correctCount, song1.title + ' & ' + song2.title, correctCount === 2);
-    }
-
-    // === Choix multiple (mode Kahoot) ===
+    // === Popup choix multiple ===
     let choiceTimer = null;
     function showChoicePopup() {
       const currentSong = state.gameSongs[state.currentSongIndex];
+      // Générer 4 propositions (dont la bonne)
       let otherSongs = songList.filter(s => s.title !== currentSong.title);
-      while (otherSongs.length < 5) {
-        otherSongs = otherSongs.concat(songList);
-      }
+      while (otherSongs.length < 3) otherSongs = otherSongs.concat(songList);
       shuffleArray(otherSongs);
-      const choices = [currentSong, ...otherSongs.slice(0, 5)];
+      const choices = [currentSong, ...otherSongs.slice(0, 3)];
       shuffleArray(choices);
       const grid = $('choiceGrid');
       grid.innerHTML = '';
       choices.forEach((song, idx) => {
         const btn = document.createElement('button');
         btn.className = 'choice-btn';
-        btn.textContent = `${idx+1}. ${song.title}`;
+        btn.textContent = song.title;
         btn.onclick = () => handleChoice(song, currentSong);
         grid.appendChild(btn);
       });
@@ -651,97 +613,33 @@
       if (choiceTimer) clearInterval(choiceTimer);
       $('popupChoice').classList.add('hidden');
       const isCorrect = selected && selected.title === correct.title;
-      let points = isCorrect ? 50 : -50;
-      await sendResult(points, isCorrect ? 1 : 0, correct.title, isCorrect);
-    }
-
-    // === Choix multiple pour mix ===
-    let choiceMixTimer = null;
-    let selectedIndices = [];
-    function showChoiceMixPopup() {
-      const mixedSongs = state.mixedSongs;
-      let otherSongs = songList.filter(s => s.title !== mixedSongs[0].title && s.title !== mixedSongs[1].title);
-      while (otherSongs.length < 4) {
-        otherSongs = otherSongs.concat(songList);
-      }
-      shuffleArray(otherSongs);
-      const choices = [...mixedSongs, ...otherSongs.slice(0, 4)];
-      shuffleArray(choices);
-      const grid = $('choiceMixGrid');
-      grid.innerHTML = '';
-      selectedIndices = [];
-      choices.forEach((song, idx) => {
-        const btn = document.createElement('button');
-        btn.className = 'choice-btn';
-        btn.textContent = song.title;
-        btn.dataset.index = idx;
-        btn.dataset.title = song.title;
-        btn.onclick = () => toggleChoice(btn, song, choices);
-        grid.appendChild(btn);
-      });
-      $('popupChoiceMix').classList.remove('hidden');
-      let timeLeft = 15;
-      $('choiceMixTimer').textContent = timeLeft;
-      if (choiceMixTimer) clearInterval(choiceMixTimer);
-      choiceMixTimer = setInterval(() => {
-        timeLeft--;
-        $('choiceMixTimer').textContent = timeLeft;
-        if (timeLeft <= 0) {
-          clearInterval(choiceMixTimer);
-          submitChoiceMix([], mixedSongs);
-        }
-      }, 1000);
-    }
-
-    function toggleChoice(btn, song, allChoices) {
-      const idx = parseInt(btn.dataset.index);
-      const pos = selectedIndices.indexOf(idx);
-      if (pos === -1) {
-        if (selectedIndices.length < 2) {
-          selectedIndices.push(idx);
-          btn.classList.add('selected');
-        }
-      } else {
-        selectedIndices.splice(pos, 1);
-        btn.classList.remove('selected');
-      }
-      if (selectedIndices.length === 2) {
-        const selectedSongs = selectedIndices.map(i => allChoices[i]);
-        submitChoiceMix(selectedSongs, state.mixedSongs);
-      }
-    }
-
-    async function submitChoiceMix(selectedSongs, correctSongs) {
-      if (choiceMixTimer) clearInterval(choiceMixTimer);
-      $('popupChoiceMix').classList.add('hidden');
-      let correctCount = 0;
-      if (selectedSongs.length === 2) {
-        const titles = selectedSongs.map(s => s.title);
-        if (titles.includes(correctSongs[0].title) && titles.includes(correctSongs[1].title)) correctCount = 2;
-        else if (titles.includes(correctSongs[0].title) || titles.includes(correctSongs[1].title)) correctCount = 1;
-        else correctCount = 0;
-      }
+      const elapsed = state.roundActive ? Date.now() - state.roundStartTime : 0;
       let points = 0;
-      if (correctCount === 2) points = 100;
-      else if (correctCount === 1) points = 0;
-      else points = -50;
-      await sendResult(points, correctCount, correctSongs[0].title + ' & ' + correctSongs[1].title, correctCount === 2);
+      if (isCorrect) {
+        const seconds = elapsed / 1000;
+        points = Math.max(20, 100 - Math.floor(seconds * 5));
+      } else {
+        points = -50;
+      }
+      await sendResult(points, isCorrect, correct.title, elapsed, isCorrect);
     }
 
-    // Fonction commune pour envoyer le résultat et gérer les essais/cooldown
-    async function sendResult(points, correctCount, correctTitle, success) {
+    // === Fonction commune pour envoyer le résultat ===
+    async function sendResult(points, success, correctTitle, elapsed, isCorrect) {
       const roomRef = db.ref('rooms/' + state.roomCode);
       const scores = state.scores;
       scores[state.clientId] = (scores[state.clientId] || 0) + points;
 
+      // Mise à jour des tentatives
       let attemptsData = state.playerAttempts[state.clientId] || { attemptsLeft: state.maxAttempts, cooldownUntil: 0, attemptCount: 0 };
-      if (state.maxAttempts > 0 && !success) {
+      if (state.maxAttempts > 0 && !isCorrect) {
         attemptsData.attemptsLeft = Math.max(0, attemptsData.attemptsLeft - 1);
         attemptsData.attemptCount = (attemptsData.attemptCount || 0) + 1;
         const cooldown = getCooldown(attemptsData.attemptCount);
         attemptsData.cooldownUntil = Date.now() + cooldown;
       }
-      if (success) {
+      if (isCorrect) {
+        // Succès: on bloque les essais pour ce round (plus de buzz)
         attemptsData.attemptsLeft = 0;
         attemptsData.cooldownUntil = 0;
       }
@@ -750,25 +648,29 @@
       await roomRef.child('gameState').update({
         scores: scores,
         playerAttempts: state.playerAttempts,
-        answerResult: { playerId: state.clientId, correct: correctCount, points, correctTitle, playerName: state.playerName },
+        answerResult: { playerId: state.clientId, correct: isCorrect, points, correctTitle, playerName: state.playerName },
         buzzer: null,
-        mixed: false,
-        mixedSongs: [],
       });
+
+      // Afficher popup résultat
+      $('popupResult').classList.remove('hidden');
+      $('resultTitle').textContent = isCorrect ? '🎉 Bravo !' : '❌ Faux !';
+      $('resultMessage').innerHTML = isCorrect ? `Tu as gagné ${points} points !` : `Mauvaise réponse... (c'était ${correctTitle})<br>${points} points`;
     }
 
+    $('closeResult').onclick = () => {
+      $('popupResult').classList.add('hidden');
+    };
+
     // === Jeu hôte ===
-    let blurTimer = null;
-    let blurInterval = null;
+    let hostTimerInterval = null;
     function updateHostGame() {
       const song = state.gameSongs[state.currentSongIndex];
       $('hostSongInfo').textContent = `Chanson ${state.currentSongIndex+1} / ${state.gameSongs.length} - ${song.title}`;
-      if (song.artwork) {
-        $('hostCover').src = song.artwork;
+      $('hostCover').src = song.artwork;
+      if (!state.blurEnabled) {
+        $('hostCover').className = 'cover-img blur-none';
       }
-      // Réinitialiser le flou quand on change de chanson
-      if (blurInterval) clearInterval(blurInterval);
-      $('hostCover').className = 'cover-img blur-none';
 
       let scoresHtml = '<strong>Scores:</strong><br>';
       state.players.forEach(p => {
@@ -776,17 +678,13 @@
       });
       $('hostScoreboard').innerHTML = scoresHtml;
       $('hostNotification').innerHTML = state.buzzerLocked ? '🔔 Buzz en cours...' : '';
-      $('hostNext').disabled = state.buzzerLocked;
 
-      // Déclencher le mixage à la chanson 3 (index 2) si pas déjà mixé
-      if (state.currentSongIndex === 2 && !state.mixed && !state.buzzerLocked) {
-        let otherIndex;
-        do {
-          otherIndex = Math.floor(Math.random() * state.gameSongs.length);
-        } while (otherIndex === state.currentSongIndex);
-        const mixed = [state.gameSongs[state.currentSongIndex], state.gameSongs[otherIndex]];
-        const roomRef = db.ref('rooms/' + state.roomCode);
-        roomRef.child('gameState').update({ mixed: true, mixedSongs: mixed });
+      // Timer
+      if (state.roundActive && state.roundStartTime > 0) {
+        const elapsed = Date.now() - state.roundStartTime;
+        $('hostTimer').textContent = formatTimer(elapsed);
+      } else {
+        $('hostTimer').textContent = '00:00.0';
       }
 
       // Écouter les résultats
@@ -797,52 +695,53 @@
           const player = state.players.find(p => p.id === res.playerId);
           if (player) {
             let msg = `${player.name}: `;
-            if (res.correct === 2) msg += `✅ 2 bonnes ! +${res.points}`;
-            else if (res.correct === 1) msg += `🟰 1 bonne (0 pt)`;
-            else msg += `❌ 0 bonne (${res.points})`;
+            if (res.correct) msg += `✅ +${res.points}`;
+            else msg += `❌ ${res.points}`;
             $('hostNotification').innerHTML = msg;
             setTimeout(() => $('hostNotification').innerHTML = '', 3000);
           }
           answerResultRef.remove();
         }
       });
+
+      // Activer le bouton suivant si pas de buzzer
+      $('hostNext').disabled = state.buzzerLocked;
     }
 
-    $('hostPlay').onclick = () => {
-      const song = state.gameSongs[state.currentSongIndex];
-      if (song.preview) {
-        new Audio(song.preview).play().catch(() => alert('Impossible de lire (CORS)'));
-        // Gestion du flou progressif si activé
-        if (state.blurEnabled) {
-          // Commencer après 5 secondes
-          if (blurInterval) clearInterval(blurInterval);
-          setTimeout(() => {
-            let level = 5;
-            $('hostCover').className = 'cover-img blur-very-high';
-            blurInterval = setInterval(() => {
-              level--;
-              if (level === 4) $('hostCover').className = 'cover-img blur-high';
-              else if (level === 3) $('hostCover').className = 'cover-img blur-medium';
-              else if (level === 2) $('hostCover').className = 'cover-img blur-low';
-              else if (level === 1) $('hostCover').className = 'cover-img blur-none';
-              if (level <= 0) clearInterval(blurInterval);
-            }, 1000);
-          }, 5000);
-        }
-      } else alert('Pas d\'extrait');
+    $('hostPlay').onclick = async () => {
+      if (state.roundActive) return; // déjà lancé
+      const roomRef = db.ref('rooms/' + state.roomCode);
+      const startTime = Date.now();
+      await roomRef.child('gameState').update({
+        roundStartTime: startTime,
+        roundActive: true,
+        buzzer: null,
+      });
+
+      // Gestion du flou progressif
+      if (state.blurEnabled) {
+        $('hostCover').className = 'cover-img blur-very-high';
+        let level = 5;
+        const interval = setInterval(() => {
+          level--;
+          if (level === 4) $('hostCover').className = 'cover-img blur-high';
+          else if (level === 3) $('hostCover').className = 'cover-img blur-medium';
+          else if (level === 2) $('hostCover').className = 'cover-img blur-low';
+          else if (level === 1) $('hostCover').className = 'cover-img blur-none';
+          if (level <= 0) clearInterval(interval);
+        }, 1000);
+      }
     };
 
     $('hostNext').onclick = async () => {
       if (state.currentSongIndex + 1 < state.gameSongs.length) {
         const next = state.currentSongIndex + 1;
         const roomRef = db.ref('rooms/' + state.roomCode);
-        // Réinitialiser les tentatives pour le nouveau round
         await roomRef.child('gameState').update({
           currentSongIndex: next,
+          roundActive: false,
           buzzer: null,
-          mixed: false,
-          mixedSongs: [],
-          playerAttempts: {}, // remet à zéro les essais pour tous les joueurs
+          playerAttempts: {}, // réinitialiser les essais pour le nouveau round
         });
       } else {
         alert('Fin du jeu');

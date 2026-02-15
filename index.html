@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Test Buzz & Mix · V3</title>
+  <title>Blind Test · Buzz & Mix</title>
   <style>
     * {
       margin: 0;
@@ -134,13 +134,29 @@
       font-size: 1.2rem;
       color: #ffaa33;
     }
+    .choice-grid {
+      display: grid;
+      grid-template-columns: repeat(2,1fr);
+      gap: 0.5rem;
+    }
+    .choice-btn {
+      background: #2a3a4a;
+      border: 2px solid #5e9eff;
+      border-radius: 1rem;
+      padding: 0.8rem;
+      cursor: pointer;
+      text-align: center;
+    }
+    .choice-btn:hover {
+      background: #3b6eff;
+    }
   </style>
 </head>
 <body>
 <div id="app">
   <!-- Phase accueil -->
   <div id="phase-home" class="phase active">
-    <h1>🎧 Test Buzz & Mix</h1>
+    <h1>🎧 Blind Test</h1>
     <button id="btn-host" class="primary">🎮 Créer (hôte)</button>
     <button id="btn-client">📱 Rejoindre (joueur)</button>
   </div>
@@ -189,7 +205,7 @@
     <button id="hostPlay" class="primary">▶️ Jouer l'extrait</button>
     <div class="timer-big" id="hostTimer">00:00.0</div>
     <div class="cover-container">
-      <img id="hostCover" class="cover-img blur-none" src="" alt="cover">
+      <img id="hostCover" class="cover-img blur-none" src="" alt="cover" style="display:none;">
     </div>
     <div id="hostNotification" class="notification"></div>
     <div id="hostScoreboard" style="background:#0f1a24; border-radius:1.5rem; padding:1rem; margin:1rem 0;"></div>
@@ -208,7 +224,7 @@
     <div id="playerFeedback" style="text-align:center;"></div>
   </div>
 
-  <!-- Popup réponse écrite (mode normal) -->
+  <!-- Popup réponse écrite -->
   <div id="popupAnswer" class="popup hidden">
     <h3>✏️ Tape le titre</h3>
     <input type="text" id="answerInput" placeholder="Titre">
@@ -218,18 +234,17 @@
     </div>
   </div>
 
-  <!-- Popup choix multiple (mode Kahoot) -->
+  <!-- Popup choix multiple -->
   <div id="popupChoice" class="popup hidden">
     <h3>🎯 Choisis la chanson</h3>
-    <div id="choiceGrid" class="choice-grid" style="display:grid; grid-template-columns:repeat(2,1fr); gap:0.5rem;"></div>
+    <div id="choiceGrid" class="choice-grid"></div>
     <div id="choiceTimer" class="timer-big" style="margin-top:1rem;">5</div>
   </div>
 
-  <!-- Popup de résultat (Bravo / Faux) -->
+  <!-- Popup de résultat (apparaît puis disparaît) -->
   <div id="popupResult" class="popup hidden">
     <h3 id="resultTitle"></h3>
     <p id="resultMessage"></p>
-    <button id="closeResult">OK</button>
   </div>
 
   <canvas id="confetti" style="display:none;"></canvas>
@@ -242,7 +257,6 @@
 <script>
   (function(){
     "use strict";
-    // Configuration Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyBOEU9kg6YuXllGEGS9iod_SsBRu9NOPro",
       authDomain: "blind-test-kahoot.firebaseapp.com",
@@ -255,13 +269,13 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Liste de chansons avec artworks (via placeholder pour éviter CORS)
+    // Liste de chansons avec previews fonctionnelles (SoundHelix)
     const songList = [
-      { title: "Billie Jean", artist: "Michael Jackson", artwork: "https://via.placeholder.com/150/1e2a36/ffffff?text=🎵" },
-      { title: "Shape of You", artist: "Ed Sheeran", artwork: "https://via.placeholder.com/150/2a3b4c/ffffff?text=🎵" },
-      { title: "Uptown Funk", artist: "Bruno Mars", artwork: "https://via.placeholder.com/150/3c4d5e/ffffff?text=🎵" },
-      { title: "Blinding Lights", artist: "The Weeknd", artwork: "https://via.placeholder.com/150/4e5f6g/ffffff?text=🎵" },
-      { title: "Despacito", artist: "Luis Fonsi", artwork: "https://via.placeholder.com/150/5f6g7h/ffffff?text=🎵" }
+      { title: "Billie Jean", artist: "Michael Jackson", artwork: "https://via.placeholder.com/150/1e2a36/ffffff?text=🎵", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
+      { title: "Shape of You", artist: "Ed Sheeran", artwork: "https://via.placeholder.com/150/2a3b4c/ffffff?text=🎵", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
+      { title: "Uptown Funk", artist: "Bruno Mars", artwork: "https://via.placeholder.com/150/3c4d5e/ffffff?text=🎵", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" },
+      { title: "Blinding Lights", artist: "The Weeknd", artwork: "https://via.placeholder.com/150/4e5f6g/ffffff?text=🎵", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3" },
+      { title: "Despacito", artist: "Luis Fonsi", artwork: "https://via.placeholder.com/150/5f6g7h/ffffff?text=🎵", preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3" }
     ];
 
     // État global
@@ -280,7 +294,6 @@
       playerAttempts: {}, // { id: { attemptsLeft, cooldownUntil, attemptCount } }
       buzzerLocked: false,
       roundStartTime: 0,
-      roundTimerInterval: null,
       roundActive: false,
     };
 
@@ -303,7 +316,7 @@
       return Math.random().toString(36).substring(2,6).toUpperCase();
     }
 
-    // Normalisation pour tolérance
+    // Normalisation pour tolérance (supprime accents, caractères spéciaux)
     function normalize(str) {
       return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
     }
@@ -315,11 +328,25 @@
 
     // Formatage du timer (minutes:secondes.dixièmes)
     function formatTimer(ms) {
+      if (ms < 0) ms = 0;
       let seconds = Math.floor(ms / 1000);
       let tenth = Math.floor((ms % 1000) / 100);
       let minutes = Math.floor(seconds / 60);
       seconds = seconds % 60;
       return `${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}.${tenth}`;
+    }
+
+    // Mise à jour du timer en continu (appelée par setInterval)
+    function startTimerLoop() {
+      if (window.timerLoop) clearInterval(window.timerLoop);
+      window.timerLoop = setInterval(() => {
+        if (state.roundActive && state.roundStartTime > 0) {
+          const elapsed = Date.now() - state.roundStartTime;
+          const formatted = formatTimer(elapsed);
+          if (state.isHost) $('hostTimer').textContent = formatted;
+          else $('playerTimer').textContent = formatted;
+        }
+      }, 100);
     }
 
     // === Accueil ===
@@ -381,6 +408,7 @@
         });
         $('roomCodeDisplay').textContent = state.roomCode;
         showPhase('hostLobby');
+        startTimerLoop();
       } catch(e) { alert('Erreur création: '+e.message); }
     };
 
@@ -418,6 +446,13 @@
         if (!snap.exists()) return alert('Partie introuvable');
         const data = snap.val();
         if (data.status !== 'lobby') return alert('Partie déjà commencée');
+        // Vérifier le nombre de joueurs
+        const playersSnap = await roomRef.child('players').once('value');
+        const currentPlayers = playersSnap.val() || {};
+        if (Object.keys(currentPlayers).length >= (data.config?.expectedPlayerCount || 1)) {
+          alert('Nombre maximum de joueurs atteint');
+          return;
+        }
         await roomRef.child('players/' + state.clientId).set({ name, joinedAt: Date.now() });
         // Écouter les changements
         roomRef.child('status').on('value', (snap) => {
@@ -441,6 +476,7 @@
           updatePlayerGame(gs);
         });
         $('playerLobbyStatus').innerHTML = 'Connecté, attente du début...';
+        startTimerLoop();
       } catch(e) { alert('Erreur connexion: '+e.message); }
     };
 
@@ -459,32 +495,13 @@
       if (attemptsData.cooldownUntil && now < attemptsData.cooldownUntil) {
         const remaining = Math.ceil((attemptsData.cooldownUntil - now)/1000);
         $('cooldownDisplay').innerHTML = `⏳ Cooldown: ${remaining}s`;
-        // Mise à jour dynamique (toutes les secondes)
-        if (!window.cooldownInterval) {
-          window.cooldownInterval = setInterval(() => {
-            const newNow = Date.now();
-            if (attemptsData.cooldownUntil && newNow < attemptsData.cooldownUntil) {
-              const rem = Math.ceil((attemptsData.cooldownUntil - newNow)/1000);
-              $('cooldownDisplay').innerHTML = `⏳ Cooldown: ${rem}s`;
-            } else {
-              $('cooldownDisplay').innerHTML = '';
-              clearInterval(window.cooldownInterval);
-              window.cooldownInterval = null;
-            }
-          }, 1000);
-        }
       } else {
         $('cooldownDisplay').innerHTML = '';
-        if (window.cooldownInterval) {
-          clearInterval(window.cooldownInterval);
-          window.cooldownInterval = null;
-        }
       }
 
       // Gestion du buzzer
       if (gs.buzzer === state.clientId) {
         $('playerBuzzer').disabled = true;
-        // Afficher la popup selon le mode
         if (state.mode === 'kahoot') showChoicePopup();
         else showAnswerPopup();
       } else if (gs.buzzer) {
@@ -497,25 +514,17 @@
           $('playerFeedback').innerHTML = '❌ Plus d\'essais';
         } else if (attemptsData.cooldownUntil && now < attemptsData.cooldownUntil) {
           $('playerBuzzer').disabled = true;
+          $('playerFeedback').innerHTML = `⏳ Cooldown: ${Math.ceil((attemptsData.cooldownUntil-now)/1000)}s`;
         } else {
           $('playerBuzzer').disabled = false;
           $('playerFeedback').innerHTML = '';
         }
       }
-
-      // Timer synchro
-      if (state.roundActive && state.roundStartTime > 0) {
-        const elapsed = Date.now() - state.roundStartTime;
-        $('playerTimer').textContent = formatTimer(elapsed);
-      } else {
-        $('playerTimer').textContent = '00:00.0';
-      }
     }
 
-    // === Bouton Je sais (joueur) ===
+    // === Bouton Je sais ===
     $('playerBuzzer').onclick = async () => {
       if ($('playerBuzzer').disabled) return;
-      // Vérifier cooldown et essais
       const attemptsData = state.playerAttempts[state.clientId] || { attemptsLeft: state.maxAttempts, cooldownUntil: 0, attemptCount: 0 };
       const now = Date.now();
       if (state.maxAttempts > 0 && attemptsData.attemptsLeft <= 0) {
@@ -564,23 +573,22 @@
       let points = 0;
       if (isCorrect) {
         if (state.mode === 'kahoot') {
-          // points basés sur le temps (max 100, perd 5 par seconde)
+          // points basés sur le temps (max 100, perd 10 par seconde)
           const seconds = elapsed / 1000;
-          points = Math.max(20, 100 - Math.floor(seconds * 5));
+          points = Math.max(20, 100 - Math.floor(seconds * 10));
         } else {
           points = 50;
         }
       } else {
         points = -50;
       }
-      await sendResult(points, isCorrect, correct, elapsed, isCorrect);
+      await sendResult(points, isCorrect, correct, elapsed);
     }
 
     // === Popup choix multiple ===
     let choiceTimer = null;
     function showChoicePopup() {
       const currentSong = state.gameSongs[state.currentSongIndex];
-      // Générer 4 propositions (dont la bonne)
       let otherSongs = songList.filter(s => s.title !== currentSong.title);
       while (otherSongs.length < 3) otherSongs = otherSongs.concat(songList);
       shuffleArray(otherSongs);
@@ -617,29 +625,28 @@
       let points = 0;
       if (isCorrect) {
         const seconds = elapsed / 1000;
-        points = Math.max(20, 100 - Math.floor(seconds * 5));
+        points = Math.max(20, 100 - Math.floor(seconds * 10));
       } else {
         points = -50;
       }
-      await sendResult(points, isCorrect, correct.title, elapsed, isCorrect);
+      await sendResult(points, isCorrect, correct.title, elapsed);
     }
 
     // === Fonction commune pour envoyer le résultat ===
-    async function sendResult(points, success, correctTitle, elapsed, isCorrect) {
+    async function sendResult(points, success, correctTitle, elapsed) {
       const roomRef = db.ref('rooms/' + state.roomCode);
       const scores = state.scores;
       scores[state.clientId] = (scores[state.clientId] || 0) + points;
 
       // Mise à jour des tentatives
       let attemptsData = state.playerAttempts[state.clientId] || { attemptsLeft: state.maxAttempts, cooldownUntil: 0, attemptCount: 0 };
-      if (state.maxAttempts > 0 && !isCorrect) {
+      if (state.maxAttempts > 0 && !success) {
         attemptsData.attemptsLeft = Math.max(0, attemptsData.attemptsLeft - 1);
         attemptsData.attemptCount = (attemptsData.attemptCount || 0) + 1;
         const cooldown = getCooldown(attemptsData.attemptCount);
         attemptsData.cooldownUntil = Date.now() + cooldown;
       }
-      if (isCorrect) {
-        // Succès: on bloque les essais pour ce round (plus de buzz)
+      if (success) {
         attemptsData.attemptsLeft = 0;
         attemptsData.cooldownUntil = 0;
       }
@@ -648,28 +655,27 @@
       await roomRef.child('gameState').update({
         scores: scores,
         playerAttempts: state.playerAttempts,
-        answerResult: { playerId: state.clientId, correct: isCorrect, points, correctTitle, playerName: state.playerName },
+        answerResult: { playerId: state.clientId, correct: success, points, correctTitle, playerName: state.playerName },
         buzzer: null,
       });
 
       // Afficher popup résultat
       $('popupResult').classList.remove('hidden');
-      $('resultTitle').textContent = isCorrect ? '🎉 Bravo !' : '❌ Faux !';
-      $('resultMessage').innerHTML = isCorrect ? `Tu as gagné ${points} points !` : `Mauvaise réponse... (c'était ${correctTitle})<br>${points} points`;
+      $('resultTitle').textContent = success ? '🎉 Bravo !' : '❌ Faux !';
+      $('resultMessage').innerHTML = success ? `+${points} points` : `-50 points<br>C'était : ${correctTitle}`;
+      // La popup disparaît après 2 secondes
+      setTimeout(() => $('popupResult').classList.add('hidden'), 2000);
     }
 
-    $('closeResult').onclick = () => {
-      $('popupResult').classList.add('hidden');
-    };
-
     // === Jeu hôte ===
-    let hostTimerInterval = null;
     function updateHostGame() {
       const song = state.gameSongs[state.currentSongIndex];
       $('hostSongInfo').textContent = `Chanson ${state.currentSongIndex+1} / ${state.gameSongs.length} - ${song.title}`;
-      $('hostCover').src = song.artwork;
-      if (!state.blurEnabled) {
-        $('hostCover').className = 'cover-img blur-none';
+      if (state.blurEnabled) {
+        $('hostCover').style.display = 'block';
+        $('hostCover').src = song.artwork;
+      } else {
+        $('hostCover').style.display = 'none';
       }
 
       let scoresHtml = '<strong>Scores:</strong><br>';
@@ -678,14 +684,6 @@
       });
       $('hostScoreboard').innerHTML = scoresHtml;
       $('hostNotification').innerHTML = state.buzzerLocked ? '🔔 Buzz en cours...' : '';
-
-      // Timer
-      if (state.roundActive && state.roundStartTime > 0) {
-        const elapsed = Date.now() - state.roundStartTime;
-        $('hostTimer').textContent = formatTimer(elapsed);
-      } else {
-        $('hostTimer').textContent = '00:00.0';
-      }
 
       // Écouter les résultats
       const answerResultRef = db.ref('rooms/' + state.roomCode + '/gameState/answerResult');
@@ -704,12 +702,11 @@
         }
       });
 
-      // Activer le bouton suivant si pas de buzzer
       $('hostNext').disabled = state.buzzerLocked;
     }
 
     $('hostPlay').onclick = async () => {
-      if (state.roundActive) return; // déjà lancé
+      if (state.roundActive) return;
       const roomRef = db.ref('rooms/' + state.roomCode);
       const startTime = Date.now();
       await roomRef.child('gameState').update({
@@ -741,7 +738,7 @@
           currentSongIndex: next,
           roundActive: false,
           buzzer: null,
-          playerAttempts: {}, // réinitialiser les essais pour le nouveau round
+          playerAttempts: {}, // réinitialiser les essais
         });
       } else {
         alert('Fin du jeu');
@@ -760,6 +757,7 @@
       if (state.roomCode) {
         db.ref('rooms/' + state.roomCode).remove();
       }
+      if (window.timerLoop) clearInterval(window.timerLoop);
     };
   })();
 </script>

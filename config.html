@@ -53,6 +53,11 @@
       padding: 0.8rem 1.2rem;
       color: white;
     }
+    .error-message {
+      color: #ff9999;
+      margin-top: 0.5rem;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -104,6 +109,7 @@
 
       <!-- Bouton de création -->
       <button type="submit" class="primary" style="width:100%; padding:1.2rem;">🚀 Créer la partie</button>
+      <div id="formError" class="error-message"></div>
     </form>
     <p style="text-align:center; margin-top:1.5rem;">
       <a href="index.html" style="color:#8aaec0;">← Retour à l'accueil</a>
@@ -121,18 +127,29 @@
   <script>
     (function() {
       const form = document.getElementById('config-form');
+      const formError = document.getElementById('formError');
 
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
+        formError.textContent = '';
 
         // Récupérer les valeurs
-        const mode = document.querySelector('input[name="gameMode"]:checked').value;
-        const maxAttempts = parseInt(document.getElementById('maxAttempts').value, 10) || 0;
+        const mode = document.querySelector('input[name="gameMode"]:checked')?.value;
+        if (!mode) {
+          formError.textContent = 'Veuillez choisir un mode de jeu.';
+          return;
+        }
+
+        const maxAttempts = parseInt(document.getElementById('maxAttempts').value, 10);
+        if (isNaN(maxAttempts) || maxAttempts < 0) {
+          formError.textContent = 'Le nombre d\'essais doit être un nombre valide (>= 0).';
+          return;
+        }
+
         const blurEnabled = document.getElementById('blurCheck').checked;
         const playerCount = parseInt(document.getElementById('playerCount').value, 10);
-
-        if (playerCount < 1) {
-          alert('Le nombre de joueurs doit être au moins 1.');
+        if (isNaN(playerCount) || playerCount < 1 || playerCount > 8) {
+          formError.textContent = 'Le nombre de joueurs doit être entre 1 et 8.';
           return;
         }
 
@@ -173,7 +190,7 @@
           window.location.href = 'host-lobby.html';
         } catch (error) {
           console.error('Erreur création partie:', error);
-          alert('Erreur lors de la création de la partie : ' + error.message);
+          formError.textContent = 'Erreur lors de la création de la partie : ' + error.message;
         }
       });
     })();

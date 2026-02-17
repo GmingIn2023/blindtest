@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rejoindre · Blind Test</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Styles supplémentaires pour cette page */
+    .player-lobby {
+      background: #1c2128;
+      border-radius: 2rem;
+      padding: 1.8rem;
+    }
+    .join-section {
+      background: #0f1419;
+      border-radius: 1.5rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .avatar-selector {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .avatar-option {
+      font-size: 2rem;
+      cursor: pointer;
+      padding: 0.3rem;
+      border-radius: 50%;
+      background: #1e2a36;
+      width: 3rem;
+      height: 3rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: 0.2s;
+    }
+    .avatar-option:hover {
+      transform: scale(1.1);
+    }
+    .avatar-option.selected {
+      background: #3b6eff;
+      box-shadow: 0 0 15px rgba(59,110,255,0.6);
+    }
+    .waiting-message {
+      text-align: center;
+      color: #8aaec0;
+      margin: 2rem 0;
+    }
+    .player-tag {
+      display: inline-flex;
+      align-items: center;
+      background: #2a3743;
+      padding: 0.5rem 1.2rem;
+      border-radius: 60px;
+      margin: 0.3rem;
+      gap: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>📱 Rejoindre une partie</h1>
+    <div class="player-lobby">
+      <!-- Section de connexion (visible tant que non connecté) -->
+      <div id="joinSection" class="join-section">
+        <div style="margin-bottom:1rem;">
+          <label style="display:block; margin-bottom:0.5rem; font-weight:600;">Code de la partie :</label>
+          <input type="text" id="roomCodeInput" placeholder="Ex: AB12" style="text-transform: uppercase;">
+        </div>
+        <div style="margin-bottom:1rem;">
+          <label style="display:block; margin-bottom:0.5rem; font-weight:600;">Ton pseudo :</label>
+          <input type="text" id="playerNameInput" placeholder="Entre ton nom" value="Joueur">
+        </div>
+        <div style="margin-bottom:1rem;">
+          <label style="display:block; margin-bottom:0.5rem; font-weight:600;">Choisis ton avatar :</label>
+          <div class="avatar-selector" id="avatarSelector">
+            <span class="avatar-option selected" data-avatar="🐶">🐶</span>
+            <span class="avatar-option" data-avatar="🐱">🐱</span>
+            <span class="avatar-option" data-avatar="🐼">🐼</span>
+            <span class="avatar-option" data-avatar="🦊">🦊</span>
+            <span class="avatar-option" data-avatar="🐸">🐸</span>
+            <span class="avatar-option" data-avatar="🦁">🦁</span>
+            <span class="avatar-option" data-avatar="🐯">🐯</span>
+            <span class="avatar-option" data-avatar="🐨">🐨</span>
+          </div>
+        </div>
+        <button id="joinBtn" class="primary">🚀 Rejoindre</button>
+        <div id="joinError" style="color:#ffaa33; margin-top:1rem; text-align:center;"></div>
+      </div>
+
+      <!-- Section après connexion (visible une fois connecté) -->
+      <div id="connectedSection" class="hidden">
+        <div style="background:#0f1419; border-radius:1.5rem; padding:1rem; margin-bottom:1rem;">
+          <div style="font-weight:700; text-align:center;">Code salon : <span id="connectedRoomCode"></span></div>
+        </div>
+        <div style="margin-top:2rem;">
+          <div style="font-weight:700; margin-bottom:1rem;">👥 Autres joueurs connectés :</div>
+          <div id="otherPlayersList" style="display: flex; flex-wrap: wrap; gap:0.5rem;"></div>
+        </div>
+        <div class="waiting-message" id="waitingMessage">
+          ⏳ En attente que l'hôte commence la sélection...
+        </div>
+      </div>
+    </div>
+    <p style="text-align:center; margin-top:1.5rem;">
+      <a href="index.html" style="color:#8aaec0;">← Retour à l'accueil</a>
+    </p>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+  <!-- Nos scripts -->
+  <script src="js/firebase-init.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/state.js"></script>
+  <script>
+    (function() {
+      // Éléments DOM
+      const joinSection = document.getElementById('joinSection');
+      const connectedSection = document.getElementById('connectedSection');
+      const roomCodeInput = document.getElementById('roomCodeInput');
+      const playerNameInput = document.getElementById('playerNameInput');
+      const joinBtn = document.getElementById('joinBtn');
+      const joinError = document.getElementById('joinError');
+      const connectedRoomCode = document.getElementById('connectedRoomCode');
+      const otherPlayersList = document.getElementById('otherPlayersList');
+
+      // Gestion des avatars
+      let selectedAvatar = '🐶';
+      document.querySelectorAll('.avatar-option').forEach(el => {
+        el.addEventListener('click', () => {
+          document.querySelectorAll('.avatar-option').forEach(e => e.classList.remove('selected'));
+          el.classList.add('selected');
+          selectedAvatar = el.dataset.avatar;
+        });
+      });
+
+      // Références Firebase
+      let roomRef = null;
+      let playersRef = null;
+      let gameStateRef = null;
+      let statusRef = null;
+      let currentListeners = [];
+
+      function cleanupListeners() {
+        currentListeners.forEach(({ref, event}) => ref.off(event));
+        currentListeners = [];
+      }
+
+      joinBtn.addEventListener('click', async () => {
+        const roomCode = roomCodeInput.value.trim().toUpperCase();
+        const playerName = playerNameInput.value.trim();
+
+        if (!roomCode) {
+          joinError.textContent = 'Veuillez entrer un code.';
+          return;
+        }
+        if (!playerName) {
+          joinError.textContent = 'Veuillez entrer un pseudo.';
+          return;
+        }
+
+        joinBtn.disabled = true;
+        joinError.textContent = 'Connexion en cours...';
+
+        try {
+          // Vérifier si la room existe
+          roomRef = db.ref('rooms/' + roomCode);
+          const snapshot = await roomRef.once('value');
+          if (!snapshot.exists()) {
+            throw new Error('Partie introuvable.');
+          }
+          const roomData = snapshot.val();
+          if (roomData.status !== 'lobby') {
+            throw new Error('Cette partie a déjà commencé.');
+          }
+
+          // Vérifier le nombre de joueurs déjà connectés
+          const playersSnap = await roomRef.child('players').once('value');
+          const currentPlayers = playersSnap.val() || {};
+          const expected = roomData.config?.expectedPlayerCount || 1;
+          if (Object.keys(currentPlayers).length >= expected) {
+            throw new Error('Le nombre maximum de joueurs est atteint.');
+          }
+
+          // Générer un ID client unique
+          const clientId = 'player_' + Date.now() + '_' + Math.random().toString(36).substring(2);
+          AppState.clientId = clientId;
+          AppState.playerName = playerName;
+          AppState.playerAvatar = selectedAvatar;
+          AppState.roomCode = roomCode;
+          AppState.isHost = false;
+
+          // Ajouter le joueur dans Firebase
+          await roomRef.child('players/' + clientId).set({
+            name: playerName,
+            avatar: selectedAvatar,
+            joinedAt: Date.now()
+          });
+
+          // Mettre à jour l'interface
+          joinSection.classList.add('hidden');
+          connectedSection.classList.remove('hidden');
+          connectedRoomCode.textContent = roomCode;
+
+          // Écouter les changements de joueurs
+          playersRef = roomRef.child('players');
+          const playersListener = playersRef.on('value', (snap) => {
+            const players = snap.val() || {};
+            // Filtrer soi-même
+            const others = Object.entries(players)
+              .filter(([id]) => id !== clientId)
+              .map(([id, data]) => ({ id, ...data }));
+            if (others.length === 0) {
+              otherPlayersList.innerHTML = '<div style="color:#8aaec0;">En attente d\'autres joueurs...</div>';
+            } else {
+              otherPlayersList.innerHTML = others.map(p =>
+                `<span class="player-tag">${p.avatar} ${escapeHTML(p.name)}</span>`
+              ).join('');
+            }
+          });
+          currentListeners.push({ref: playersRef, event: 'value'});
+
+          // Écouter le statut de la room
+          statusRef = roomRef.child('status');
+          const statusListener = statusRef.on('value', (snap) => {
+            const status = snap.val();
+            if (status === 'selection') {
+              // Rediriger vers la page de sélection
+              window.location.href = 'selection.html';
+            }
+          });
+          currentListeners.push({ref: statusRef, event: 'value'});
+
+        } catch (error) {
+          console.error('Erreur connexion:', error);
+          joinError.textContent = error.message;
+          joinBtn.disabled = false;
+          // Nettoyer les listeners si nécessaire
+          cleanupListeners();
+        }
+      });
+
+      // Fonction utilitaire pour échapper le HTML
+      function escapeHTML(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      // Nettoyage en cas de départ
+      window.addEventListener('beforeunload', () => {
+        cleanupListeners();
+      });
+    })();
+  </script>
+</body>
+</html>

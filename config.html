@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configuration · Blind Test</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Styles supplémentaires pour cette page */
+    .config-group {
+      background: #1e2329;
+      border-radius: 1.5rem;
+      padding: 1.2rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid #2a3139;
+    }
+    .config-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: #d4e2f2;
+    }
+    .radio-group {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .radio-label {
+      background: #0f1419;
+      padding: 0.5rem 1.2rem;
+      border-radius: 60px;
+      border: 1px solid #2f3b48;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+    }
+    .checkbox-label {
+      background: #0f1419;
+      padding: 0.7rem 1.2rem;
+      border-radius: 60px;
+      border: 1px solid #2f3b48;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      cursor: pointer;
+    }
+    input[type="number"] {
+      width: 100%;
+      background: #0f1317;
+      border: 1px solid #2f3b48;
+      border-radius: 60px;
+      padding: 0.8rem 1.2rem;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>⚙️ Configuration</h1>
+    <form id="config-form">
+      <!-- Mode de jeu -->
+      <div class="config-group">
+        <div class="config-title">🎮 Mode de jeu</div>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" name="gameMode" value="classic" checked> Classique
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="gameMode" value="kahoot"> Kahoot
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="gameMode" value="mix"> Mix
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="gameMode" value="world"> Tour du monde
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="gameMode" value="artist"> Artiste(s) spécifique(s)
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="gameMode" value="date"> Deviner la date
+          </label>
+        </div>
+      </div>
+
+      <!-- Options communes -->
+      <div class="config-group">
+        <div class="config-title">🎚️ Paramètres</div>
+        <div style="margin-bottom:1rem;">
+          <label>Nombre d'essais max par joueur (0 = illimité)</label>
+          <input type="number" id="maxAttempts" min="0" max="10" value="3">
+        </div>
+        <label class="checkbox-label">
+          <input type="checkbox" id="blurCheck"> 🎨 Flouter la cover progressivement
+        </label>
+      </div>
+
+      <!-- Nombre de joueurs -->
+      <div class="config-group">
+        <div class="config-title">👥 Joueurs (hors hôte)</div>
+        <input type="number" id="playerCount" min="1" max="8" value="2">
+      </div>
+
+      <!-- Bouton de création -->
+      <button type="submit" class="primary" style="width:100%; padding:1.2rem;">🚀 Créer la partie</button>
+    </form>
+    <p style="text-align:center; margin-top:1.5rem;">
+      <a href="index.html" style="color:#8aaec0;">← Retour à l'accueil</a>
+    </p>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+  <!-- Nos scripts -->
+  <script src="js/firebase-init.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/state.js"></script>
+  <script>
+    (function() {
+      const form = document.getElementById('config-form');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        // Récupérer les valeurs
+        const mode = document.querySelector('input[name="gameMode"]:checked').value;
+        const maxAttempts = parseInt(document.getElementById('maxAttempts').value, 10) || 0;
+        const blurEnabled = document.getElementById('blurCheck').checked;
+        const playerCount = parseInt(document.getElementById('playerCount').value, 10);
+
+        if (playerCount < 1) {
+          alert('Le nombre de joueurs doit être au moins 1.');
+          return;
+        }
+
+        // Générer un code de partie
+        const roomCode = generateRoomCode();
+
+        // Sauvegarder l'état local
+        AppState.roomCode = roomCode;
+        AppState.isHost = true;
+        AppState.clientId = 'host';
+
+        // Créer la room dans Firebase
+        try {
+          const roomRef = db.ref('rooms/' + roomCode);
+          await roomRef.set({
+            config: {
+              mode: mode,
+              maxAttempts: maxAttempts,
+              blurEnabled: blurEnabled,
+              expectedPlayerCount: playerCount
+            },
+            players: {},
+            selections: {},
+            gameState: {
+              currentSongIndex: 0,
+              songs: [],
+              scores: {},
+              playerAttempts: {},
+              buzzer: null,
+              roundStartTime: 0,
+              roundActive: false
+            },
+            status: 'lobby',
+            createdAt: Date.now()
+          });
+
+          // Rediriger vers le lobby hôte
+          window.location.href = 'host-lobby.html';
+        } catch (error) {
+          console.error('Erreur création partie:', error);
+          alert('Erreur lors de la création de la partie : ' + error.message);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

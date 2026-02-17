@@ -88,22 +88,17 @@
         </label>
       </div>
 
-      <!-- Nombre total de chansons et joueurs -->
+      <!-- Nombre de joueurs (hors hôte) -->
       <div class="config-group">
-        <div class="config-title">🎵 Chansons</div>
-        <div style="margin-bottom:1rem;">
-          <label>Nombre total de chansons</label>
-          <input type="number" id="totalSongs" min="2" max="30" value="5">
-          <p style="color:#8aaec0; font-size:0.9rem;">(minimum 2, doit être ≥ nombre de joueurs)</p>
-        </div>
-        <div style="margin-bottom:1rem;">
-          <label>Nombre de joueurs (hors hôte)</label>
-          <input type="number" id="playerCount" min="1" max="8" value="2">
-        </div>
-        <div id="quotaInfo" style="background:#0f1a24; padding:0.8rem; border-radius:60px; text-align:center;">
-          L'hôte devra choisir <span id="hostQuota">3</span> chansons<br>
-          Chaque joueur choisira 1 chanson
-        </div>
+        <div class="config-title">👥 Joueurs (hors hôte)</div>
+        <input type="number" id="playerCount" min="1" max="8" value="2">
+      </div>
+
+      <!-- Nombre total de chansons (ajouté) -->
+      <div class="config-group">
+        <div class="config-title">🎵 Nombre total de chansons</div>
+        <input type="number" id="totalSongs" min="2" max="20" value="5">
+        <p style="color:#8aaec0; margin-top:0.5rem;">Chaque joueur choisira 1 chanson, l'hôte choisira le reste.</p>
       </div>
 
       <!-- Bouton de création -->
@@ -122,21 +117,6 @@
   <script src="js/state.js"></script>
   <script>
     (function() {
-      const totalSongsInput = document.getElementById('totalSongs');
-      const playerCountInput = document.getElementById('playerCount');
-      const hostQuotaSpan = document.getElementById('hostQuota');
-
-      function updateQuota() {
-        const total = parseInt(totalSongsInput.value, 10) || 0;
-        const players = parseInt(playerCountInput.value, 10) || 0;
-        const quota = Math.max(0, total - players);
-        hostQuotaSpan.textContent = quota;
-      }
-
-      totalSongsInput.addEventListener('input', updateQuota);
-      playerCountInput.addEventListener('input', updateQuota);
-      updateQuota();
-
       const form = document.getElementById('config-form');
       const errorDiv = document.getElementById('configError');
 
@@ -146,41 +126,29 @@
 
         const mode = document.querySelector('input[name="gameMode"]:checked')?.value;
         if (!mode) {
-          errorDiv.textContent = 'Veuillez choisir un mode de jeu.';
+          errorDiv.textContent = 'Veuillez choisir un mode.';
           return;
         }
-
         const maxAttempts = parseInt(document.getElementById('maxAttempts').value, 10) || 0;
         const blurEnabled = document.getElementById('blurCheck').checked;
-        const totalSongs = parseInt(document.getElementById('totalSongs').value, 10);
         const playerCount = parseInt(document.getElementById('playerCount').value, 10);
+        const totalSongs = parseInt(document.getElementById('totalSongs').value, 10);
 
-        if (isNaN(totalSongs) || totalSongs < 2) {
-          errorDiv.textContent = 'Le nombre total de chansons doit être au moins 2.';
-          return;
-        }
         if (isNaN(playerCount) || playerCount < 1) {
           errorDiv.textContent = 'Le nombre de joueurs doit être au moins 1.';
           return;
         }
-        if (totalSongs < playerCount) {
-          errorDiv.textContent = 'Le nombre total de chansons doit être supérieur ou égal au nombre de joueurs.';
+        if (isNaN(totalSongs) || totalSongs < playerCount) {
+          errorDiv.textContent = 'Le nombre de chansons doit être au moins égal au nombre de joueurs.';
           return;
         }
 
-        const hostSongsCount = totalSongs - playerCount;
         const roomCode = generateRoomCode();
-        console.log('Création de la partie avec code:', roomCode);
+        console.log('Création partie code:', roomCode);
 
-        try {
-          AppState.roomCode = roomCode;
-          AppState.isHost = true;
-          AppState.clientId = 'host';
-        } catch (e) {
-          console.error('Erreur AppState:', e);
-          errorDiv.textContent = 'Erreur interne.';
-          return;
-        }
+        AppState.roomCode = roomCode;
+        AppState.isHost = true;
+        AppState.clientId = 'host';
 
         try {
           const roomRef = db.ref('rooms/' + roomCode);
@@ -191,7 +159,7 @@
               blurEnabled: blurEnabled,
               expectedPlayerCount: playerCount,
               totalSongs: totalSongs,
-              hostSongsCount: hostSongsCount
+              hostSongsCount: totalSongs - playerCount
             },
             players: {},
             selections: {},
@@ -207,12 +175,11 @@
             status: 'lobby',
             createdAt: Date.now()
           });
-          console.log('Room créée avec succès');
-
+          console.log('Room créée');
           window.location.href = 'host-lobby.html';
         } catch (error) {
-          console.error('Erreur Firebase:', error);
-          errorDiv.textContent = 'Erreur lors de la création de la partie : ' + error.message;
+          console.error('Erreur création:', error);
+          errorDiv.textContent = 'Erreur: ' + error.message;
         }
       });
     })();

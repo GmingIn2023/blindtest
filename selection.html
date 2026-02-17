@@ -116,13 +116,12 @@
 
       const roomRef = db.ref('rooms/' + roomCode);
       const selectionsRef = roomRef.child('selections');
-      const gameStateRef = roomRef.child('gameState');
+      const configRef = roomRef.child('config');
 
-      let hostQuota = 0; // à récupérer depuis la config
+      let hostQuota = 0;
       let hostSelected = [];
       let playerSelected = null;
 
-      // Éléments DOM
       const roleMsg = document.getElementById('role-message');
       const counterSpan = document.getElementById('counter');
       const searchInput = document.getElementById('searchInput');
@@ -130,28 +129,26 @@
       const errorMsg = document.getElementById('errorMsg');
       const resultsDiv = document.getElementById('results');
 
-      // Charger la config pour connaître le quota hôte
-      roomRef.child('config').once('value', (snap) => {
+      // Charger la config pour obtenir le quota hôte
+      configRef.once('value', (snap) => {
         const config = snap.val();
         if (config) {
-          hostQuota = config.totalSongs - Object.keys(config.players || {}).length; // à adapter
-          // Pour simplifier, on suppose que hostQuota est config.hostSongsCount (à stocker dans config)
+          if (isHost) {
+            hostQuota = config.hostSongsCount || 0;
+            counterSpan.textContent = `0 / ${hostQuota}`;
+          } else {
+            counterSpan.textContent = '0 / 1';
+          }
         }
       });
 
-      // Déterminer le rôle
       if (isHost) {
         roleMsg.textContent = '🎤 Hôte : choisis tes chansons';
-        // Écouter les sélections des joueurs
-        selectionsRef.on('value', (snap) => {
-          const selections = snap.val() || {};
-          // Mise à jour éventuelle
-        });
+        // Écouter les sélections des joueurs (pour éventuellement les afficher)
       } else {
         roleMsg.textContent = '🎵 Joueur : choisis TA chanson (1 seule)';
       }
 
-      // Recherche iTunes (proxy)
       async function searchItunes(term) {
         try {
           const url = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent('https://itunes.apple.com/search?term='+encodeURIComponent(term)+'&media=music&entity=song&limit=10')}`;
@@ -210,7 +207,6 @@
         };
 
         if (isHost) {
-          // Hôte : ajouter à sa liste
           if (hostSelected.length >= hostQuota) {
             alert('Tu as déjà choisi toutes tes chansons');
             return;
@@ -218,19 +214,17 @@
           hostSelected.push(songData);
           counterSpan.textContent = `${hostSelected.length} / ${hostQuota}`;
           if (hostSelected.length === hostQuota) {
-            // Terminé : enregistrer dans Firebase
             await selectionsRef.child('host').set({
               songs: hostSelected,
               done: true
             });
-            // Redirection vers waiting (ou directement jeu si tous prêts)
-            window.location.href = 'waiting.html'; // à créer plus tard
+            // Rediriger vers waiting
+            window.location.href = 'waiting.html';
           } else {
-            // Continuer la recherche
-            searchBtn.click(); // rafraîchir pour marquer la sélection ? Pas idéal, mais simple
+            // Optionnel : rafraîchir la recherche pour masquer la chanson sélectionnée
+            searchBtn.click();
           }
         } else {
-          // Joueur : un seul choix
           if (playerSelected) {
             alert('Tu as déjà choisi ta chanson');
             return;
@@ -241,18 +235,9 @@
             songs: [songData],
             done: true
           });
-          // Redirection vers waiting
           window.location.href = 'waiting.html';
         }
       }
-
-      // Mise à jour initiale du compteur
-      if (isHost) {
-        counterSpan.textContent = `0 / ${hostQuota}`;
-      } else {
-        counterSpan.textContent = '0 / 1';
-      }
-
     })();
   </script>
 </body>

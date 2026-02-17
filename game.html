@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Blind Test · Jeu (V12)</title>
+  <title>Blind Test · Jeu</title>
   <style>
     /* === STYLES COMPLETS === */
     * {
@@ -150,6 +150,22 @@
       max-width: 400px;
       z-index: 1000;
       box-shadow: 0 10px 30px black;
+      text-align: center;
+    }
+    .popup h3 {
+      margin-bottom: 1rem;
+      color: #ffaa33;
+    }
+    .popup-cover {
+      width: 120px;
+      height: 120px;
+      border-radius: 1rem;
+      margin: 1rem auto;
+      object-fit: cover;
+      display: block;
+    }
+    .popup-cover.blur {
+      filter: blur(8px);
     }
     .choice-grid {
       display: grid;
@@ -177,11 +193,16 @@
       color: white;
       margin: 1rem 0;
     }
+    .popup-timer {
+      font-size: 2rem;
+      color: #ffaa33;
+      margin: 0.5rem 0;
+    }
   </style>
 </head>
 <body>
   <div id="app">
-    <h1>🎧 Blind Test V12</h1>
+    <h1>🎧 Blind Test</h1>
 
     <!-- Vue HÔTE -->
     <div id="host-view" class="hidden">
@@ -207,36 +228,47 @@
       <div id="playerFeedback" style="text-align:center;"></div>
     </div>
 
+    <!-- Popup de révélation (hôte) -->
+    <div id="popupReveal" class="popup hidden">
+      <h3>🎉 Réponse</h3>
+      <img id="revealCover" class="popup-cover" src="" alt="cover">
+      <h2 id="revealTitle"></h2>
+      <p id="revealArtist"></p>
+      <button id="closeReveal" class="primary">Fermer</button>
+    </div>
+
     <!-- Popup réponse écrite -->
     <div id="popupAnswer" class="popup hidden">
-      <h3 style="text-align:center;">✏️ Tape le titre</h3>
+      <h3>✏️ Tape le titre</h3>
       <input type="text" id="answerInput" class="answer-input" placeholder="Titre">
       <div style="display:flex; gap:1rem; align-items:center;">
         <button id="submitAnswer" style="flex:1;">✅ Valider</button>
-        <span id="answerTimer" class="timer-big" style="font-size:1.8rem;">10</span>
+        <span id="answerTimer" class="popup-timer">10</span>
       </div>
     </div>
 
     <!-- Popup choix multiple -->
     <div id="popupChoice" class="popup hidden">
-      <h3 style="text-align:center;">🎯 Choisis la chanson</h3>
+      <h3>🎯 Choisis la chanson</h3>
       <div id="choiceGrid" class="choice-grid"></div>
-      <div id="choiceTimer" class="timer-big" style="margin-top:1rem;">5</div>
+      <div id="choiceTimer" class="popup-timer">5</div>
     </div>
 
-    <!-- Popup de résultat -->
+    <!-- Popup résultat (bravo/faux) -->
     <div id="popupResult" class="popup hidden">
-      <h3 id="resultTitle" style="text-align:center;"></h3>
-      <p id="resultMessage" style="text-align:center;"></p>
+      <h3 id="resultTitle"></h3>
+      <p id="resultMessage"></p>
     </div>
 
-    <!-- Popup pour les modes spéciaux (artiste, date) - simple pour l'instant -->
+    <!-- Popup pour le mode artiste -->
     <div id="popupArtist" class="popup hidden">
-      <h3 style="text-align:center;">🎤 Choisis un artiste</h3>
+      <h3>🎤 Quel artiste ?</h3>
       <div id="artistGrid" class="choice-grid"></div>
     </div>
+
+    <!-- Popup pour le mode date -->
     <div id="popupDate" class="popup hidden">
-      <h3 style="text-align:center;">📅 Choisis une époque</h3>
+      <h3>📅 De quelle époque ?</h3>
       <div id="dateGrid" class="choice-grid"></div>
     </div>
   </div>
@@ -280,7 +312,7 @@
 
       // ==================== VARIABLES PARTAGÉES ====================
       let currentAudio = null;
-      let gameSongs = [];                // Liste des chansons du jeu
+      let gameSongs = [];
       let currentSongIndex = 0;
       let roundActive = false;
       let roundStartTime = 0;
@@ -290,9 +322,6 @@
       let mode = 'classic';
       let maxAttempts = 3;
       let blurEnabled = false;
-      // Pour les modes spécifiques
-      let currentArtist = null;
-      let currentEra = null;
 
       // Intervalles
       let answerTimerInterval = null;
@@ -401,29 +430,38 @@
             roundActive: true,
             buzzer: null
           });
-          // Lecture de l'extrait (SoundHelix pour test)
-          if (gameSongs[currentSongIndex]?.preview) {
+          // Lecture de l'extrait
+          const song = gameSongs[currentSongIndex];
+          if (song && song.previewUrl) {
             if (currentAudio) currentAudio.pause();
-            currentAudio = new Audio(gameSongs[currentSongIndex].preview);
+            currentAudio = new Audio(song.previewUrl);
             currentAudio.play().catch(e => {
               console.log('Erreur lecture audio', e);
-              alert('Impossible de lire l\'extrait audio. Utilisation d\'un échantillon de secours.');
-              // Fallback : son de test
-              const fallback = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
-              fallback.play().catch(() => {});
+              alert('Impossible de lire l\'extrait audio.');
             });
           } else {
             alert('Aucun extrait disponible pour cette chanson.');
           }
         });
 
+        // Révélation avec popup jolie
         hostReveal.addEventListener('click', () => {
           const song = gameSongs[currentSongIndex];
-          if (song) {
-            alert(`Titre : ${song.title}\nArtiste : ${song.artist}`);
-          } else {
-            alert('Aucune chanson sélectionnée.');
-          }
+          if (!song) return;
+          const popup = document.getElementById('popupReveal');
+          const cover = document.getElementById('revealCover');
+          const title = document.getElementById('revealTitle');
+          const artist = document.getElementById('revealArtist');
+          cover.src = song.artwork || 'https://via.placeholder.com/120';
+          if (blurEnabled) cover.classList.add('blur');
+          else cover.classList.remove('blur');
+          title.textContent = song.title;
+          artist.textContent = song.artist;
+          popup.classList.remove('hidden');
+        });
+
+        document.getElementById('closeReveal').addEventListener('click', () => {
+          document.getElementById('popupReveal').classList.add('hidden');
         });
 
         hostNext.addEventListener('click', () => {
@@ -487,21 +525,18 @@
             const sec = Math.ceil((attempts.cooldownUntil - now)/1000);
             cooldownDisplay.textContent = `⏳ Cooldown: ${sec}s`;
             playerBuzzer.disabled = true;
-            playerFeedback.textContent = ''; // Le cooldown s'affiche
+            playerFeedback.textContent = '';
           } else {
             cooldownDisplay.textContent = '';
             if (buzzer) {
               if (buzzer === clientId) {
-                // C'est moi qui ai buzzé : on ne bloque pas, on attend la popup
                 playerBuzzer.disabled = true;
-                playerFeedback.textContent = ''; // Le joueur va voir la popup
+                playerFeedback.textContent = '';
               } else {
-                // Quelqu'un d'autre a buzzé
                 playerBuzzer.disabled = true;
                 playerFeedback.textContent = '⏳ Quelqu\'un a buzzé...';
               }
             } else {
-              // Personne n'a buzzé, on peut buzzer si essais restants
               if (maxAttempts > 0 && attempts.attemptsLeft <= 0) {
                 playerBuzzer.disabled = true;
                 playerFeedback.textContent = '❌ Plus d\'essais';
@@ -595,7 +630,7 @@
         function showChoicePopup() {
           const currentSong = gameSongs[currentSongIndex];
           if (!currentSong) return;
-          // Générer des propositions : la bonne + 3 autres aléatoires
+          // Générer des propositions : la bonne + 3 autres aléatoires (parmi toutes les chansons)
           let otherSongs = gameSongs.filter(s => s.title !== currentSong.title);
           while (otherSongs.length < 3) {
             otherSongs = otherSongs.concat(gameSongs);
@@ -643,8 +678,12 @@
 
         // ===== Popup artiste =====
         function showArtistPopup() {
-          // Pour le mode artiste, on propose plusieurs artistes (simulé)
-          const artists = ['Michael Jackson', 'Ed Sheeran', 'Bruno Mars', 'The Weeknd', 'Luis Fonsi'];
+          // Simuler une liste d'artistes (on pourrait les prendre depuis les chansons)
+          const artists = [...new Set(gameSongs.map(s => s.artist))];
+          if (artists.length === 0) {
+            // fallback
+            artists.push('Inconnu');
+          }
           shuffleArray(artists);
           const grid = document.getElementById('artistGrid');
           grid.innerHTML = '';
@@ -656,14 +695,12 @@
             grid.appendChild(btn);
           });
           document.getElementById('popupArtist').classList.remove('hidden');
-          // Pas de timer pour l'exemple
         }
 
         async function handleArtistChoice(selectedArtist) {
           document.getElementById('popupArtist').classList.add('hidden');
-          // Vérifier si l'artiste correspond à la chanson
           const song = gameSongs[currentSongIndex];
-          const isCorrect = song.artist.toLowerCase().includes(selectedArtist.toLowerCase());
+          const isCorrect = song.artist.toLowerCase() === selectedArtist.toLowerCase();
           const points = isCorrect ? 50 : -50;
           await sendResult(points, isCorrect, song.artist, 0);
         }
@@ -691,8 +728,7 @@
 
         async function handleDateChoice(selectedEra) {
           document.getElementById('popupDate').classList.add('hidden');
-          // Ici on aurait besoin de l'année de la chanson (stockée dans l'objet)
-          // Pour l'exemple, on simule
+          // Pour cet exemple, on n'a pas l'année, on simule
           const songYear = 2015; // À remplacer par une vraie donnée
           const isCorrect = songYear >= selectedEra.min && songYear <= selectedEra.max;
           const points = isCorrect ? 50 : -50;
@@ -736,23 +772,6 @@
           setTimeout(() => popup.classList.add('hidden'), 3000);
         }
       }
-
-      // ==================== INITIALISATION DES CHANSONS (si vide) ====================
-      // Pour les tests, on crée une playlist par défaut si aucune n'existe
-      gameStateRef.once('value', (snap) => {
-        const gs = snap.val() || {};
-        if (!gs.songs || gs.songs.length === 0) {
-          // Playlist de démonstration avec SoundHelix
-          const demoPlaylist = [
-            { title: 'Billie Jean', artist: 'Michael Jackson', preview: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
-            { title: 'Shape of You', artist: 'Ed Sheeran', preview: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' },
-            { title: 'Uptown Funk', artist: 'Bruno Mars', preview: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3' },
-            { title: 'Blinding Lights', artist: 'The Weeknd', preview: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3' },
-            { title: 'Despacito', artist: 'Luis Fonsi', preview: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3' }
-          ];
-          gameStateRef.update({ songs: demoPlaylist });
-        }
-      });
     })();
   </script>
 </body>

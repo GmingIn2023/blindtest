@@ -6,7 +6,6 @@
   <title>Jeu · Blind Test</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* Styles spécifiques au jeu */
     .game-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap; }
     .play-btn { background: linear-gradient(135deg, #5e9eff 0%, #2a5bbf 100%); width: 80px; height: 80px; border-radius: 50%; font-size: 2rem; border: none; color: white; cursor: pointer; }
     .reveal-btn { background: linear-gradient(135deg, #2e3b4e, #1e2835); border: 2px solid #3e4c5a; padding: 0.9rem 2rem; border-radius: 60px; }
@@ -83,16 +82,26 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
-  <!-- Nos scripts -->
-  <script src="js/firebase-init.js"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/state.js"></script>
-
   <script>
     (function() {
-      const isHost = AppState.isHost;
-      const roomCode = AppState.roomCode;
-      const clientId = AppState.clientId;
+      // Configuration Firebase (à adapter si besoin)
+      const firebaseConfig = {
+        apiKey: "AIzaSyBOEU9kg6YuXllGEGS9iod_SsBRu9NOPro",
+        authDomain: "blind-test-kahoot.firebaseapp.com",
+        databaseURL: "https://blind-test-kahoot-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "blind-test-kahoot",
+        storageBucket: "blind-test-kahoot.firebasestorage.app",
+        messagingSenderId: "798773649205",
+        appId: "1:798773649205:web:de5dd5cbce41ea2ec5b67c"
+      };
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.database();
+
+      // Récupération de l'état local depuis sessionStorage
+      const roomCode = sessionStorage.getItem('blindtest_roomCode');
+      const isHost = sessionStorage.getItem('blindtest_isHost') === 'true';
+      const clientId = sessionStorage.getItem('blindtest_clientId');
+      const playerName = sessionStorage.getItem('blindtest_playerName') || '';
 
       if (!roomCode) {
         alert('Aucune partie en cours. Retour à l\'accueil.');
@@ -104,7 +113,11 @@
       const gameStateRef = roomRef.child('gameState');
       const playersRef = roomRef.child('players');
 
-      // Éléments communs
+      // Éléments DOM
+      const hostView = document.getElementById('host-view');
+      const playerView = document.getElementById('player-view');
+
+      // Variables partagées
       let currentAudio = null;
       let gameSongs = [];
       let currentSongIndex = 0;
@@ -116,13 +129,12 @@
       let mode = 'classic';
       let maxAttempts = 3;
 
-      // Pour les popups
+      // Intervalles pour les popups
       let answerTimerInterval = null;
       let choiceTimerInterval = null;
       let answerStartTime = 0;
-      let selectedIndices = []; // pour le choix multiple mix (non utilisé ici)
 
-      // Fonctions utilitaires (doivent être dans utils.js, mais on les redéfinit par sécurité)
+      // Fonctions utilitaires
       function normalize(str) {
         if (!str) return '';
         return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -148,10 +160,10 @@
 
       // Initialisation selon le rôle
       if (isHost) {
-        document.getElementById('host-view').classList.remove('hidden');
+        hostView.classList.remove('hidden');
         initHost();
       } else {
-        document.getElementById('player-view').classList.remove('hidden');
+        playerView.classList.remove('hidden');
         initPlayer();
       }
 
@@ -181,7 +193,7 @@
             hostSongCounter.textContent = `Chanson ${currentSongIndex+1} / ${gameSongs.length}`;
           }
           updateHostScoreboard();
-          hostNext.disabled = roundActive; // On peut passer quand le round est terminé
+          hostNext.disabled = roundActive; // On ne peut passer que quand le round est fini
         });
 
         setInterval(() => {
@@ -210,7 +222,6 @@
             roundActive: true,
             buzzer: null
           });
-          // Lecture audio (exemple avec SoundHelix)
           if (gameSongs[currentSongIndex]?.preview) {
             if (currentAudio) currentAudio.pause();
             currentAudio = new Audio(gameSongs[currentSongIndex].preview);
@@ -231,7 +242,6 @@
             });
           } else {
             alert('Fin du jeu !');
-            // Redirection vers résultats (à faire)
           }
         });
 
@@ -444,7 +454,7 @@
           await gameStateRef.update({
             scores: scores,
             playerAttempts: playerAttempts,
-            answerResult: { playerId: clientId, correct: isCorrect, points, correctTitle, playerName: AppState.playerName },
+            answerResult: { playerId: clientId, correct: isCorrect, points, correctTitle, playerName: playerName },
             buzzer: null
           });
           const popup = document.getElementById('popupResult');

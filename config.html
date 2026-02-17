@@ -6,7 +6,6 @@
   <title>Configuration · Blind Test</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* Styles supplémentaires pour cette page */
     .config-group {
       background: #1e2329;
       border-radius: 1.5rem;
@@ -68,24 +67,12 @@
       <div class="config-group">
         <div class="config-title">🎮 Mode de jeu</div>
         <div class="radio-group">
-          <label class="radio-label">
-            <input type="radio" name="gameMode" value="classic" checked> Classique
-          </label>
-          <label class="radio-label">
-            <input type="radio" name="gameMode" value="kahoot"> Kahoot
-          </label>
-          <label class="radio-label">
-            <input type="radio" name="gameMode" value="mix"> Mix
-          </label>
-          <label class="radio-label">
-            <input type="radio" name="gameMode" value="world"> Tour du monde
-          </label>
-          <label class="radio-label">
-            <input type="radio" name="gameMode" value="artist"> Artiste(s) spécifique(s)
-          </label>
-          <label class="radio-label">
-            <input type="radio" name="gameMode" value="date"> Deviner la date
-          </label>
+          <label class="radio-label"><input type="radio" name="gameMode" value="classic" checked> Classique</label>
+          <label class="radio-label"><input type="radio" name="gameMode" value="kahoot"> Kahoot</label>
+          <label class="radio-label"><input type="radio" name="gameMode" value="mix"> Mix</label>
+          <label class="radio-label"><input type="radio" name="gameMode" value="world"> Tour du monde</label>
+          <label class="radio-label"><input type="radio" name="gameMode" value="artist"> Artiste(s) spécifique(s)</label>
+          <label class="radio-label"><input type="radio" name="gameMode" value="date"> Deviner la date</label>
         </div>
       </div>
 
@@ -101,67 +88,100 @@
         </label>
       </div>
 
-      <!-- Nombre de joueurs -->
+      <!-- Nombre total de chansons et joueurs -->
       <div class="config-group">
-        <div class="config-title">👥 Joueurs (hors hôte)</div>
-        <input type="number" id="playerCount" min="1" max="8" value="2">
+        <div class="config-title">🎵 Chansons</div>
+        <div style="margin-bottom:1rem;">
+          <label>Nombre total de chansons</label>
+          <input type="number" id="totalSongs" min="2" max="30" value="5">
+          <p style="color:#8aaec0; font-size:0.9rem;">(minimum 2, doit être ≥ nombre de joueurs)</p>
+        </div>
+        <div style="margin-bottom:1rem;">
+          <label>Nombre de joueurs (hors hôte)</label>
+          <input type="number" id="playerCount" min="1" max="8" value="2">
+        </div>
+        <div id="quotaInfo" style="background:#0f1a24; padding:0.8rem; border-radius:60px; text-align:center;">
+          L'hôte devra choisir <span id="hostQuota">3</span> chansons<br>
+          Chaque joueur choisira 1 chanson
+        </div>
       </div>
 
       <!-- Bouton de création -->
       <button type="submit" class="primary" style="width:100%; padding:1.2rem;">🚀 Créer la partie</button>
-      <div id="formError" class="error-message"></div>
+      <div id="configError" class="error-message"></div>
     </form>
     <p style="text-align:center; margin-top:1.5rem;">
       <a href="index.html" style="color:#8aaec0;">← Retour à l'accueil</a>
     </p>
   </div>
 
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-
-  <!-- Nos scripts -->
   <script src="js/firebase-init.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/state.js"></script>
   <script>
     (function() {
+      const totalSongsInput = document.getElementById('totalSongs');
+      const playerCountInput = document.getElementById('playerCount');
+      const hostQuotaSpan = document.getElementById('hostQuota');
+
+      function updateQuota() {
+        const total = parseInt(totalSongsInput.value, 10) || 0;
+        const players = parseInt(playerCountInput.value, 10) || 0;
+        const quota = Math.max(0, total - players);
+        hostQuotaSpan.textContent = quota;
+      }
+
+      totalSongsInput.addEventListener('input', updateQuota);
+      playerCountInput.addEventListener('input', updateQuota);
+      updateQuota();
+
       const form = document.getElementById('config-form');
-      const formError = document.getElementById('formError');
+      const errorDiv = document.getElementById('configError');
 
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        formError.textContent = '';
+        errorDiv.textContent = '';
 
-        // Récupérer les valeurs
         const mode = document.querySelector('input[name="gameMode"]:checked')?.value;
         if (!mode) {
-          formError.textContent = 'Veuillez choisir un mode de jeu.';
+          errorDiv.textContent = 'Veuillez choisir un mode de jeu.';
           return;
         }
 
-        const maxAttempts = parseInt(document.getElementById('maxAttempts').value, 10);
-        if (isNaN(maxAttempts) || maxAttempts < 0) {
-          formError.textContent = 'Le nombre d\'essais doit être un nombre valide (>= 0).';
-          return;
-        }
-
+        const maxAttempts = parseInt(document.getElementById('maxAttempts').value, 10) || 0;
         const blurEnabled = document.getElementById('blurCheck').checked;
+        const totalSongs = parseInt(document.getElementById('totalSongs').value, 10);
         const playerCount = parseInt(document.getElementById('playerCount').value, 10);
-        if (isNaN(playerCount) || playerCount < 1 || playerCount > 8) {
-          formError.textContent = 'Le nombre de joueurs doit être entre 1 et 8.';
+
+        if (isNaN(totalSongs) || totalSongs < 2) {
+          errorDiv.textContent = 'Le nombre total de chansons doit être au moins 2.';
+          return;
+        }
+        if (isNaN(playerCount) || playerCount < 1) {
+          errorDiv.textContent = 'Le nombre de joueurs doit être au moins 1.';
+          return;
+        }
+        if (totalSongs < playerCount) {
+          errorDiv.textContent = 'Le nombre total de chansons doit être supérieur ou égal au nombre de joueurs.';
           return;
         }
 
-        // Générer un code de partie
+        const hostSongsCount = totalSongs - playerCount;
         const roomCode = generateRoomCode();
+        console.log('Création de la partie avec code:', roomCode);
 
-        // Sauvegarder l'état local
-        AppState.roomCode = roomCode;
-        AppState.isHost = true;
-        AppState.clientId = 'host';
+        try {
+          AppState.roomCode = roomCode;
+          AppState.isHost = true;
+          AppState.clientId = 'host';
+        } catch (e) {
+          console.error('Erreur AppState:', e);
+          errorDiv.textContent = 'Erreur interne.';
+          return;
+        }
 
-        // Créer la room dans Firebase
         try {
           const roomRef = db.ref('rooms/' + roomCode);
           await roomRef.set({
@@ -169,7 +189,9 @@
               mode: mode,
               maxAttempts: maxAttempts,
               blurEnabled: blurEnabled,
-              expectedPlayerCount: playerCount
+              expectedPlayerCount: playerCount,
+              totalSongs: totalSongs,
+              hostSongsCount: hostSongsCount
             },
             players: {},
             selections: {},
@@ -185,12 +207,12 @@
             status: 'lobby',
             createdAt: Date.now()
           });
+          console.log('Room créée avec succès');
 
-          // Rediriger vers le lobby hôte
           window.location.href = 'host-lobby.html';
         } catch (error) {
-          console.error('Erreur création partie:', error);
-          formError.textContent = 'Erreur lors de la création de la partie : ' + error.message;
+          console.error('Erreur Firebase:', error);
+          errorDiv.textContent = 'Erreur lors de la création de la partie : ' + error.message;
         }
       });
     })();

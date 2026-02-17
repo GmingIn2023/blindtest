@@ -3,66 +3,51 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Blind Test · Jeu</title>
+  <title>Jeu · Blind Test</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
     /* Styles spécifiques au jeu */
-    .game-container {
+    .game-header {
       display: flex;
-      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
       gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .play-btn {
+      background: linear-gradient(135deg, #5e9eff 0%, #2a5bbf 100%);
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      font-size: 2rem;
+      border: none;
+      color: white;
+      cursor: pointer;
+    }
+    .reveal-btn {
+      background: linear-gradient(135deg, #2e3b4e, #1e2835);
+      border: 2px solid #3e4c5a;
+      padding: 0.9rem 2rem;
+      border-radius: 60px;
     }
     .timer-big {
-      font-size: 3rem;
+      font-size: 2.5rem;
       font-weight: bold;
       color: #ffaa33;
       text-align: center;
       font-family: monospace;
       background: #0f1a24;
-      border-radius: 2rem;
       padding: 0.5rem;
-      margin: 1rem 0;
-    }
-    .cover-container {
-      display: flex;
-      justify-content: center;
-      margin: 1rem 0;
-    }
-    .cover-img {
-      width: 200px;
-      height: 200px;
       border-radius: 1rem;
-      object-fit: cover;
-      transition: filter 0.1s linear;
-    }
-    .blur-very-high { filter: blur(20px); }
-    .blur-high { filter: blur(15px); }
-    .blur-medium { filter: blur(10px); }
-    .blur-low { filter: blur(5px); }
-    .blur-none { filter: blur(0); }
-
-    .scoreboard {
-      background: #0f1a24;
-      border-radius: 1.5rem;
-      padding: 1rem;
       margin: 1rem 0;
     }
-    .score-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 0.5rem 0;
-      border-bottom: 1px solid #2a3a4a;
-    }
-    .score-row:last-child {
-      border-bottom: none;
-    }
-
     .buzzer-btn {
       background: radial-gradient(circle at 30% 30%, #ff4d4d, #b30000);
       width: 200px;
       height: 200px;
       border-radius: 50%;
-      margin: 1rem auto;
+      margin: 2rem auto;
       font-size: 2rem;
       font-weight: bold;
       color: white;
@@ -74,13 +59,6 @@
       opacity: 0.5;
       cursor: not-allowed;
     }
-
-    .cooldown-timer {
-      font-size: 1.2rem;
-      color: #ffaa33;
-      text-align: center;
-    }
-
     .popup {
       position: fixed;
       top: 50%;
@@ -96,12 +74,10 @@
       box-shadow: 0 10px 30px black;
     }
     .hidden { display: none !important; }
-
     .choice-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(2,1fr);
       gap: 0.5rem;
-      margin-top: 1rem;
     }
     .choice-btn {
       background: #2a3a4a;
@@ -114,7 +90,12 @@
     .choice-btn:hover {
       background: #3b6eff;
     }
-
+    .scoreboard {
+      background: #0f1419;
+      border-radius: 1.5rem;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
     .notification {
       background: #1e3f5a;
       border-radius: 60px;
@@ -122,63 +103,65 @@
       margin: 0.5rem 0;
       text-align: center;
     }
+    .cooldown-timer {
+      font-size: 1.2rem;
+      color: #ffaa33;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
   <div id="app">
     <h1>🎧 Jeu en cours</h1>
-    <div id="hostView" class="phase hidden">
-      <h2>Hôte</h2>
-      <div class="game-container">
-        <div id="hostSongInfo" style="font-size:1.2rem;"></div>
-        <button id="playBtn" class="primary">▶️ Jouer l'extrait</button>
-        <div class="timer-big" id="hostTimer">00:00.0</div>
-        <div class="cover-container">
-          <img id="hostCover" class="cover-img blur-none" src="" alt="cover" style="display:none;">
-        </div>
-        <div id="hostNotification" class="notification"></div>
-        <div id="hostScoreboard" class="scoreboard"></div>
-        <button id="nextBtn" class="primary" disabled>⏩ Chanson suivante</button>
+
+    <!-- Vue Hôte -->
+    <div id="host-view" class="hidden">
+      <div class="game-header">
+        <span id="hostSongCounter" class="song-counter">Chanson 1 / 5</span>
+        <button id="hostPlay" class="play-btn">▶️</button>
+        <button id="hostReveal" class="reveal-btn">🔎 Révéler</button>
       </div>
+      <div class="timer-big" id="hostTimer">00:00.0</div>
+      <div id="hostNotification" class="notification"></div>
+      <div id="hostScoreboard" class="scoreboard"></div>
+      <button id="hostNext" class="primary" disabled>⏩ Chanson suivante</button>
     </div>
 
-    <div id="playerView" class="phase hidden">
-      <h2 id="playerNameHeader">Joueur</h2>
-      <div class="game-container">
-        <div id="playerSongInfo" style="text-align:center;"></div>
-        <div class="timer-big" id="playerTimer">00:00.0</div>
-        <div id="playerScore" style="font-size:2rem; color:#d4ffb0; text-align:center;">0 pts</div>
-        <div id="playerAttempts" style="text-align:center;">Essais restants: ∞</div>
-        <div id="cooldownDisplay" class="cooldown-timer"></div>
-        <button class="buzzer-btn" id="buzzerBtn">JE SAIS !</button>
-        <div id="playerFeedback" style="text-align:center;"></div>
-      </div>
+    <!-- Vue Joueur -->
+    <div id="player-view" class="hidden">
+      <div id="playerSongInfo" style="text-align:center; margin-bottom:1rem;">Chanson 1 / 5</div>
+      <div class="timer-big" id="playerTimer">00:00.0</div>
+      <div id="playerScore" style="font-size:1.5rem; text-align:center; color:#d4ffb0; margin:0.5rem;">0 pts</div>
+      <div id="playerAttempts" style="text-align:center;">Essais restants: ∞</div>
+      <div id="cooldownDisplay" class="cooldown-timer"></div>
+      <button class="buzzer-btn" id="playerBuzzer">JE SAIS !</button>
+      <div id="playerFeedback" style="text-align:center;"></div>
     </div>
 
     <!-- Popup réponse écrite -->
     <div id="popupAnswer" class="popup hidden">
-      <h3>✏️ Tape le titre</h3>
-      <input type="text" id="answerInput" placeholder="Titre">
-      <div style="display:flex; gap:1rem; margin-top:1rem;">
-        <button id="submitAnswer" style="flex:1;">Valider</button>
+      <h3 style="text-align:center;">✏️ Tape le titre</h3>
+      <input type="text" id="answerInput" placeholder="Titre" style="width:100%; margin:1rem 0;">
+      <div style="display:flex; gap:1rem; align-items:center;">
+        <button id="submitAnswer" style="flex:1;">✅ Valider</button>
         <span id="answerTimer" class="timer-big" style="font-size:1.8rem;">10</span>
       </div>
     </div>
 
     <!-- Popup choix multiple -->
     <div id="popupChoice" class="popup hidden">
-      <h3>🎯 Choisis la chanson</h3>
+      <h3 style="text-align:center;">🎯 Choisis la chanson</h3>
       <div id="choiceGrid" class="choice-grid"></div>
       <div id="choiceTimer" class="timer-big" style="margin-top:1rem;">5</div>
     </div>
 
-    <!-- Popup de résultat -->
+    <!-- Popup de résultat (Bravo/Faux) -->
     <div id="popupResult" class="popup hidden">
-      <h3 id="resultTitle"></h3>
-      <p id="resultMessage"></p>
+      <h3 id="resultTitle" style="text-align:center;"></h3>
+      <p id="resultMessage" style="text-align:center;"></p>
     </div>
 
-    <p style="text-align:center; margin-top:2rem;">
+    <p style="text-align:center; margin-top:1.5rem;">
       <a href="index.html" style="color:#8aaec0;">← Quitter la partie</a>
     </p>
   </div>
@@ -191,381 +174,28 @@
   <script src="js/firebase-init.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/state.js"></script>
+  <script src="js/host.js"></script>
+  <script src="js/player.js"></script>
   <script>
     (function() {
-      // ==================== ÉLÉMENTS DOM ====================
-      const hostView = document.getElementById('hostView');
-      const playerView = document.getElementById('playerView');
-      const playerNameHeader = document.getElementById('playerNameHeader');
-      const hostSongInfo = document.getElementById('hostSongInfo');
-      const playBtn = document.getElementById('playBtn');
-      const hostTimer = document.getElementById('hostTimer');
-      const playerTimer = document.getElementById('playerTimer');
-      const hostCover = document.getElementById('hostCover');
-      const hostNotification = document.getElementById('hostNotification');
-      const hostScoreboard = document.getElementById('hostScoreboard');
-      const nextBtn = document.getElementById('nextBtn');
-      const playerSongInfo = document.getElementById('playerSongInfo');
-      const playerScore = document.getElementById('playerScore');
-      const playerAttempts = document.getElementById('playerAttempts');
-      const cooldownDisplay = document.getElementById('cooldownDisplay');
-      const buzzerBtn = document.getElementById('buzzerBtn');
-      const playerFeedback = document.getElementById('playerFeedback');
-
-      // Popups
-      const popupAnswer = document.getElementById('popupAnswer');
-      const answerInput = document.getElementById('answerInput');
-      const submitAnswer = document.getElementById('submitAnswer');
-      const answerTimerSpan = document.getElementById('answerTimer');
-
-      const popupChoice = document.getElementById('popupChoice');
-      const choiceGrid = document.getElementById('choiceGrid');
-      const choiceTimerSpan = document.getElementById('choiceTimer');
-
-      const popupResult = document.getElementById('popupResult');
-      const resultTitle = document.getElementById('resultTitle');
-      const resultMessage = document.getElementById('resultMessage');
-
-      // ==================== ÉTAT LOCAL ====================
-      const roomCode = AppState.roomCode;
       const isHost = AppState.isHost;
-      const clientId = AppState.clientId;
-      const playerName = AppState.playerName;
+      console.log('isHost:', isHost);
 
-      if (!roomCode) {
-        alert('Aucune partie en cours. Retour à l\'accueil.');
-        window.location.href = 'index.html';
-      }
-
-      // Références Firebase
-      const roomRef = db.ref('rooms/' + roomCode);
-      const gameStateRef = roomRef.child('gameState');
-      const playersRef = roomRef.child('players');
-
-      let currentMode = 'classic';
-      let maxAttempts = 0;
-      let blurEnabled = false;
-      let currentSongs = [];
-      let currentSongIndex = 0;
-      let scores = {};
-      let playerAttempts = {};
-      let roundActive = false;
-      let roundStartTime = 0;
-
-      // Variables pour les timers
-      let timerInterval = null;
-      let cooldownInterval = null;
-      let popupTimer = null;
-
-      // ==================== AFFICHAGE INITIAL ====================
       if (isHost) {
-        hostView.classList.remove('hidden');
-        playerView.classList.add('hidden');
+        document.getElementById('host-view').classList.remove('hidden');
+        if (typeof initHostGame === 'function') {
+          initHostGame();
+        } else {
+          console.error('initHostGame non défini');
+        }
       } else {
-        hostView.classList.add('hidden');
-        playerView.classList.remove('hidden');
-        playerNameHeader.textContent = playerName;
-      }
-
-      // ==================== ÉCOUTEUR GAMESTATE ====================
-      gameStateRef.on('value', (snapshot) => {
-        const gs = snapshot.val() || {};
-        currentMode = gs.mode || 'classic';
-        maxAttempts = gs.maxAttempts || 0;
-        blurEnabled = gs.blurEnabled || false;
-        currentSongs = gs.songs || [];
-        currentSongIndex = gs.currentSongIndex || 0;
-        scores = gs.scores || {};
-        playerAttempts = gs.playerAttempts || {};
-        roundActive = gs.roundActive || false;
-        roundStartTime = gs.roundStartTime || 0;
-
-        updateUI();
-      });
-
-      // ==================== FONCTIONS DE MISE À JOUR ====================
-      function updateUI() {
-        if (isHost) updateHostUI();
-        else updatePlayerUI();
-      }
-
-      function updateHostUI() {
-        const song = currentSongs[currentSongIndex];
-        if (song) {
-          hostSongInfo.textContent = `Chanson ${currentSongIndex+1} / ${currentSongs.length} - ${song.title}`;
-          if (blurEnabled) {
-            hostCover.style.display = 'block';
-            hostCover.src = song.artwork || 'https://via.placeholder.com/200/1e2a36/ffffff?text=🎵';
-          } else {
-            hostCover.style.display = 'none';
-          }
-        }
-
-        // Scoreboard
-        let html = '<strong>Scores :</strong>';
-        playersRef.once('value').then((snap) => {
-          const players = snap.val() || {};
-          Object.entries(players).forEach(([id, p]) => {
-            html += `<div class="score-row"><span>${p.avatar} ${p.name}</span><span>${scores[id] || 0} pts</span></div>`;
-          });
-          hostScoreboard.innerHTML = html;
-        });
-
-        // Notification si buzzer actif
-        if (gs.buzzer) {
-          playersRef.child(gs.buzzer).once('value').then((pSnap) => {
-            const p = pSnap.val();
-            if (p) hostNotification.textContent = `🔔 ${p.name} a buzzé !`;
-          });
+        document.getElementById('player-view').classList.remove('hidden');
+        if (typeof initPlayerGame === 'function') {
+          initPlayerGame();
         } else {
-          hostNotification.textContent = '';
-        }
-
-        nextBtn.disabled = !roundActive && !gs.buzzer; // simplifié
-      }
-
-      function updatePlayerUI() {
-        const song = currentSongs[currentSongIndex];
-        if (song) {
-          playerSongInfo.textContent = `Chanson ${currentSongIndex+1} / ${currentSongs.length}`;
-        }
-
-        playerScore.textContent = (scores[clientId] || 0) + ' pts';
-
-        const attemptsData = playerAttempts[clientId] || { attemptsLeft: maxAttempts, cooldownUntil: 0, attemptCount: 0 };
-        const attemptsLeftText = maxAttempts === 0 ? '∞' : attemptsData.attemptsLeft;
-        playerAttempts.innerHTML = `Essais restants: ${attemptsLeftText}`;
-
-        const now = Date.now();
-        if (attemptsData.cooldownUntil && now < attemptsData.cooldownUntil) {
-          const remaining = Math.ceil((attemptsData.cooldownUntil - now) / 1000);
-          cooldownDisplay.textContent = `⏳ Cooldown: ${remaining}s`;
-        } else {
-          cooldownDisplay.textContent = '';
-        }
-
-        // Gestion du buzzer
-        if (gs.buzzer === clientId) {
-          buzzerBtn.disabled = true;
-          if (currentMode === 'kahoot') showChoicePopup();
-          else showAnswerPopup();
-        } else if (gs.buzzer) {
-          buzzerBtn.disabled = true;
-          playerFeedback.textContent = '⏳ Quelqu\'un a buzzé...';
-        } else {
-          // Peut-il buzzer ?
-          if (maxAttempts > 0 && attemptsData.attemptsLeft <= 0) {
-            buzzerBtn.disabled = true;
-            playerFeedback.textContent = '❌ Plus d\'essais';
-          } else if (attemptsData.cooldownUntil && now < attemptsData.cooldownUntil) {
-            buzzerBtn.disabled = true;
-          } else {
-            buzzerBtn.disabled = false;
-            playerFeedback.textContent = '';
-          }
+          console.error('initPlayerGame non défini');
         }
       }
-
-      // ==================== TIMER ====================
-      function startTimerLoop() {
-        if (timerInterval) clearInterval(timerInterval);
-        timerInterval = setInterval(() => {
-          if (roundActive && roundStartTime > 0) {
-            const elapsed = Date.now() - roundStartTime;
-            const formatted = formatTimer(elapsed);
-            if (isHost) hostTimer.textContent = formatted;
-            else playerTimer.textContent = formatted;
-          } else {
-            if (isHost) hostTimer.textContent = '00:00.0';
-            else playerTimer.textContent = '00:00.0';
-          }
-        }, 100);
-      }
-      startTimerLoop();
-
-      // ==================== ACTIONS HÔTE ====================
-      if (isHost) {
-        playBtn.addEventListener('click', async () => {
-          if (roundActive) return;
-          const startTime = Date.now();
-          await gameStateRef.update({
-            roundStartTime: startTime,
-            roundActive: true,
-            buzzer: null
-          });
-
-          // Gestion du flou progressif
-          if (blurEnabled) {
-            hostCover.className = 'cover-img blur-very-high';
-            let level = 5;
-            const interval = setInterval(() => {
-              level--;
-              if (level === 4) hostCover.className = 'cover-img blur-high';
-              else if (level === 3) hostCover.className = 'cover-img blur-medium';
-              else if (level === 2) hostCover.className = 'cover-img blur-low';
-              else if (level === 1) hostCover.className = 'cover-img blur-none';
-              if (level <= 0) clearInterval(interval);
-            }, 1000);
-          }
-        });
-
-        nextBtn.addEventListener('click', async () => {
-          if (currentSongIndex + 1 < currentSongs.length) {
-            await gameStateRef.update({
-              currentSongIndex: currentSongIndex + 1,
-              roundActive: false,
-              buzzer: null,
-              playerAttempts: {}  // reset des essais
-            });
-          } else {
-            alert('Fin de la partie !');
-            // Optionnel : rediriger vers un podium
-          }
-        });
-      }
-
-      // ==================== ACTIONS JOUEUR ====================
-      buzzerBtn.addEventListener('click', async () => {
-        if (buzzerBtn.disabled) return;
-        const attemptsData = playerAttempts[clientId] || { attemptsLeft: maxAttempts };
-        if (maxAttempts > 0 && attemptsData.attemptsLeft <= 0) return;
-        buzzerBtn.disabled = true;
-        await gameStateRef.update({ buzzer: clientId });
-      });
-
-      // ==================== POPUP RÉPONSE ÉCRITE ====================
-      function showAnswerPopup() {
-        popupAnswer.classList.remove('hidden');
-        answerInput.value = '';
-        answerInput.focus();
-        let timeLeft = 10;
-        answerTimerSpan.textContent = timeLeft;
-        if (popupTimer) clearInterval(popupTimer);
-        popupTimer = setInterval(() => {
-          timeLeft--;
-          answerTimerSpan.textContent = timeLeft;
-          if (timeLeft <= 0) {
-            clearInterval(popupTimer);
-            submitAnswer('');
-          }
-        }, 1000);
-      }
-
-      submitAnswer.addEventListener('click', () => {
-        const ans = answerInput.value.trim();
-        submitAnswerHandler(ans);
-      });
-
-      async function submitAnswerHandler(answer) {
-        if (popupTimer) clearInterval(popupTimer);
-        popupAnswer.classList.add('hidden');
-        const song = currentSongs[currentSongIndex];
-        const correct = song.title;
-        const normAnswer = normalize(answer);
-        const normCorrect = normalize(correct);
-        const isCorrect = normAnswer === normCorrect || normCorrect.includes(normAnswer) || normAnswer.includes(normCorrect);
-        const elapsed = roundActive ? Date.now() - roundStartTime : 0;
-        let points = 0;
-        if (isCorrect) {
-          if (currentMode === 'kahoot') {
-            const seconds = elapsed / 1000;
-            points = Math.max(20, 100 - Math.floor(seconds * 10));
-          } else {
-            points = 50;
-          }
-        } else {
-          points = -50;
-        }
-        await sendResult(points, isCorrect, correct, elapsed);
-      }
-
-      // ==================== POPUP CHOIX MULTIPLE ====================
-      function showChoicePopup() {
-        const currentSong = currentSongs[currentSongIndex];
-        // Prendre des chansons de la liste complète (simulée ici avec currentSongs + des fictives)
-        // Pour simplifier, on utilise currentSongs et on complète avec des placeholders
-        let otherSongs = currentSongs.filter(s => s.title !== currentSong.title);
-        // Si pas assez, on duplique
-        while (otherSongs.length < 3) {
-          otherSongs = otherSongs.concat(currentSongs);
-        }
-        shuffleArray(otherSongs);
-        const choices = [currentSong, ...otherSongs.slice(0, 3)];
-        shuffleArray(choices);
-        choiceGrid.innerHTML = '';
-        choices.forEach((song, idx) => {
-          const btn = document.createElement('button');
-          btn.className = 'choice-btn';
-          btn.textContent = song.title;
-          btn.onclick = () => handleChoice(song, currentSong);
-          choiceGrid.appendChild(btn);
-        });
-        popupChoice.classList.remove('hidden');
-        let timeLeft = 5;
-        choiceTimerSpan.textContent = timeLeft;
-        if (popupTimer) clearInterval(popupTimer);
-        popupTimer = setInterval(() => {
-          timeLeft--;
-          choiceTimerSpan.textContent = timeLeft;
-          if (timeLeft <= 0) {
-            clearInterval(popupTimer);
-            handleChoice(null, currentSong);
-          }
-        }, 1000);
-      }
-
-      async function handleChoice(selected, correct) {
-        if (popupTimer) clearInterval(popupTimer);
-        popupChoice.classList.add('hidden');
-        const isCorrect = selected && selected.title === correct.title;
-        const elapsed = roundActive ? Date.now() - roundStartTime : 0;
-        let points = 0;
-        if (isCorrect) {
-          const seconds = elapsed / 1000;
-          points = Math.max(20, 100 - Math.floor(seconds * 10));
-        } else {
-          points = -50;
-        }
-        await sendResult(points, isCorrect, correct.title, elapsed);
-      }
-
-      // ==================== ENVOI DU RÉSULTAT ====================
-      async function sendResult(points, success, correctTitle, elapsed) {
-        const newScores = { ...scores };
-        newScores[clientId] = (newScores[clientId] || 0) + points;
-
-        let attemptsData = playerAttempts[clientId] || { attemptsLeft: maxAttempts, cooldownUntil: 0, attemptCount: 0 };
-        if (maxAttempts > 0 && !success) {
-          attemptsData.attemptsLeft = Math.max(0, attemptsData.attemptsLeft - 1);
-          attemptsData.attemptCount = (attemptsData.attemptCount || 0) + 1;
-          const cooldown = 3000 + (attemptsData.attemptCount - 1) * 2000;
-          attemptsData.cooldownUntil = Date.now() + cooldown;
-        }
-        if (success) {
-          attemptsData.attemptsLeft = 0;
-          attemptsData.cooldownUntil = 0;
-        }
-        const newAttempts = { ...playerAttempts, [clientId]: attemptsData };
-
-        await gameStateRef.update({
-          scores: newScores,
-          playerAttempts: newAttempts,
-          answerResult: { playerId: clientId, correct: success, points, correctTitle, playerName },
-          buzzer: null
-        });
-
-        // Afficher popup résultat
-        popupResult.classList.remove('hidden');
-        resultTitle.textContent = success ? '🎉 Bravo !' : '❌ Faux !';
-        resultMessage.textContent = success ? `+${points} points` : `-50 points (c'était ${correctTitle})`;
-        setTimeout(() => popupResult.classList.add('hidden'), 2000);
-      }
-
-      // ==================== NETTOYAGE ====================
-      window.addEventListener('beforeunload', () => {
-        if (timerInterval) clearInterval(timerInterval);
-        if (popupTimer) clearInterval(popupTimer);
-      });
     })();
   </script>
 </body>

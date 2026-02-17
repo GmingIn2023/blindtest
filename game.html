@@ -3,23 +3,161 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jeu · Blind Test</title>
-  <link rel="stylesheet" href="css/style.css">
+  <title>Blind Test · Jeu</title>
   <style>
-    .game-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap; }
-    .play-btn { background: linear-gradient(135deg, #5e9eff 0%, #2a5bbf 100%); width: 80px; height: 80px; border-radius: 50%; font-size: 2rem; border: none; color: white; cursor: pointer; }
-    .reveal-btn { background: linear-gradient(135deg, #2e3b4e, #1e2835); border: 2px solid #3e4c5a; padding: 0.9rem 2rem; border-radius: 60px; }
-    .timer-big { font-size: 2.5rem; font-weight: bold; color: #ffaa33; text-align: center; font-family: monospace; background: #0f1a24; padding: 0.5rem; border-radius: 1rem; margin: 1rem 0; }
-    .buzzer-btn { background: radial-gradient(circle at 30% 30%, #ff4d4d, #b30000); width: 200px; height: 200px; border-radius: 50%; margin: 2rem auto; font-size: 2rem; font-weight: bold; color: white; border: none; cursor: pointer; display: block; }
-    .buzzer-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .popup { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e2a36; border: 3px solid #ffaa33; border-radius: 2rem; padding: 2rem; width: 90%; max-width: 400px; z-index: 1000; box-shadow: 0 10px 30px black; }
+    /* Styles complets (repris de style.css) */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    body {
+      background: #0a0c0e;
+      color: #f0f4fa;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 1.5rem;
+    }
+    #app {
+      max-width: 700px;
+      width: 100%;
+      background: #151e26;
+      border-radius: 2.5rem;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+      padding: 2rem 1.8rem;
+      position: relative;
+    }
+    h1 {
+      font-size: 2.2rem;
+      color: #ffffff;
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+    button {
+      background: #2a3b4c;
+      border: none;
+      border-radius: 60px;
+      padding: 0.85rem 1.4rem;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 1rem;
+      margin: 0.5rem 0;
+      transition: all 0.2s;
+    }
+    button:hover:not(:disabled) {
+      background: #3e5a77;
+      transform: translateY(-2px);
+    }
+    button.primary {
+      background: #3b6eff;
+    }
     .hidden { display: none !important; }
-    .choice-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 0.5rem; }
-    .choice-btn { background: #2a3a4a; border: 2px solid #5e9eff; border-radius: 1rem; padding: 0.8rem; cursor: pointer; text-align: center; }
-    .choice-btn:hover { background: #3b6eff; }
-    .scoreboard { background: #0f1419; border-radius: 1.5rem; padding: 1rem; margin: 1rem 0; }
-    .notification { background: #1e3f5a; border-radius: 60px; padding: 0.5rem 1rem; margin: 0.5rem 0; text-align: center; }
-    .cooldown-timer { font-size: 1.2rem; color: #ffaa33; text-align: center; }
+
+    /* Styles spécifiques au jeu */
+    .game-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .play-btn {
+      background: linear-gradient(135deg, #5e9eff 0%, #2a5bbf 100%);
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      font-size: 2rem;
+      border: none;
+      color: white;
+      cursor: pointer;
+    }
+    .reveal-btn {
+      background: linear-gradient(135deg, #2e3b4e, #1e2835);
+      border: 2px solid #3e4c5a;
+      padding: 0.9rem 2rem;
+      border-radius: 60px;
+    }
+    .timer-big {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: #ffaa33;
+      text-align: center;
+      font-family: monospace;
+      background: #0f1a24;
+      padding: 0.5rem;
+      border-radius: 1rem;
+      margin: 1rem 0;
+    }
+    .buzzer-btn {
+      background: radial-gradient(circle at 30% 30%, #ff4d4d, #b30000);
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      margin: 2rem auto;
+      font-size: 2rem;
+      font-weight: bold;
+      color: white;
+      border: none;
+      cursor: pointer;
+      display: block;
+    }
+    .buzzer-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #1e2a36;
+      border: 3px solid #ffaa33;
+      border-radius: 2rem;
+      padding: 2rem;
+      width: 90%;
+      max-width: 400px;
+      z-index: 1000;
+      box-shadow: 0 10px 30px black;
+    }
+    .choice-grid {
+      display: grid;
+      grid-template-columns: repeat(2,1fr);
+      gap: 0.5rem;
+    }
+    .choice-btn {
+      background: #2a3a4a;
+      border: 2px solid #5e9eff;
+      border-radius: 1rem;
+      padding: 0.8rem;
+      cursor: pointer;
+      text-align: center;
+    }
+    .choice-btn:hover {
+      background: #3b6eff;
+    }
+    .scoreboard {
+      background: #0f1419;
+      border-radius: 1.5rem;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+    .notification {
+      background: #1e3f5a;
+      border-radius: 60px;
+      padding: 0.5rem 1rem;
+      margin: 0.5rem 0;
+      text-align: center;
+    }
+    .cooldown-timer {
+      font-size: 1.2rem;
+      color: #ffaa33;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -73,9 +211,7 @@
       <p id="resultMessage" style="text-align:center;"></p>
     </div>
 
-    <p style="text-align:center; margin-top:1.5rem;">
-      <a href="index.html" style="color:#8aaec0;">← Quitter la partie</a>
-    </p>
+    <!-- Pas de lien de sortie -->
   </div>
 
   <!-- Firebase SDK -->
@@ -84,7 +220,7 @@
 
   <script>
     (function() {
-      // Configuration Firebase (à adapter si besoin)
+      // Configuration Firebase (identique à firebase-init.js)
       const firebaseConfig = {
         apiKey: "AIzaSyBOEU9kg6YuXllGEGS9iod_SsBRu9NOPro",
         authDomain: "blind-test-kahoot.firebaseapp.com",
@@ -101,13 +237,15 @@
       const roomCode = sessionStorage.getItem('blindtest_roomCode');
       const isHost = sessionStorage.getItem('blindtest_isHost') === 'true';
       const clientId = sessionStorage.getItem('blindtest_clientId');
-      const playerName = sessionStorage.getItem('blindtest_playerName') || '';
+      const playerName = sessionStorage.getItem('blindtest_playerName') || 'Joueur';
 
       if (!roomCode) {
         alert('Aucune partie en cours. Retour à l\'accueil.');
         window.location.href = 'index.html';
         return;
       }
+
+      console.log('Jeu démarré', { roomCode, isHost, clientId, playerName });
 
       const roomRef = db.ref('rooms/' + roomCode);
       const gameStateRef = roomRef.child('gameState');
@@ -129,7 +267,7 @@
       let mode = 'classic';
       let maxAttempts = 3;
 
-      // Intervalles pour les popups
+      // Intervalles
       let answerTimerInterval = null;
       let choiceTimerInterval = null;
       let answerStartTime = 0;
@@ -158,7 +296,7 @@
         return 3000 + (attemptCount - 1) * 2000; // 3s, 5s, 7s...
       }
 
-      // Initialisation selon le rôle
+      // Afficher la bonne vue
       if (isHost) {
         hostView.classList.remove('hidden');
         initHost();
@@ -177,6 +315,7 @@
         const hostPlay = document.getElementById('hostPlay');
         const hostReveal = document.getElementById('hostReveal');
 
+        // Écoute de l'état du jeu
         gameStateRef.on('value', (snap) => {
           const gs = snap.val() || {};
           gameSongs = gs.songs || [];
@@ -196,6 +335,7 @@
           hostNext.disabled = roundActive; // On ne peut passer que quand le round est fini
         });
 
+        // Timer
         setInterval(() => {
           if (roundActive && roundStartTime > 0) {
             const elapsed = Date.now() - roundStartTime;
@@ -206,7 +346,7 @@
         function updateHostScoreboard() {
           playersRef.once('value', (snap) => {
             const players = snap.val() || {};
-            let html = '<strong>Scores:</strong><br>';
+            let html = '<strong>Scores :</strong><br>';
             Object.entries(players).forEach(([id, p]) => {
               html += `<div>${p.avatar || ''} ${p.name}: ${scores[id] || 0} pts</div>`;
             });
@@ -222,15 +362,26 @@
             roundActive: true,
             buzzer: null
           });
+          // Lecture de l'extrait (SoundHelix pour test)
           if (gameSongs[currentSongIndex]?.preview) {
             if (currentAudio) currentAudio.pause();
             currentAudio = new Audio(gameSongs[currentSongIndex].preview);
-            currentAudio.play().catch(e => console.log('Erreur lecture audio', e));
+            currentAudio.play().catch(e => {
+              console.log('Erreur lecture audio', e);
+              alert('Impossible de lire l\'extrait audio (vérifie la console)');
+            });
+          } else {
+            alert('Aucun extrait disponible pour cette chanson.');
           }
         });
 
         hostReveal.addEventListener('click', () => {
-          alert('Réponse : ' + (gameSongs[currentSongIndex]?.title || 'inconnue'));
+          const song = gameSongs[currentSongIndex];
+          if (song) {
+            alert(`Titre : ${song.title}\nArtiste : ${song.artist}`);
+          } else {
+            alert('Aucune chanson sélectionnée.');
+          }
         });
 
         hostNext.addEventListener('click', () => {
@@ -242,9 +393,11 @@
             });
           } else {
             alert('Fin du jeu !');
+            // Rediriger vers résultats (à créer plus tard)
           }
         });
 
+        // Affichage des résultats de réponse
         gameStateRef.child('answerResult').on('value', (snap) => {
           const res = snap.val();
           if (res) {
@@ -255,7 +408,7 @@
                 setTimeout(() => hostNotification.textContent = '', 3000);
               }
             });
-            snap.ref.remove();
+            snap.ref.remove(); // nettoyer
           }
         });
       }
@@ -270,6 +423,7 @@
         const playerBuzzer = document.getElementById('playerBuzzer');
         const playerFeedback = document.getElementById('playerFeedback');
 
+        // Écoute de l'état du jeu
         gameStateRef.on('value', (snap) => {
           const gs = snap.val() || {};
           gameSongs = gs.songs || [];
@@ -285,6 +439,7 @@
           updatePlayerUI();
         });
 
+        // Timer
         setInterval(() => {
           if (roundActive && roundStartTime > 0) {
             const elapsed = Date.now() - roundStartTime;
@@ -306,6 +461,7 @@
             const sec = Math.ceil((attempts.cooldownUntil - now)/1000);
             cooldownDisplay.textContent = `⏳ Cooldown: ${sec}s`;
             playerBuzzer.disabled = true;
+            playerFeedback.textContent = ''; // le cooldown s'affiche déjà
           } else {
             cooldownDisplay.textContent = '';
             if (buzzer) {
@@ -330,10 +486,12 @@
           gameStateRef.update({ buzzer: clientId });
         });
 
+        // Quand le buzzer est pris par ce joueur
         gameStateRef.child('buzzer').on('value', (snap) => {
           const currentBuzzer = snap.val();
           if (currentBuzzer === clientId) {
             playerBuzzer.disabled = true;
+            // Afficher la popup selon le mode
             if (mode === 'kahoot') {
               showChoicePopup();
             } else {
@@ -342,6 +500,7 @@
           }
         });
 
+        // ===== Popup réponse écrite =====
         function showAnswerPopup() {
           const popup = document.getElementById('popupAnswer');
           const input = document.getElementById('answerInput');
@@ -372,9 +531,11 @@
           if (answerTimerInterval) clearInterval(answerTimerInterval);
           document.getElementById('popupAnswer').classList.add('hidden');
           const song = gameSongs[currentSongIndex];
+          if (!song) return;
           const correct = song.title;
           const normAnswer = normalize(answer);
           const normCorrect = normalize(correct);
+          // Tolérance : inclusion
           const isCorrect = normAnswer === normCorrect || normCorrect.includes(normAnswer) || normAnswer.includes(normCorrect);
           const elapsed = roundActive ? Date.now() - roundStartTime : 0;
           let points = 0;
@@ -391,8 +552,11 @@
           await sendResult(points, isCorrect, correct, elapsed);
         }
 
+        // ===== Popup choix multiple =====
         function showChoicePopup() {
           const currentSong = gameSongs[currentSongIndex];
+          if (!currentSong) return;
+          // Générer des propositions : la bonne + 3 autres aléatoires (depuis la liste complète des chansons)
           let otherSongs = gameSongs.filter(s => s.title !== currentSong.title);
           while (otherSongs.length < 3) {
             otherSongs = otherSongs.concat(gameSongs);
@@ -438,7 +602,9 @@
           await sendResult(points, isCorrect, correct.title, elapsed);
         }
 
+        // ===== Envoi du résultat =====
         async function sendResult(points, isCorrect, correctTitle, elapsed) {
+          // Mise à jour des scores et tentatives localement, puis envoi à Firebase
           scores[clientId] = (scores[clientId] || 0) + points;
           let attempts = playerAttempts[clientId] || { attemptsLeft: maxAttempts, cooldownUntil: 0, attemptCount: 0 };
           if (maxAttempts > 0 && !isCorrect) {
@@ -447,21 +613,31 @@
             attempts.cooldownUntil = Date.now() + getCooldown(attempts.attemptCount);
           }
           if (isCorrect) {
-            attempts.attemptsLeft = 0;
+            attempts.attemptsLeft = 0; // plus d'essais pour ce round
             attempts.cooldownUntil = 0;
           }
           playerAttempts[clientId] = attempts;
+
           await gameStateRef.update({
             scores: scores,
             playerAttempts: playerAttempts,
             answerResult: { playerId: clientId, correct: isCorrect, points, correctTitle, playerName: playerName },
             buzzer: null
           });
+
+          // Afficher la popup de résultat
           const popup = document.getElementById('popupResult');
-          document.getElementById('resultTitle').textContent = isCorrect ? '🎉 Bravo !' : '❌ Faux !';
-          document.getElementById('resultMessage').innerHTML = isCorrect ? `+${points} points` : `-50 points<br>${correctTitle}`;
+          const titleEl = document.getElementById('resultTitle');
+          const msgEl = document.getElementById('resultMessage');
+          if (isCorrect) {
+            titleEl.textContent = '🎉 Bravo !';
+            msgEl.innerHTML = `+${points} points`;
+          } else {
+            titleEl.textContent = '❌ Faux !';
+            msgEl.innerHTML = `-50 points<br>La bonne réponse était : ${correctTitle}`;
+          }
           popup.classList.remove('hidden');
-          setTimeout(() => popup.classList.add('hidden'), 2000);
+          setTimeout(() => popup.classList.add('hidden'), 3000);
         }
       }
     })();

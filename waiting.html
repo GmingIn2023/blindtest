@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>En attente · Blind Test</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .waiting-room {
+      background: #1e2a36;
+      border-radius: 2rem;
+      padding: 2rem;
+      text-align: center;
+    }
+    .progress-list {
+      margin-top: 1.5rem;
+      text-align: left;
+      background: #0f1419;
+      border-radius: 1.5rem;
+      padding: 1.5rem;
+    }
+    .progress-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.8rem 0;
+      border-bottom: 1px solid #2a323a;
+    }
+    .progress-item:last-child {
+      border-bottom: none;
+    }
+    .ready-badge {
+      background: #2f7740;
+      color: white;
+      padding: 0.2rem 0.8rem;
+      border-radius: 60px;
+      font-size: 0.9rem;
+    }
+    .not-ready-badge {
+      background: #77402f;
+      color: white;
+      padding: 0.2rem 0.8rem;
+      border-radius: 60px;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>⏳ En attente des autres joueurs</h1>
+    <div class="waiting-room">
+      <div id="waitingMessage" style="margin-bottom:1rem;">
+        Certains joueurs n'ont pas encore choisi leur chanson...
+      </div>
+      <div id="waitingProgress" class="progress-list">
+        <!-- Rempli dynamiquement -->
+      </div>
+      <div style="margin-top:2rem;">
+        <button id="refreshBtn" class="primary">🔄 Actualiser</button>
+      </div>
+    </div>
+    <p style="text-align:center; margin-top:1.5rem;">
+      <a href="index.html" style="color:#8aaec0;">← Annuler la partie</a>
+    </p>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+  <!-- Nos scripts -->
+  <script src="js/firebase-init.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/state.js"></script>
+  <script>
+    (function() {
+      const roomCode = AppState.roomCode;
+      const isHost = AppState.isHost;
+
+      if (!roomCode) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      const roomRef = db.ref('rooms/' + roomCode);
+      const selectionsRef = roomRef.child('selections');
+      const playersRef = roomRef.child('players');
+
+      const waitingProgress = document.getElementById('waitingProgress');
+      const waitingMessage = document.getElementById('waitingMessage');
+
+      function updateProgress() {
+        // Récupérer les joueurs
+        playersRef.once('value').then(playersSnap => {
+          const players = playersSnap.val() || {};
+          const playerList = Object.entries(players).map(([id, data]) => ({ id, ...data }));
+
+          // Récupérer les sélections
+          selectionsRef.once('value').then(selectionsSnap => {
+            const selections = selectionsSnap.val() || {};
+
+            // Vérifier si l'hôte a terminé
+            const hostDone = selections.host && selections.host.done === true;
+
+            // Pour chaque joueur, vérifier s'il a terminé
+            let allReady = hostDone;
+            let html = '';
+
+            // Ligne pour l'hôte
+            html += `<div class="progress-item">
+              <span>🎤 Hôte</span>
+              <span class="${hostDone ? 'ready-badge' : 'not-ready-badge'}">
+                ${hostDone ? '✅ Prêt' : '⏳ En cours...'}
+              </span>
+            </div>`;
+
+            // Lignes pour chaque joueur
+            playerList.forEach(player => {
+              const playerDone = selections[player.id] && selections[player.id].done === true;
+              if (playerDone && allReady !== false) allReady = allReady && true; // tout va bien
+              else allReady = false; // au moins un pas prêt
+
+              html += `<div class="progress-item">
+                <span>${player.avatar} ${player.name}</span>
+                <span class="${playerDone ? 'ready-badge' : 'not-ready-badge'}">
+                  ${playerDone ? '✅ Prêt' : '⏳ En cours...'}
+                </span>
+              </div>`;
+            });
+
+            waitingProgress.innerHTML = html;
+
+            // Si tout le monde est prêt (hôte + tous les joueurs), on passe à la page de jeu
+            if (hostDone && playerList.every(p => selections[p.id] && selections[p.id].done)) {
+              waitingMessage.innerHTML = '✅ Tout le monde est prêt ! Redirection vers le jeu...';
+              setTimeout(() => {
+                window.location.href = 'game.html';
+              }, 2000);
+            } else {
+              waitingMessage.innerHTML = '⏳ En attente des joueurs...';
+            }
+          });
+        });
+      }
+
+      // Mise à jour immédiate
+      updateProgress();
+
+      // Mise à jour périodique toutes les 2 secondes
+      setInterval(updateProgress, 2000);
+
+      // Bouton actualiser manuel
+      document.getElementById('refreshBtn').addEventListener('click', updateProgress);
+    })();
+  </script>
+</body>
+</html>

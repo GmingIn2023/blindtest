@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lobby hôte · Blind Test</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .room-code {
+      font-size: 2.8rem;
+      font-weight: 800;
+      letter-spacing: 0.5rem;
+      background: #0f1318;
+      padding: 1rem;
+      border-radius: 1.5rem;
+      color: #d4ffb0;
+      border: 2px solid #5e9eff;
+      text-align: center;
+      margin: 1rem 0;
+    }
+    .player-list {
+      background: #0f1419;
+      border-radius: 1.5rem;
+      padding: 1.2rem;
+      margin: 1.5rem 0;
+    }
+    .player-tag {
+      display: inline-block;
+      background: #2a3743;
+      padding: 0.5rem 1.2rem;
+      border-radius: 60px;
+      margin: 0.3rem;
+      font-size: 1rem;
+    }
+    .copy-btn {
+      background: #2a3b4c;
+      border: 1px solid #5e9eff;
+      margin: 0.5rem 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>📱 Salon hôte</h1>
+    <div class="room-code" id="roomCodeDisplay"></div>
+    <button id="copyCodeBtn" class="copy-btn">📋 Copier le code</button>
+    <div class="player-list">
+      <div style="font-weight:700; margin-bottom:0.8rem;">👥 Joueurs connectés</div>
+      <div id="connectedPlayersList"></div>
+    </div>
+    <button id="startSelectionBtn" class="primary" style="width:100%;" disabled>⏳ En attente...</button>
+    <p style="text-align:center; margin-top:1.5rem;">
+      <a href="index.html" style="color:#8aaec0;">← Annuler et retourner à l'accueil</a>
+    </p>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+  <!-- Nos scripts -->
+  <script src="js/firebase-init.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/state.js"></script>
+  <script>
+    (function() {
+      // Récupérer le code de la partie depuis l'état
+      const roomCode = AppState.roomCode;
+      if (!roomCode) {
+        alert('Aucune partie en cours. Retour à l\'accueil.');
+        window.location.href = 'index.html';
+        return;
+      }
+
+      // Références Firebase
+      const roomRef = db.ref('rooms/' + roomCode);
+      const playersRef = roomRef.child('players');
+      const configRef = roomRef.child('config');
+
+      // Éléments DOM
+      const roomCodeDisplay = document.getElementById('roomCodeDisplay');
+      const connectedPlayersList = document.getElementById('connectedPlayersList');
+      const startBtn = document.getElementById('startSelectionBtn');
+      const copyBtn = document.getElementById('copyCodeBtn');
+
+      // Afficher le code
+      roomCodeDisplay.textContent = roomCode;
+
+      // Écouter les changements de la liste des joueurs
+      playersRef.on('value', (snapshot) => {
+        const players = snapshot.val() || {};
+        const playerArray = Object.entries(players).map(([id, data]) => ({ id, ...data }));
+
+        // Mettre à jour l'affichage
+        if (playerArray.length === 0) {
+          connectedPlayersList.innerHTML = '<div style="color:#8aaec0; text-align:center; padding:1rem;">Aucun joueur connecté</div>';
+        } else {
+          connectedPlayersList.innerHTML = playerArray.map(p => 
+            `<span class="player-tag">${p.avatar || '🐶'} ${escapeHTML(p.name)}</span>`
+          ).join('');
+        }
+
+        // Récupérer le nombre de joueurs attendu depuis la config
+        configRef.once('value', (configSnap) => {
+          const config = configSnap.val() || {};
+          const expected = config.expectedPlayerCount || 1;
+
+          if (playerArray.length >= expected) {
+            startBtn.disabled = false;
+            startBtn.textContent = '🎮 Lancer la sélection';
+          } else {
+            startBtn.disabled = true;
+            startBtn.textContent = `⏳ En attente de ${expected - playerArray.length} joueur(s)...`;
+          }
+        });
+      });
+
+      // Fonction pour échapper le HTML (simple)
+      function escapeHTML(str) {
+        return String(str).replace(/[&<>]/g, function(c) {
+          if (c === '&') return '&amp;';
+          if (c === '<') return '&lt;';
+          if (c === '>') return '&gt;';
+          return c;
+        });
+      }
+
+      // Copier le code
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(roomCode).then(() => {
+          copyBtn.textContent = '✅ Copié !';
+          setTimeout(() => copyBtn.textContent = '📋 Copier le code', 2000);
+        });
+      });
+
+      // Lancer la sélection
+      startBtn.addEventListener('click', async () => {
+        // Changer le statut de la room pour passer en phase de sélection
+        await roomRef.update({ status: 'selection' });
+        // Rediriger vers la page de sélection (avec rôle hôte)
+        window.location.href = 'selection.html?role=host';
+      });
+
+      // Nettoyer l'écouteur si on quitte la page
+      window.addEventListener('beforeunload', () => {
+        playersRef.off();
+      });
+    })();
+  </script>
+</body>
+</html>

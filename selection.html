@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sélection des chansons · Blind Test</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .selection-header {
+      background: linear-gradient(135deg, #2d3748 0%, #1e2530 100%);
+      border-left: 6px solid #5e9eff;
+      padding: 1.2rem 1.6rem;
+      border-radius: 1.5rem;
+      margin-bottom: 1.8rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .search-container {
+      background: #1c2127;
+      border-radius: 1.8rem;
+      padding: 1.6rem;
+    }
+    .search-box {
+      display: flex;
+      gap: 0.8rem;
+    }
+    .search-box input {
+      flex: 1;
+    }
+    .results-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-top: 1.5rem;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .song-card {
+      display: flex;
+      align-items: center;
+      background: #1a1f25;
+      padding: 1rem;
+      border-radius: 1.2rem;
+      border: 2px solid #2d353e;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .song-card:hover:not(.selected) {
+      border-color: #5e9eff;
+      transform: translateX(5px);
+    }
+    .song-card img {
+      width: 64px;
+      height: 64px;
+      border-radius: 12px;
+      margin-right: 1.2rem;
+      object-fit: cover;
+    }
+    .song-card.selected {
+      border-color: #2f7740;
+      background: #1a2420;
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    .song-info {
+      flex: 1;
+    }
+    .song-title {
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+    }
+    .song-artist {
+      color: #8aaec0;
+      font-size: 0.9rem;
+    }
+    .remaining-info {
+      margin-top: 1rem;
+      text-align: center;
+      color: #8aaec0;
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>🎵 Sélection des chansons</h1>
+    <div id="selection-phase">
+      <!-- En-tête dynamique -->
+      <div class="selection-header">
+        <span id="selectionHeader"></span>
+        <span id="selectionCounter" style="background:#3b6eff; padding:0.5rem 1.2rem; border-radius:60px;"></span>
+      </div>
+
+      <!-- Recherche (visible pour tout le monde) -->
+      <div class="search-container">
+        <div class="search-box">
+          <input type="text" id="searchInput" placeholder="Artiste ou titre...">
+          <button id="searchBtn">🔍 Chercher</button>
+        </div>
+        <div id="searchError" style="color:#ff9999; margin-top:0.5rem;"></div>
+        <div id="results" class="results-grid"></div>
+      </div>
+
+      <!-- Infos restantes -->
+      <div id="remainingInfo" class="remaining-info"></div>
+    </div>
+
+    <!-- Lien retour (sécurisé) -->
+    <p style="text-align:center; margin-top:1.5rem;">
+      <a href="index.html" style="color:#8aaec0;" id="backLink">← Retour à l'accueil</a>
+    </p>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+  <!-- Nos scripts -->
+  <script src="js/firebase-init.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/state.js"></script>
+  <script>
+    (function() {
+      // Vérifier que l'utilisateur est bien connecté à une partie
+      const roomCode = AppState.roomCode;
+      const isHost = AppState.isHost;
+      const clientId = AppState.clientId;
+
+      if (!roomCode || !clientId) {
+        alert('Vous n\'êtes pas connecté à une partie. Retour à l\'accueil.');
+        window.location.href = 'index.html';
+        return;
+      }
+
+      // Éléments DOM
+      const header = document.getElementById('selectionHeader');
+      const counter = document.getElementById('selectionCounter');
+      const searchInput = document.getElementById('searchInput');
+      const searchBtn = document.getElementById('searchBtn');
+      const searchError = document.getElementById('searchError');
+      const resultsDiv = document.getElementById('results');
+      const remainingInfo = document.getElementById('remainingInfo');
+      const backLink = document.getElementById('backLink');
+
+      // Références Firebase
+      const roomRef = db.ref('rooms/' + roomCode);
+      const selectionsRef = roomRef.child('selections');
+      const configRef = roomRef.child('config');
+      const playersRef = roomRef.child('players');
+
+      // État local
+      let gameConfig = {};
+      let selectedSongs = []; // pour l'hôte : tableau des chansons choisies
+      let mySelectedSong = null; // pour le joueur : une seule chanson
+      let allSongs = []; // pour la recherche (cache)
+
+      // Initialiser selon le rôle
+      if (isHost) {
+        header.textContent = '🎤 Hôte : choisis tes chansons';
+        // Récupérer le nombre de chansons que l'hôte doit choisir
+        configRef.once('value').then((snap) => {
+          gameConfig = snap.val() || {};
+          const playerCount = gameConfig.expectedPlayerCount || 1;
+          const totalSongs = gameConfig.totalSongs || (playerCount + 3); // fallback
+          const hostQuota = totalSongs - playerCount;
+          gameConfig.hostQuota = hostQuota;
+          selectedSongs = [];
+          updateHostUI();
+        });
+      } else {
+        header.textContent = '🎵 Choisis ta chanson (1 seule)';
+        counter.textContent = '0 / 1';
+        remainingInfo.textContent = 'Choisis ta chanson parmi les résultats.';
+        // Le joueur ne peut choisir qu'une seule chanson
+      }
+
+      // Mise à jour de l'interface pour l'hôte
+      function updateHostUI() {
+        const quota = gameConfig.hostQuota || 0;
+        counter.textContent = `${selectedSongs.length} / ${quota}`;
+        if (selectedSongs.length >= quota) {
+          remainingInfo.textContent = '✅ Sélection terminée. En attente des joueurs...';
+        } else {
+          remainingInfo.textContent = `Encore ${quota - selectedSongs.length} chanson(s) à choisir.`;
+        }
+      }
+
+      // Recherche iTunes (proxy codetabs)
+      async function searchItunes(term) {
+        try {
+          const url = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent('https://itunes.apple.com/search?term='+encodeURIComponent(term)+'&media=music&entity=song&limit=10')}`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error('Erreur réseau');
+          const data = await res.json();
+          return data.results || [];
+        } catch (e) {
+          console.error('Erreur recherche iTunes:', e);
+          return [];
+        }
+      }
+
+      // Afficher les résultats
+      function displayResults(results) {
+        resultsDiv.innerHTML = '';
+        if (!results || results.length === 0) {
+          resultsDiv.innerHTML = '<div style="text-align:center; padding:2rem; color:#8aaec0;">Aucun résultat trouvé.</div>';
+          return;
+        }
+        results.forEach(song => {
+          // Vérifier si déjà sélectionnée (selon le rôle)
+          let isSelected = false;
+          if (isHost) {
+            isSelected = selectedSongs.some(s => s.previewUrl === song.previewUrl);
+          } else {
+            isSelected = mySelectedSong && mySelectedSong.previewUrl === song.previewUrl;
+          }
+          const card = document.createElement('div');
+          card.className = 'song-card' + (isSelected ? ' selected' : '');
+          card.innerHTML = `
+            <img src="${song.artworkUrl100 || 'https://via.placeholder.com/100/2d343c/ffffff?text=🎵'}" loading="lazy">
+            <div class="song-info">
+              <div class="song-title">${escapeHTML(song.trackName || 'Sans titre')}</div>
+              <div class="song-artist">${escapeHTML(song.artistName || 'Artiste inconnu')}</div>
+            </div>
+          `;
+          if (!isSelected) {
+            card.addEventListener('click', () => selectSong(song));
+          }
+          resultsDiv.appendChild(card);
+        });
+      }
+
+      // Sélectionner une chanson
+      function selectSong(song) {
+        if (isHost) {
+          const quota = gameConfig.hostQuota || 0;
+          if (selectedSongs.length >= quota) {
+            alert('Tu as déjà choisi toutes tes chansons.');
+            return;
+          }
+          selectedSongs.push({
+            title: song.trackName || 'Titre',
+            artist: song.artistName || 'Artiste',
+            artwork: song.artworkUrl100 || '',
+            previewUrl: song.previewUrl || null
+          });
+          updateHostUI();
+          // Si l'hôte a fini, on enregistre dans Firebase
+          if (selectedSongs.length >= quota) {
+            selectionsRef.child('host').set({
+              songs: selectedSongs,
+              done: true
+            });
+          }
+        } else {
+          if (mySelectedSong) {
+            alert('Tu as déjà choisi ta chanson.');
+            return;
+          }
+          mySelectedSong = {
+            title: song.trackName || 'Titre',
+            artist: song.artistName || 'Artiste',
+            artwork: song.artworkUrl100 || '',
+            previewUrl: song.previewUrl || null
+          };
+          counter.textContent = '1 / 1';
+          remainingInfo.textContent = '✅ Chanson choisie. En attente des autres...';
+          // Enregistrer dans Firebase
+          selectionsRef.child(clientId).set({
+            songs: [mySelectedSong],
+            done: true
+          });
+        }
+        // Rafraîchir la recherche pour mettre à jour l'affichage des sélections
+        if (searchInput.value.trim()) {
+          searchBtn.click();
+        }
+      }
+
+      // Échapper le HTML
+      function escapeHTML(str) {
+        return String(str).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' })[c]);
+      }
+
+      // Écouter les changements des sélections (pour savoir quand tout le monde a fini)
+      selectionsRef.on('value', async (snap) => {
+        const selections = snap.val() || {};
+        // Vérifier si tout le monde a fini (hôte + tous les joueurs)
+        const playersSnap = await playersRef.once('value');
+        const playerIds = Object.keys(playersSnap.val() || {});
+        const allDone = selections.host?.done && playerIds.every(id => selections[id]?.done);
+        if (allDone) {
+          // Tout le monde a fini, on passe à la phase de jeu
+          roomRef.update({ status: 'game' });
+          window.location.href = 'game.html';
+        }
+      });
+
+      // Gestion de la recherche
+      searchBtn.addEventListener('click', async () => {
+        const term = searchInput.value.trim();
+        if (!term) return;
+        searchError.textContent = '';
+        resultsDiv.innerHTML = '<div style="text-align:center;">🔎 Recherche...</div>';
+        const results = await searchItunes(term);
+        displayResults(results);
+      });
+      searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') searchBtn.click();
+      });
+
+      // Empêcher le retour à l'accueil si la partie est en cours (optionnel)
+      backLink.addEventListener('click', (e) => {
+        if (!confirm('Quitter la partie ?')) {
+          e.preventDefault();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

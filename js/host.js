@@ -30,12 +30,11 @@ function initHostGame() {
     roundActive = gs.roundActive || false;
     roundStartTime = gs.roundStartTime || 0;
 
-    // Mise à jour de l'UI
     if (gameSongs.length > 0) {
       hostSongCounter.textContent = `Chanson ${currentSongIndex+1} / ${gameSongs.length}`;
     }
     updateHostScoreboard();
-    hostNext.disabled = !roundActive; // on peut autoriser next même si round actif ? on verra
+    hostNext.disabled = roundActive; // On peut passer à la suivante seulement quand le round est fini
   });
 
   // Timer
@@ -71,19 +70,22 @@ function initHostGame() {
     if (currentSongIndex + 1 < gameSongs.length) {
       gameStateRef.update({
         currentSongIndex: currentSongIndex + 1,
-        roundActive: false
+        roundActive: false,
+        buzzer: null
       });
     } else {
       alert('Fin du jeu !');
-      // Rediriger vers podium
+      // Rediriger vers le podium (à faire)
     }
   });
 
   hostReveal.addEventListener('click', () => {
-    // À implémenter : afficher la réponse
+    // Afficher la réponse (à implémenter selon le mode)
+    // Pour l'instant, on peut afficher un message
+    alert('Réponse révélée (à implémenter)');
   });
 
-  // Écouter les résultats
+  // Écouter les résultats des joueurs
   gameStateRef.child('answerResult').on('value', (snap) => {
     const res = snap.val();
     if (res) {

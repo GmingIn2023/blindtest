@@ -214,7 +214,7 @@
       <div class="timer-big" id="hostTimer">00:00.0</div>
       <div id="hostNotification" class="notification"></div>
       <div id="hostScoreboard" class="scoreboard"></div>
-      <button id="hostNext" class="primary" disabled>⏩ Chanson suivante</button>
+      <button id="hostNext" class="primary">⏩ Chanson suivante</button>
     </div>
 
     <!-- Vue JOUEUR -->
@@ -318,7 +318,10 @@
       let roundStartTime = 0;
       let scores = {};
       let playerAttempts = {};
-      let buzzer = null;
+      let buzzer = null;          // { id, name, at } | null
+      let buzzerLocked = false;   // true = manche verrouillée (bonne réponse trouvée)
+      let reopenAt = 0;           // timestamp: le buzzer redevient dispo pour tous après une erreur
+      let lockOthersOnBuzz = true;
       let mode = 'classic';
       let maxAttempts = 3;
       let blurEnabled = false;
@@ -372,7 +375,10 @@
         roundStartTime = gs.roundStartTime || 0;
         scores = gs.scores || {};
         playerAttempts = gs.playerAttempts || {};
-        buzzer = gs.buzzer;
+        buzzer = gs.buzzer || null;
+        buzzerLocked = gs.buzzerLocked || false;
+        reopenAt = gs.reopenAt || 0;
+        lockOthersOnBuzz = (gs.lockOthersOnBuzz !== undefined) ? gs.lockOthersOnBuzz : true;
         mode = gs.mode || 'classic';
         maxAttempts = gs.maxAttempts || 3;
         blurEnabled = gs.blurEnabled || false;
@@ -408,7 +414,7 @@
             hostSongCounter.textContent = `Chanson ${currentSongIndex+1} / ${gameSongs.length}`;
           }
           updateHostScoreboard();
-          hostNext.disabled = roundActive; // On ne peut passer que quand le round est fini
+          // Le bouton "Suivant" est toujours cliquable : l'hôte peut skip librement
         }
 
         function updateHostScoreboard() {
@@ -428,7 +434,9 @@
           gameStateRef.update({
             roundStartTime: startTime,
             roundActive: true,
-            buzzer: null
+            buzzer: null,
+            buzzerLocked: false,
+            reopenAt: 0
           });
           // Lecture de l'extrait
           const song = gameSongs[currentSongIndex];
@@ -448,6 +456,8 @@
         hostReveal.addEventListener('click', () => {
           const song = gameSongs[currentSongIndex];
           if (!song) return;
+          if (currentAudio) currentAudio.pause();
+          gameStateRef.update({ roundActive: false, buzzer: null, buzzerLocked: true, reopenAt: 0 });
           const popup = document.getElementById('popupReveal');
           const cover = document.getElementById('revealCover');
           const title = document.getElementById('revealTitle');
@@ -465,14 +475,18 @@
         });
 
         hostNext.addEventListener('click', () => {
+          if (currentAudio) { currentAudio.pause(); currentAudio = null; }
           if (currentSongIndex + 1 < gameSongs.length) {
             gameStateRef.update({
               currentSongIndex: currentSongIndex + 1,
               roundActive: false,
-              buzzer: null
+              roundStartTime: 0,
+              buzzer: null,
+              buzzerLocked: false,
+              reopenAt: 0
             });
           } else {
-            alert('Fin du jeu ! Redirection vers le podium...');
+            alert('Fin du jeu ! (page podium à venir)');
             // Rediriger vers results.html (à créer)
           }
         });
@@ -511,6 +525,9 @@
           }
         }, 100);
 
+        // Empêche de rouvrir la popup deux fois pour la même prise de buzzer
+        let popupOpenForBuzzAt = 0;
+
         function updatePlayerUI() {
           if (gameSongs[currentSongIndex]) {
             playerSongInfo.textContent = `Chanson ${currentSongIndex+1} / ${gameSongs.length}`;
@@ -521,58 +538,102 @@
           playerAttemptsDiv.textContent = `Essais restants: ${maxAttempts === 0 ? '∞' : attempts.attemptsLeft}`;
 
           const now = Date.now();
+
+          // C'est nous qui avons le buzzer : la popup de réponse est déjà (ou va être) affichée, on ne touche à rien.
+          if (buzzer && buzzer.id === clientId) {
+            playerBuzzer.disabled = true;
+            cooldownDisplay.textContent = '';
+            playerFeedback.textContent = '';
+            return;
+          }
+
+          if (!roundActive) {
+            playerBuzzer.disabled = true;
+            cooldownDisplay.textContent = '';
+            playerFeedback.textContent = '⏸️ En attente du lancement...';
+            return;
+          }
+
+          if (buzzerLocked) {
+            playerBuzzer.disabled = true;
+            cooldownDisplay.textContent = '';
+            playerFeedback.textContent = '✅ Manche terminée';
+            return;
+          }
+
+          if (buzzer && buzzer.id !== clientId) {
+            playerBuzzer.disabled = true;
+            cooldownDisplay.textContent = '';
+            playerFeedback.textContent = lockOthersOnBuzz ? `🔒 ${buzzer.name} a buzzé...` : '';
+            return;
+          }
+
+          if (reopenAt && now < reopenAt) {
+            const sec = Math.ceil((reopenAt - now) / 1000);
+            playerBuzzer.disabled = true;
+            cooldownDisplay.textContent = `⏳ Réouverture dans ${sec}s`;
+            playerFeedback.textContent = '';
+            return;
+          }
+
           if (attempts.cooldownUntil && now < attempts.cooldownUntil) {
             const sec = Math.ceil((attempts.cooldownUntil - now)/1000);
             cooldownDisplay.textContent = `⏳ Cooldown: ${sec}s`;
             playerBuzzer.disabled = true;
             playerFeedback.textContent = '';
-          } else {
-            cooldownDisplay.textContent = '';
-            if (buzzer) {
-              if (buzzer === clientId) {
-                playerBuzzer.disabled = true;
-                playerFeedback.textContent = '';
-              } else {
-                playerBuzzer.disabled = true;
-                playerFeedback.textContent = '⏳ Quelqu\'un a buzzé...';
-              }
-            } else {
-              if (maxAttempts > 0 && attempts.attemptsLeft <= 0) {
-                playerBuzzer.disabled = true;
-                playerFeedback.textContent = '❌ Plus d\'essais';
-              } else {
-                playerBuzzer.disabled = false;
-                playerFeedback.textContent = '';
-              }
-            }
+            return;
           }
+
+          if (maxAttempts > 0 && attempts.attemptsLeft <= 0) {
+            playerBuzzer.disabled = true;
+            cooldownDisplay.textContent = '';
+            playerFeedback.textContent = '❌ Plus d\'essais';
+            return;
+          }
+
+          // Rien ne bloque : le buzzer est disponible
+          playerBuzzer.disabled = false;
+          cooldownDisplay.textContent = '';
+          playerFeedback.textContent = '';
         }
 
-        playerBuzzer.addEventListener('click', () => {
-          if (playerBuzzer.disabled) return;
-          const attempts = playerAttempts[clientId] || { attemptsLeft: maxAttempts, cooldownUntil: 0, attemptCount: 0 };
-          const now = Date.now();
-          if (attempts.cooldownUntil && now < attempts.cooldownUntil) return;
-          if (maxAttempts > 0 && attempts.attemptsLeft <= 0) return;
-          gameStateRef.update({ buzzer: clientId });
-        });
+        // Rafraîchit l'UI régulièrement pour faire vivre les décomptes (cooldown, réouverture)
+        setInterval(updatePlayerUI, 250);
 
-        // Quand le buzzer est pris par ce joueur
-        gameStateRef.child('buzzer').on('value', (snap) => {
-          const currentBuzzer = snap.val();
-          if (currentBuzzer === clientId) {
-            playerBuzzer.disabled = true;
-            // Afficher la popup selon le mode
-            if (mode === 'kahoot') {
-              showChoicePopup();
-            } else if (mode === 'artist') {
-              showArtistPopup();
-            } else if (mode === 'date') {
-              showDatePopup();
-            } else {
-              showAnswerPopup();
-            }
+        // Tentative atomique de prise du buzzer : le premier qui écrit dans Firebase gagne.
+        // Contrairement à un simple .update(), la transaction garantit qu'un seul joueur
+        // peut "gagner" même en cas de clics quasi simultanés.
+        function grabBuzzer() {
+          return new Promise((resolve) => {
+            gameStateRef.child('buzzer').transaction(
+              (current) => {
+                if (current === null || current === undefined) {
+                  return { id: clientId, name: playerName, at: Date.now() };
+                }
+                return; // undefined = on annule, quelqu'un a déjà le buzzer
+              },
+              (error, committed, snapshot) => {
+                if (error) { console.log('Erreur transaction buzzer', error); resolve(false); return; }
+                const val = snapshot ? snapshot.val() : null;
+                resolve(!!(committed && val && val.id === clientId));
+              }
+            );
+          });
+        }
+
+        playerBuzzer.addEventListener('click', async () => {
+          if (playerBuzzer.disabled) return;
+          playerBuzzer.disabled = true; // feedback immédiat, empêche le double-clic pendant la transaction
+          const won = await grabBuzzer();
+          if (won) {
+            popupOpenForBuzzAt = Date.now();
+            if (mode === 'kahoot') showChoicePopup();
+            else if (mode === 'artist') showArtistPopup();
+            else if (mode === 'date') showDatePopup();
+            else showAnswerPopup();
           }
+          // Si on a perdu la course, le prochain rafraîchissement (updatePlayerUI)
+          // grisera le bouton avec le nom du gagnant automatiquement.
         });
 
         // ===== Popup réponse écrite =====
@@ -739,23 +800,35 @@
         async function sendResult(points, isCorrect, correctInfo, elapsed) {
           scores[clientId] = (scores[clientId] || 0) + points;
           let attempts = playerAttempts[clientId] || { attemptsLeft: maxAttempts, cooldownUntil: 0, attemptCount: 0 };
-          if (maxAttempts > 0 && !isCorrect) {
-            attempts.attemptsLeft = Math.max(0, attempts.attemptsLeft - 1);
-            attempts.attemptCount = (attempts.attemptCount || 0) + 1;
-            attempts.cooldownUntil = Date.now() + getCooldown(attempts.attemptCount);
-          }
-          if (isCorrect) {
-            attempts.attemptsLeft = 0;
-            attempts.cooldownUntil = 0;
-          }
-          playerAttempts[clientId] = attempts;
+          const now = Date.now();
 
-          await gameStateRef.update({
+          const updates = {
             scores: scores,
-            playerAttempts: playerAttempts,
             answerResult: { playerId: clientId, correct: isCorrect, points, correctInfo, playerName: playerName },
             buzzer: null
-          });
+          };
+
+          if (isCorrect) {
+            // Bonne réponse : la manche est terminée, plus personne ne peut buzzer.
+            attempts.attemptsLeft = 0;
+            attempts.cooldownUntil = 0;
+            updates.buzzerLocked = true;
+            updates.reopenAt = 0;
+          } else {
+            // Mauvaise réponse : cooldown perso escaladé (3s, 5s, 7s...) + 3s de blocage
+            // global avant que quiconque (y compris les autres) puisse retenter sa chance.
+            if (maxAttempts > 0) {
+              attempts.attemptsLeft = Math.max(0, attempts.attemptsLeft - 1);
+              attempts.attemptCount = (attempts.attemptCount || 0) + 1;
+              attempts.cooldownUntil = now + getCooldown(attempts.attemptCount);
+            }
+            updates.reopenAt = now + 3000;
+          }
+
+          playerAttempts[clientId] = attempts;
+          updates.playerAttempts = playerAttempts;
+
+          await gameStateRef.update(updates);
 
           // Afficher la popup de résultat
           const popup = document.getElementById('popupResult');

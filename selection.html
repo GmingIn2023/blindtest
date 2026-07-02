@@ -149,26 +149,65 @@
         roleMsg.textContent = '🎵 Joueur : choisis TA chanson (1 seule)';
       }
 
-      async function searchItunes(term) {
-        try {
-          const url = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent('https://itunes.apple.com/search?term='+encodeURIComponent(term)+'&media=music&entity=song&limit=10')}`;
-          const res = await fetch(url);
-          if (res.ok) {
-            const data = await res.json();
-            return data.results || [];
-          }
-        } catch (e) { console.log('Proxy failed', e); }
-        return [];
+      let jsonpCounter = 0;
+      function searchItunes(term) {
+        return new Promise((resolve) => {
+          const callbackName = 'itunesCb_' + (jsonpCounter++) + '_' + Date.now();
+          const script = document.createElement('script');
+          let settled = false;
+
+          const cleanup = () => {
+            delete window[callbackName];
+            if (script.parentNode) script.parentNode.removeChild(script);
+            clearTimeout(timeoutId);
+          };
+
+          // Filet de sécurité : si l'API ne répond pas en 8s, on arrête d'attendre
+          // au lieu de rester bloqué indéfiniment sur "Recherche...".
+          const timeoutId = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            resolve({ ok: false, results: [] });
+          }, 8000);
+
+          window[callbackName] = (data) => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            resolve({ ok: true, results: (data && data.results) || [] });
+          };
+
+          script.onerror = () => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            resolve({ ok: false, results: [] });
+          };
+
+          script.src = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=15&callback=${callbackName}`;
+          document.body.appendChild(script);
+        });
       }
 
       searchBtn.addEventListener('click', async () => {
         const term = searchInput.value.trim();
         if (!term) return;
+        searchBtn.disabled = true;
         errorMsg.innerHTML = '<div class="loading">🔎 Recherche...</div>';
         resultsDiv.innerHTML = '';
-        const results = await searchItunes(term);
+        const { ok, results } = await searchItunes(term);
+        searchBtn.disabled = false;
+        if (!ok) {
+          errorMsg.innerHTML = '<div style="color:#ff6b6b;">⚠️ La recherche a échoué. Réessaie.</div>';
+          return;
+        }
         errorMsg.innerHTML = '';
         displayResults(results);
+      });
+
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') searchBtn.click();
       });
 
       function displayResults(results) {

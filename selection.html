@@ -339,9 +339,20 @@
         return { ok: false, results: [] };
       }
 
+      let lastSearchAt = 0;
       searchBtn.addEventListener('click', async () => {
         const term = searchInput.value.trim();
         if (!term) return;
+
+        // Anti rate-limit : Apple bloque/ralentit les requêtes trop rapprochées
+        // depuis la même connexion, ce qui faisait planter les 3 méthodes d'un coup.
+        const now = Date.now();
+        if (now - lastSearchAt < 3000) {
+          errorMsg.innerHTML = '<div class="error-text">⏳ Attends 2-3 secondes avant de rechercher à nouveau.</div>';
+          return;
+        }
+        lastSearchAt = now;
+
         searchBtn.disabled = true;
         errorMsg.innerHTML = '<div class="loading">🔎 Recherche...</div>';
         resultsDiv.innerHTML = '';
@@ -380,7 +391,7 @@
               <div class="song-artist">${escapeHTML(song.artistName || 'Inconnu')}</div>
             </div>
           `;
-          card.addEventListener('click', () => openCustomizeModal(song));
+          card.addEventListener('click', () => openCustomizeModal(song, card));
           resultsDiv.appendChild(card);
         });
       }
@@ -408,6 +419,7 @@
       const presetEnd = document.getElementById('presetEnd');
 
       let draftSong = null;
+      let draftCard = null;
       let previewTotalDuration = 30; // durée du clip iTunes, mise à jour via loadedmetadata
       let previewAudioEl = null;
       let audioCtx = null;
@@ -420,8 +432,9 @@
         if (parseFloat(positionSlider.value) > maxStart) positionSlider.value = maxStart;
       }
 
-      function openCustomizeModal(song) {
+      function openCustomizeModal(song, cardEl) {
         draftSong = song;
+        draftCard = cardEl || null;
         modalError.textContent = '';
         modalArtwork.src = song.artworkUrl100 || 'https://via.placeholder.com/64';
         modalTitle.textContent = song.trackName || 'Sans titre';
@@ -454,6 +467,7 @@
         modal.classList.add('hidden');
         stopPreview();
         draftSong = null;
+        draftCard = null;
       }
 
       durationSlider.addEventListener('input', () => {
@@ -571,6 +585,7 @@
 
       confirmBtn.addEventListener('click', async () => {
         if (!draftSong) return;
+        const cardToRemove = draftCard;
         const songData = {
           title: draftSong.trackName || 'Titre',
           artist: draftSong.artistName || 'Artiste',
@@ -595,7 +610,12 @@
             await selectionsRef.child('host').set({ songs: hostSelected, done: true });
             window.location.href = 'waiting.html';
           } else {
-            searchBtn.click();
+            // On retire juste la carte choisie de la liste déjà affichée,
+            // au lieu de relancer une recherche (ça évitait de retaper l'API
+            // trop vite, ce qui déclenchait le blocage anti-abus d'Apple).
+            if (cardToRemove && cardToRemove.parentNode) {
+              cardToRemove.remove();
+            }
           }
         } else {
           if (playerSelected) {

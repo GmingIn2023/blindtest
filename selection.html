@@ -25,6 +25,9 @@
       display: flex;
       gap: 0.8rem;
     }
+    .search-box input[type="text"] {
+      flex: 1;
+    }
     .results-grid {
       display: flex;
       flex-direction: column;
@@ -76,6 +79,89 @@
       padding: 0.5rem 1.2rem;
       border-radius: 60px;
     }
+    .loading { color: #8aaec0; padding: 0.5rem 0; }
+    .error-text { color: #ff6b6b; padding: 0.5rem 0; }
+
+    /* ===== Modale de personnalisation d'extrait ===== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal-box {
+      background: #1a1f25;
+      border-radius: 1.6rem 1.6rem 0 0;
+      padding: 1.6rem;
+      width: 100%;
+      max-width: 480px;
+      max-height: 88vh;
+      overflow-y: auto;
+    }
+    .modal-song-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.2rem;
+    }
+    .modal-song-info img {
+      width: 56px; height: 56px;
+      border-radius: 10px;
+      object-fit: cover;
+    }
+    .modal-box label {
+      display: block;
+      margin-top: 1.1rem;
+      margin-bottom: 0.4rem;
+      font-size: 0.92rem;
+      color: #cfe0ea;
+    }
+    .modal-box input[type="range"] { width: 100%; }
+    .preset-buttons {
+      display: flex;
+      gap: 0.6rem;
+      margin-bottom: 0.4rem;
+    }
+    .preset-buttons button {
+      flex: 1;
+      padding: 0.5rem;
+      border-radius: 0.8rem;
+      border: 2px solid #2d353e;
+      background: #1a1f25;
+      color: #fff;
+    }
+    .preset-buttons button.active {
+      border-color: #5e9eff;
+      background: #223047;
+    }
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-top: 1rem;
+      font-size: 0.92rem;
+    }
+    .modal-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+      margin-top: 1.5rem;
+    }
+    .modal-actions button {
+      padding: 0.8rem;
+      border-radius: 1rem;
+      border: none;
+      font-weight: 600;
+    }
+    #previewBtn { background: #2d353e; color: #fff; }
+    #confirmSelectBtn { background: #3b6eff; color: #fff; }
+    #cancelSelectBtn { background: transparent; color: #8aaec0; }
+    .hint-text { font-size: 0.8rem; color: #8aaec0; margin-top: 0.3rem; }
+    .experimental-tag { color: #f5a623; font-size: 0.78rem; }
   </style>
 </head>
 <body>
@@ -98,6 +184,46 @@
     </p>
   </div>
 
+  <!-- Modale de personnalisation de l'extrait -->
+  <div id="customizeModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-song-info">
+        <img id="modalArtwork" src="" alt="cover">
+        <div>
+          <div id="modalTitle" class="song-title"></div>
+          <div id="modalArtist" class="song-artist"></div>
+        </div>
+      </div>
+
+      <label>⏱️ Durée de l'extrait : <span id="durationValue">10</span>s</label>
+      <input type="range" id="durationSlider" min="5" max="20" step="1" value="10">
+
+      <label>📍 Position dans l'extrait</label>
+      <div class="preset-buttons">
+        <button type="button" id="presetStart">⏮️ Début</button>
+        <button type="button" id="presetMiddle">⏺️ Milieu</button>
+        <button type="button" id="presetEnd">⏭️ Fin</button>
+      </div>
+      <input type="range" id="positionSlider" min="0" max="0" step="0.5" value="0">
+      <div class="hint-text" id="positionHint">Chargement de l'aperçu...</div>
+
+      <label class="checkbox-label">
+        <input type="checkbox" id="reverseCheck"> 🔄 Inverser l'extrait (à l'envers)
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="instrumentalCheck">
+        🎸 Sans voix <span class="experimental-tag">(expérimental, ne marche pas toujours)</span>
+      </label>
+
+      <div class="modal-actions">
+        <button type="button" id="previewBtn">▶️ Écouter l'extrait</button>
+        <button type="button" id="confirmSelectBtn">✅ Choisir cette chanson</button>
+        <button type="button" id="cancelSelectBtn">Annuler</button>
+      </div>
+      <div id="modalError" class="error-text"></div>
+    </div>
+  </div>
+
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
   <script src="js/firebase-init.js"></script>
@@ -108,6 +234,7 @@
       const roomCode = AppState.roomCode;
       const isHost = AppState.isHost;
       const clientId = AppState.clientId;
+      const playerName = AppState.playerName || 'Joueur';
 
       if (!roomCode) {
         window.location.href = 'index.html';
@@ -129,7 +256,6 @@
       const errorMsg = document.getElementById('errorMsg');
       const resultsDiv = document.getElementById('results');
 
-      // Charger la config pour obtenir le quota hôte
       configRef.once('value', (snap) => {
         const config = snap.val();
         if (config) {
@@ -144,15 +270,17 @@
 
       if (isHost) {
         roleMsg.textContent = '🎤 Hôte : choisis tes chansons';
-        // Écouter les sélections des joueurs (pour éventuellement les afficher)
       } else {
         roleMsg.textContent = '🎵 Joueur : choisis TA chanson (1 seule)';
       }
 
-      let jsonpCounter = 0;
-      function searchItunes(term) {
+      // ============================================================
+      // RECHERCHE — 3 méthodes en cascade pour maximiser la fiabilité
+      // ============================================================
+
+      function searchJSONP(term) {
         return new Promise((resolve) => {
-          const callbackName = 'itunesCb_' + (jsonpCounter++) + '_' + Date.now();
+          const callbackName = 'itunesCb_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
           const script = document.createElement('script');
           let settled = false;
 
@@ -161,33 +289,54 @@
             if (script.parentNode) script.parentNode.removeChild(script);
             clearTimeout(timeoutId);
           };
-
-          // Filet de sécurité : si l'API ne répond pas en 8s, on arrête d'attendre
-          // au lieu de rester bloqué indéfiniment sur "Recherche...".
           const timeoutId = setTimeout(() => {
             if (settled) return;
-            settled = true;
-            cleanup();
+            settled = true; cleanup();
             resolve({ ok: false, results: [] });
-          }, 8000);
+          }, 6000);
 
           window[callbackName] = (data) => {
             if (settled) return;
-            settled = true;
-            cleanup();
+            settled = true; cleanup();
             resolve({ ok: true, results: (data && data.results) || [] });
           };
-
           script.onerror = () => {
             if (settled) return;
-            settled = true;
-            cleanup();
+            settled = true; cleanup();
             resolve({ ok: false, results: [] });
           };
-
           script.src = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=15&callback=${callbackName}`;
           document.body.appendChild(script);
         });
+      }
+
+      async function searchViaProxy(term, proxyPrefix) {
+        try {
+          const target = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=15`;
+          const url = proxyPrefix + encodeURIComponent(target);
+          const controller = new AbortController();
+          const t = setTimeout(() => controller.abort(), 6000);
+          const res = await fetch(url, { signal: controller.signal });
+          clearTimeout(t);
+          if (!res.ok) return { ok: false, results: [] };
+          const data = await res.json();
+          return { ok: true, results: data.results || [] };
+        } catch (e) {
+          return { ok: false, results: [] };
+        }
+      }
+
+      async function searchItunes(term) {
+        let r = await searchJSONP(term);
+        if (r.ok) return r;
+
+        r = await searchViaProxy(term, 'https://api.allorigins.win/raw?url=');
+        if (r.ok) return r;
+
+        r = await searchViaProxy(term, 'https://corsproxy.io/?url=');
+        if (r.ok) return r;
+
+        return { ok: false, results: [] };
       }
 
       searchBtn.addEventListener('click', async () => {
@@ -199,7 +348,7 @@
         const { ok, results } = await searchItunes(term);
         searchBtn.disabled = false;
         if (!ok) {
-          errorMsg.innerHTML = '<div style="color:#ff6b6b;">⚠️ La recherche a échoué. Réessaie.</div>';
+          errorMsg.innerHTML = '<div class="error-text">⚠️ Les 3 méthodes de recherche ont échoué (réseau ou API indisponible). Réessaie dans quelques secondes.</div>';
           return;
         }
         errorMsg.innerHTML = '';
@@ -210,6 +359,10 @@
         if (e.key === 'Enter') searchBtn.click();
       });
 
+      function escapeHTML(str) {
+        return String(str).replace(/[&<>]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
+      }
+
       function displayResults(results) {
         resultsDiv.innerHTML = '';
         if (!results || results.length === 0) {
@@ -217,6 +370,7 @@
           return;
         }
         results.forEach(song => {
+          if (!song.previewUrl) return; // pas d'extrait dispo, inutile pour le jeu
           const card = document.createElement('div');
           card.className = 'song-card';
           card.innerHTML = `
@@ -226,24 +380,209 @@
               <div class="song-artist">${escapeHTML(song.artistName || 'Inconnu')}</div>
             </div>
           `;
-          card.addEventListener('click', () => selectSong(song));
+          card.addEventListener('click', () => openCustomizeModal(song));
           resultsDiv.appendChild(card);
         });
       }
 
-      function escapeHTML(str) {
-        return String(str).replace(/[&<>]/g, function(c) {
-          return { '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c];
-        });
+      // ============================================================
+      // MODALE DE PERSONNALISATION DE L'EXTRAIT
+      // ============================================================
+
+      const modal = document.getElementById('customizeModal');
+      const modalArtwork = document.getElementById('modalArtwork');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalArtist = document.getElementById('modalArtist');
+      const durationSlider = document.getElementById('durationSlider');
+      const durationValue = document.getElementById('durationValue');
+      const positionSlider = document.getElementById('positionSlider');
+      const positionHint = document.getElementById('positionHint');
+      const reverseCheck = document.getElementById('reverseCheck');
+      const instrumentalCheck = document.getElementById('instrumentalCheck');
+      const previewBtn = document.getElementById('previewBtn');
+      const confirmBtn = document.getElementById('confirmSelectBtn');
+      const cancelBtn = document.getElementById('cancelSelectBtn');
+      const modalError = document.getElementById('modalError');
+      const presetStart = document.getElementById('presetStart');
+      const presetMiddle = document.getElementById('presetMiddle');
+      const presetEnd = document.getElementById('presetEnd');
+
+      let draftSong = null;
+      let previewTotalDuration = 30; // durée du clip iTunes, mise à jour via loadedmetadata
+      let previewAudioEl = null;
+      let audioCtx = null;
+      let stopPreviewTimer = null;
+
+      function clampPositionMax() {
+        const dur = parseFloat(durationSlider.value);
+        const maxStart = Math.max(0, previewTotalDuration - dur);
+        positionSlider.max = maxStart;
+        if (parseFloat(positionSlider.value) > maxStart) positionSlider.value = maxStart;
       }
 
-      async function selectSong(song) {
+      function openCustomizeModal(song) {
+        draftSong = song;
+        modalError.textContent = '';
+        modalArtwork.src = song.artworkUrl100 || 'https://via.placeholder.com/64';
+        modalTitle.textContent = song.trackName || 'Sans titre';
+        modalArtist.textContent = song.artistName || 'Inconnu';
+        durationSlider.value = 10;
+        durationValue.textContent = '10';
+        reverseCheck.checked = false;
+        instrumentalCheck.checked = false;
+        positionSlider.value = 0;
+        positionHint.textContent = "Chargement de l'aperçu...";
+        previewTotalDuration = 30;
+
+        // On charge juste les métadonnées (durée réelle du clip), pas tout le fichier
+        if (previewAudioEl) { previewAudioEl.pause(); }
+        previewAudioEl = new Audio();
+        previewAudioEl.preload = 'metadata';
+        previewAudioEl.src = song.previewUrl;
+        previewAudioEl.addEventListener('loadedmetadata', () => {
+          if (previewAudioEl.duration && isFinite(previewAudioEl.duration)) {
+            previewTotalDuration = previewAudioEl.duration;
+          }
+          clampPositionMax();
+          positionHint.textContent = `Extrait iTunes de ${previewTotalDuration.toFixed(0)}s disponible`;
+        }, { once: true });
+
+        modal.classList.remove('hidden');
+      }
+
+      function closeModal() {
+        modal.classList.add('hidden');
+        stopPreview();
+        draftSong = null;
+      }
+
+      durationSlider.addEventListener('input', () => {
+        durationValue.textContent = durationSlider.value;
+        clampPositionMax();
+      });
+
+      presetStart.addEventListener('click', () => { positionSlider.value = 0; });
+      presetMiddle.addEventListener('click', () => {
+        const dur = parseFloat(durationSlider.value);
+        positionSlider.value = Math.max(0, (previewTotalDuration - dur) / 2);
+      });
+      presetEnd.addEventListener('click', () => {
+        const dur = parseFloat(durationSlider.value);
+        positionSlider.value = Math.max(0, previewTotalDuration - dur);
+      });
+
+      cancelBtn.addEventListener('click', closeModal);
+
+      // ---- Lecture / prévisualisation ----
+
+      function stopPreview() {
+        if (stopPreviewTimer) { clearTimeout(stopPreviewTimer); stopPreviewTimer = null; }
+        if (previewAudioEl) { try { previewAudioEl.pause(); } catch(e){} }
+        if (window._reversePreviewSource) {
+          try { window._reversePreviewSource.stop(); } catch(e){}
+          window._reversePreviewSource = null;
+        }
+      }
+
+      function getAudioContext() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        return audioCtx;
+      }
+
+      function reverseBuffer(ctx, buffer) {
+        const out = ctx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+        for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+          const src = buffer.getChannelData(ch);
+          const dst = out.getChannelData(ch);
+          for (let i = 0; i < src.length; i++) dst[i] = src[src.length - 1 - i];
+        }
+        return out;
+      }
+
+      function phaseCancelInstrumental(ctx, buffer) {
+        if (buffer.numberOfChannels < 2) return buffer; // mono : technique inapplicable
+        const out = ctx.createBuffer(2, buffer.length, buffer.sampleRate);
+        const left = buffer.getChannelData(0);
+        const right = buffer.getChannelData(1);
+        const outL = out.getChannelData(0);
+        const outR = out.getChannelData(1);
+        for (let i = 0; i < left.length; i++) {
+          const diff = (left[i] - right[i]) / 2;
+          outL[i] = diff;
+          outR[i] = diff;
+        }
+        return out;
+      }
+
+      let cachedBuffer = null;
+      let cachedBufferUrl = null;
+
+      async function loadBufferForSong(url) {
+        if (cachedBufferUrl === url && cachedBuffer) return cachedBuffer;
+        const ctx = getAudioContext();
+        const res = await fetch(url);
+        const arrayBuffer = await res.arrayBuffer();
+        const buffer = await ctx.decodeAudioData(arrayBuffer);
+        cachedBuffer = buffer;
+        cachedBufferUrl = url;
+        return buffer;
+      }
+
+      async function playPreview() {
+        stopPreview();
+        modalError.textContent = '';
+        const start = parseFloat(positionSlider.value) || 0;
+        const dur = parseFloat(durationSlider.value) || 10;
+        const wantsReverse = reverseCheck.checked;
+        const wantsInstrumental = instrumentalCheck.checked;
+
+        if (!wantsReverse && !wantsInstrumental) {
+          // Cas simple et 100% fiable : lecture directe via <audio>, pas de CORS impliqué
+          previewAudioEl.currentTime = start;
+          previewAudioEl.play().catch(() => {
+            modalError.textContent = "Impossible de lire l'extrait (appuie une fois sur l'écran puis réessaie).";
+          });
+          stopPreviewTimer = setTimeout(() => previewAudioEl.pause(), dur * 1000);
+          return;
+        }
+
+        // Reverse et/ou instrumental nécessitent de décoder l'audio brut (Web Audio API).
+        // Ça dépend de l'autorisation CORS du CDN Apple : on tente, et on prévient si ça échoue.
+        try {
+          const ctx = getAudioContext();
+          let buffer = await loadBufferForSong(draftSong.previewUrl);
+          if (wantsInstrumental) buffer = phaseCancelInstrumental(ctx, buffer);
+          if (wantsReverse) buffer = reverseBuffer(ctx, buffer);
+
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(ctx.destination);
+          const playFrom = wantsReverse
+            ? Math.max(0, buffer.duration - start - dur)
+            : start;
+          source.start(0, playFrom, dur);
+          window._reversePreviewSource = source;
+        } catch (e) {
+          modalError.textContent = "⚠️ Reverse/Instrumental indisponible pour ce morceau sur ce réseau (limitation Apple). La lecture normale fonctionne toujours.";
+        }
+      }
+
+      previewBtn.addEventListener('click', playPreview);
+
+      confirmBtn.addEventListener('click', async () => {
+        if (!draftSong) return;
         const songData = {
-          title: song.trackName || 'Titre',
-          artist: song.artistName || 'Artiste',
-          artwork: song.artworkUrl100 || 'https://via.placeholder.com/100',
-          previewUrl: song.previewUrl || null,
+          title: draftSong.trackName || 'Titre',
+          artist: draftSong.artistName || 'Artiste',
+          artwork: draftSong.artworkUrl100 || 'https://via.placeholder.com/100',
+          previewUrl: draftSong.previewUrl || null,
+          clipStart: parseFloat(positionSlider.value) || 0,
+          clipDuration: parseFloat(durationSlider.value) || 10,
+          reverse: reverseCheck.checked,
+          instrumental: instrumentalCheck.checked
         };
+
+        closeModal();
 
         if (isHost) {
           if (hostSelected.length >= hostQuota) {
@@ -253,14 +592,9 @@
           hostSelected.push(songData);
           counterSpan.textContent = `${hostSelected.length} / ${hostQuota}`;
           if (hostSelected.length === hostQuota) {
-            await selectionsRef.child('host').set({
-              songs: hostSelected,
-              done: true
-            });
-            // Rediriger vers waiting
+            await selectionsRef.child('host').set({ songs: hostSelected, done: true });
             window.location.href = 'waiting.html';
           } else {
-            // Optionnel : rafraîchir la recherche pour masquer la chanson sélectionnée
             searchBtn.click();
           }
         } else {
@@ -270,13 +604,10 @@
           }
           playerSelected = songData;
           counterSpan.textContent = '1 / 1';
-          await selectionsRef.child(clientId).set({
-            songs: [songData],
-            done: true
-          });
+          await selectionsRef.child(clientId).set({ songs: [songData], done: true });
           window.location.href = 'waiting.html';
         }
-      }
+      });
     })();
   </script>
 </body>

@@ -72,8 +72,20 @@ input[type="text"], input[type="number"], select {
   border-radius: 60px;
   padding: 0.85rem 1.2rem;
   color: white;
+  -webkit-text-fill-color: white; /* Safari iOS ignore parfois color: sur les champs texte */
+  opacity: 1;
   font-size: 1rem;
   margin: 0.5rem 0;
+}
+
+/* Bug connu Safari iOS : l'autofill force un fond clair + texte sombre,
+   rendant le texte tapé invisible. On neutralise ce comportement. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: white !important;
+  -webkit-box-shadow: 0 0 0px 1000px #0f1a24 inset !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 label {

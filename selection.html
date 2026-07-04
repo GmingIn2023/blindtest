@@ -303,7 +303,21 @@
           .filter(s => s.previewUrl);
       }
 
-      function jsonpRequest(url, dataPath) {
+      // ===== Annulation des recherches précédentes =====
+      // Avant, une recherche encore "en vol" pouvait afficher ses résultats
+      // APRÈS qu'une recherche plus récente ait démarré → mélange de résultats
+      // ("Bell Run"), et l'accumulation de requêtes non annulées finissait
+      // par faire échouer les recherches suivantes. On coupe tout net à
+      // chaque nouvelle recherche.
+      let searchGeneration = 0;
+      let activeTeardowns = [];
+
+      function cancelPendingSearches() {
+        activeTeardowns.forEach(fn => { try { fn(); } catch (e) {} });
+        activeTeardowns = [];
+      }
+
+      function jsonpRequest(url) {
         return new Promise((resolve) => {
           const callbackName = 'jsonpCb_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
           const script = document.createElement('script');
@@ -314,6 +328,8 @@
             if (script.parentNode) script.parentNode.removeChild(script);
             clearTimeout(timeoutId);
           };
+          activeTeardowns.push(() => { if (!settled) { settled = true; cleanup(); resolve(null); } });
+
           const timeoutId = setTimeout(() => {
             if (settled) return;
             settled = true; cleanup();
@@ -352,6 +368,7 @@
           const target = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=15`;
           const url = proxyPrefix + encodeURIComponent(target);
           const controller = new AbortController();
+          activeTeardowns.push(() => controller.abort());
           const t = setTimeout(() => controller.abort(), 6000);
           const res = await fetch(url, { signal: controller.signal });
           clearTimeout(t);
@@ -414,27 +431,28 @@
         return { ok: false, results: [] };
       }
 
-      let lastSearchAt = 0;
       searchBtn.addEventListener('click', async () => {
         const term = searchInput.value.trim();
         if (!term) return;
 
-        // Petit garde-fou anti double-clic, pas un vrai anti rate-limit
-        // (la course en parallèle rend ça beaucoup moins nécessaire).
-        const now = Date.now();
-        if (now - lastSearchAt < 1200) {
-          errorMsg.innerHTML = '<div class="error-text">⏳ Un instant, la recherche précédente est encore en cours.</div>';
-          return;
-        }
-        lastSearchAt = now;
+        // On coupe net toute recherche précédente encore en vol, puis on
+        // démarre une nouvelle "génération" : tout résultat tardif d'une
+        // ancienne recherche sera ignoré, jamais mélangé à celle-ci.
+        cancelPendingSearches();
+        searchGeneration++;
+        const myGeneration = searchGeneration;
 
         searchBtn.disabled = true;
         errorMsg.innerHTML = '<div class="loading">🔎 Recherche...</div>';
         resultsDiv.innerHTML = '';
+
         const { ok, results } = await searchItunes(term);
+
+        if (myGeneration !== searchGeneration) return; // une recherche plus récente a pris le relais
+
         searchBtn.disabled = false;
         if (!ok) {
-          errorMsg.innerHTML = '<div class="error-text">⚠️ Les 3 méthodes de recherche ont échoué (réseau ou API indisponible). Réessaie dans quelques secondes.</div>';
+          errorMsg.innerHTML = '<div class="error-text">⚠️ Les méthodes de recherche ont échoué (réseau ou API indisponible). Réessaie dans quelques secondes.</div>';
           return;
         }
         errorMsg.innerHTML = '';

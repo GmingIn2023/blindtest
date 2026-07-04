@@ -173,7 +173,7 @@
     </div>
     <div class="search-container">
       <div class="search-box">
-        <input type="text" id="searchInput" placeholder="Artiste ou titre...">
+        <input type="text" id="searchInput" placeholder="Artiste ou titre..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         <button id="searchBtn">🔍 Chercher</button>
       </div>
       <div id="errorMsg"></div>
@@ -351,19 +351,30 @@
         });
       }
 
-      async function searchDeezer(term) {
+      async function searchDeezer(term, debugLog) {
+        const t0 = Date.now();
         const data = await jsonpRequest(`https://api.deezer.com/search?q=${encodeURIComponent(term)}&output=jsonp`);
-        if (!data || !data.data) return { ok: false, results: [] };
-        return { ok: true, results: normalizeDeezer(data.data) };
+        const ms = Date.now() - t0;
+        if (!data) { debugLog.push(`Deezer: échec/timeout (${ms}ms)`); return { ok: false, results: [] }; }
+        if (!data.data) { debugLog.push(`Deezer: réponse invalide (${ms}ms)`); return { ok: false, results: [] }; }
+        const results = normalizeDeezer(data.data);
+        debugLog.push(`Deezer: ${results.length} résultat(s) (${ms}ms)`);
+        return { ok: true, results };
       }
 
-      async function searchItunesJSONP(term) {
+      async function searchItunesJSONP(term, debugLog) {
+        const t0 = Date.now();
         const data = await jsonpRequest(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=15`);
-        if (!data || !data.results) return { ok: false, results: [] };
-        return { ok: true, results: normalizeItunes(data.results) };
+        const ms = Date.now() - t0;
+        if (!data) { debugLog.push(`iTunes: échec/timeout (${ms}ms)`); return { ok: false, results: [] }; }
+        if (!data.results) { debugLog.push(`iTunes: réponse invalide (${ms}ms)`); return { ok: false, results: [] }; }
+        const results = normalizeItunes(data.results);
+        debugLog.push(`iTunes: ${results.length} résultat(s) (${ms}ms)`);
+        return { ok: true, results };
       }
 
-      async function searchViaProxy(term, proxyPrefix) {
+      async function searchViaProxy(term, proxyPrefix, label, debugLog) {
+        const t0 = Date.now();
         try {
           const target = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=15`;
           const url = proxyPrefix + encodeURIComponent(target);
@@ -372,10 +383,15 @@
           const t = setTimeout(() => controller.abort(), 6000);
           const res = await fetch(url, { signal: controller.signal });
           clearTimeout(t);
-          if (!res.ok) return { ok: false, results: [] };
+          const ms = Date.now() - t0;
+          if (!res.ok) { debugLog.push(`${label}: HTTP ${res.status} (${ms}ms)`); return { ok: false, results: [] }; }
           const data = await res.json();
-          return { ok: true, results: normalizeItunes(data.results) };
+          const results = normalizeItunes(data.results);
+          debugLog.push(`${label}: ${results.length} résultat(s) (${ms}ms)`);
+          return { ok: true, results };
         } catch (e) {
+          const ms = Date.now() - t0;
+          debugLog.push(`${label}: ${e.name === 'AbortError' ? 'timeout/annulé' : 'erreur réseau'} (${ms}ms)`);
           return { ok: false, results: [] };
         }
       }
@@ -412,20 +428,20 @@
         });
       }
 
-      async function searchItunes(term) {
+      async function searchItunes(term, debugLog) {
         // iTunes et Deezer en course simultanée
         const race = await firstSuccessful([
-          () => searchItunesJSONP(term),
-          () => searchDeezer(term)
+          () => searchItunesJSONP(term, debugLog),
+          () => searchDeezer(term, debugLog)
         ], 6000);
         if (race.ok) return race;
 
         // Dernier recours si les deux ont échoué : proxies (plus lents,
         // mais mieux que rien)
-        let r = await searchViaProxy(term, 'https://api.allorigins.win/raw?url=');
+        let r = await searchViaProxy(term, 'https://api.allorigins.win/raw?url=', 'Proxy1', debugLog);
         if (r.ok) return r;
 
-        r = await searchViaProxy(term, 'https://corsproxy.io/?url=');
+        r = await searchViaProxy(term, 'https://corsproxy.io/?url=', 'Proxy2', debugLog);
         if (r.ok) return r;
 
         return { ok: false, results: [] };
@@ -446,16 +462,18 @@
         errorMsg.innerHTML = '<div class="loading">🔎 Recherche...</div>';
         resultsDiv.innerHTML = '';
 
-        const { ok, results } = await searchItunes(term);
+        const debugLog = [];
+        const { ok, results } = await searchItunes(term, debugLog);
 
         if (myGeneration !== searchGeneration) return; // une recherche plus récente a pris le relais
 
         searchBtn.disabled = false;
+        const debugLine = `<div style="color:#6b8ca3;font-size:0.75rem;margin-top:0.3rem;">🔧 ${debugLog.join(' · ')}</div>`;
         if (!ok) {
-          errorMsg.innerHTML = '<div class="error-text">⚠️ Les méthodes de recherche ont échoué (réseau ou API indisponible). Réessaie dans quelques secondes.</div>';
+          errorMsg.innerHTML = `<div class="error-text">⚠️ Toutes les méthodes ont échoué. Copie-moi la ligne technique ci-dessous :</div>${debugLine}`;
           return;
         }
-        errorMsg.innerHTML = '';
+        errorMsg.innerHTML = debugLine;
         displayResults(results);
       });
 

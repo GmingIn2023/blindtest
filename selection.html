@@ -363,14 +363,49 @@
         }
       }
 
+      // Lance plusieurs recherches en même temps et retourne la première
+      // qui répond avec des résultats, au lieu d'attendre l'échec d'un
+      // service avant de tenter le suivant (beaucoup plus rapide + fiable
+      // puisqu'il suffit qu'un seul des deux fonctionne).
+      function firstSuccessful(promiseFactories, timeoutMs) {
+        return new Promise((resolve) => {
+          let remaining = promiseFactories.length;
+          let done = false;
+          const globalTimeout = setTimeout(() => {
+            if (done) return;
+            done = true;
+            resolve({ ok: false, results: [] });
+          }, timeoutMs);
+
+          promiseFactories.forEach((factory) => {
+            factory().then((r) => {
+              remaining--;
+              if (done) return;
+              if (r.ok && r.results.length > 0) {
+                done = true;
+                clearTimeout(globalTimeout);
+                resolve(r);
+              } else if (remaining === 0) {
+                done = true;
+                clearTimeout(globalTimeout);
+                resolve({ ok: false, results: [] });
+              }
+            });
+          });
+        });
+      }
+
       async function searchItunes(term) {
-        let r = await searchDeezer(term);
-        if (r.ok && r.results.length > 0) return r;
+        // iTunes et Deezer en course simultanée
+        const race = await firstSuccessful([
+          () => searchItunesJSONP(term),
+          () => searchDeezer(term)
+        ], 6000);
+        if (race.ok) return race;
 
-        r = await searchItunesJSONP(term);
-        if (r.ok) return r;
-
-        r = await searchViaProxy(term, 'https://api.allorigins.win/raw?url=');
+        // Dernier recours si les deux ont échoué : proxies (plus lents,
+        // mais mieux que rien)
+        let r = await searchViaProxy(term, 'https://api.allorigins.win/raw?url=');
         if (r.ok) return r;
 
         r = await searchViaProxy(term, 'https://corsproxy.io/?url=');
@@ -384,11 +419,11 @@
         const term = searchInput.value.trim();
         if (!term) return;
 
-        // Anti rate-limit : Apple bloque/ralentit les requêtes trop rapprochées
-        // depuis la même connexion, ce qui faisait planter les 3 méthodes d'un coup.
+        // Petit garde-fou anti double-clic, pas un vrai anti rate-limit
+        // (la course en parallèle rend ça beaucoup moins nécessaire).
         const now = Date.now();
-        if (now - lastSearchAt < 3000) {
-          errorMsg.innerHTML = '<div class="error-text">⏳ Attends 2-3 secondes avant de rechercher à nouveau.</div>';
+        if (now - lastSearchAt < 1200) {
+          errorMsg.innerHTML = '<div class="error-text">⏳ Un instant, la recherche précédente est encore en cours.</div>';
           return;
         }
         lastSearchAt = now;

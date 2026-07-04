@@ -743,7 +743,15 @@
           // Sauvegarde immédiate à CHAQUE chanson choisie (pas seulement à la
           // fin) : si la page recharge ou si tu repars en cours de route,
           // rien n'est perdu.
-          await selectionsRef.child('host').set({ songs: hostSelected, done: isDone });
+          try {
+            await selectionsRef.child('host').set({ songs: hostSelected, done: isDone });
+            errorMsg.innerHTML = `<div style="color:#7fff9f;font-size:0.8rem;">✅ Sauvegardé (${hostSelected.length}/${hostQuota})</div>`;
+          } catch (err) {
+            hostSelected.pop(); // on annule le compteur local, l'écriture a échoué
+            counterSpan.textContent = `${hostSelected.length} / ${hostQuota}`;
+            errorMsg.innerHTML = `<div class="error-text">❌ ÉCHEC de sauvegarde Firebase : ${err && err.message ? err.message : err}</div>`;
+            return;
+          }
           if (isDone) {
             window.location.href = 'waiting.html';
           } else {
@@ -761,8 +769,14 @@
           }
           playerSelected = songData;
           counterSpan.textContent = '1 / 1';
-          await selectionsRef.child(clientId).set({ songs: [songData], done: true });
-          window.location.href = 'waiting.html';
+          try {
+            await selectionsRef.child(clientId).set({ songs: [songData], done: true });
+            window.location.href = 'waiting.html';
+          } catch (err) {
+            playerSelected = null;
+            counterSpan.textContent = '0 / 1';
+            errorMsg.innerHTML = `<div class="error-text">❌ ÉCHEC de sauvegarde Firebase : ${err && err.message ? err.message : err}</div>`;
+          }
         }
       });
     })();

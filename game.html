@@ -380,7 +380,7 @@
         reopenAt = gs.reopenAt || 0;
         lockOthersOnBuzz = (gs.lockOthersOnBuzz !== undefined) ? gs.lockOthersOnBuzz : true;
         mode = gs.mode || 'classic';
-        maxAttempts = gs.maxAttempts || 3;
+        maxAttempts = (gs.maxAttempts !== undefined && gs.maxAttempts !== null) ? gs.maxAttempts : 3;
         blurEnabled = gs.blurEnabled || false;
 
         // Mettre à jour les interfaces
@@ -420,9 +420,19 @@
         function updateHostScoreboard() {
           playersRef.once('value', (snap) => {
             const players = snap.val() || {};
-            let html = '<strong>Scores :</strong><br>';
+            let html = '<strong>📋 Joueurs</strong><br>';
             Object.entries(players).forEach(([id, p]) => {
-              html += `<div>${p.avatar || ''} ${p.name}: ${scores[id] || 0} pts</div>`;
+              const isBuzzing = buzzer && buzzer.id === id;
+              const attempts = playerAttempts[id] || {};
+              const attemptsLeft = (attempts.attemptsLeft !== undefined) ? attempts.attemptsLeft : maxAttempts;
+              const attemptsText = maxAttempts === 0 ? '∞' : attemptsLeft;
+              const rowStyle = isBuzzing
+                ? 'background:#3a2d2d;border-radius:8px;padding:3px 8px;margin:2px 0;'
+                : 'opacity:0.75;padding:3px 8px;';
+              html += `<div style="${rowStyle}">
+                ${isBuzzing ? '🔴' : '⚪'} ${p.avatar || ''} ${p.name}: ${scores[id] || 0} pts
+                <span style="color:#8aaec0;font-size:0.82em;">· essais: ${attemptsText}</span>
+              </div>`;
             });
             hostScoreboard.innerHTML = html;
           });
@@ -527,6 +537,18 @@
 
         // Empêche de rouvrir la popup deux fois pour la même prise de buzzer
         let popupOpenForBuzzAt = 0;
+        let lastCorrectAnswer = null;
+
+        gameStateRef.child('answerResult').on('value', (snap) => {
+          const res = snap.val();
+          if (res && res.correct) {
+            lastCorrectAnswer = {
+              playerName: res.playerName,
+              songTitle: gameSongs[currentSongIndex] ? gameSongs[currentSongIndex].title : '',
+              songIndex: currentSongIndex
+            };
+          }
+        });
 
         function updatePlayerUI() {
           if (gameSongs[currentSongIndex]) {
@@ -557,7 +579,11 @@
           if (buzzerLocked) {
             playerBuzzer.disabled = true;
             cooldownDisplay.textContent = '';
-            playerFeedback.textContent = '✅ Manche terminée';
+            if (lastCorrectAnswer && lastCorrectAnswer.songIndex === currentSongIndex) {
+              playerFeedback.textContent = `🎉 ${lastCorrectAnswer.playerName} a trouvé "${lastCorrectAnswer.songTitle}" ! En attente de l'hôte...`;
+            } else {
+              playerFeedback.textContent = '✅ Manche terminée';
+            }
             return;
           }
 

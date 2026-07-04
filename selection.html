@@ -262,9 +262,29 @@
         if (config) {
           if (isHost) {
             hostQuota = config.hostSongsCount || 0;
-            counterSpan.textContent = `0 / ${hostQuota}`;
+            // On restaure ce qui a déjà été choisi (si on revient sur cette
+            // page après un rechargement), au lieu de repartir de zéro.
+            selectionsRef.child('host').once('value', (selSnap) => {
+              const existing = selSnap.val();
+              if (existing && Array.isArray(existing.songs)) {
+                hostSelected = existing.songs;
+              }
+              counterSpan.textContent = `${hostSelected.length} / ${hostQuota}`;
+              if (hostSelected.length >= hostQuota && hostQuota > 0) {
+                window.location.href = 'waiting.html';
+              }
+            });
           } else {
-            counterSpan.textContent = '0 / 1';
+            selectionsRef.child(clientId).once('value', (selSnap) => {
+              const existing = selSnap.val();
+              if (existing && Array.isArray(existing.songs) && existing.songs.length > 0) {
+                playerSelected = existing.songs[0];
+                counterSpan.textContent = '1 / 1';
+                window.location.href = 'waiting.html';
+              } else {
+                counterSpan.textContent = '0 / 1';
+              }
+            });
           }
         }
       });
@@ -719,8 +739,12 @@
           }
           hostSelected.push(songData);
           counterSpan.textContent = `${hostSelected.length} / ${hostQuota}`;
-          if (hostSelected.length === hostQuota) {
-            await selectionsRef.child('host').set({ songs: hostSelected, done: true });
+          const isDone = hostSelected.length >= hostQuota;
+          // Sauvegarde immédiate à CHAQUE chanson choisie (pas seulement à la
+          // fin) : si la page recharge ou si tu repars en cours de route,
+          // rien n'est perdu.
+          await selectionsRef.child('host').set({ songs: hostSelected, done: isDone });
+          if (isDone) {
             window.location.href = 'waiting.html';
           } else {
             // On retire juste la carte choisie de la liste déjà affichée,

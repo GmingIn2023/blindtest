@@ -1,4 +1,8 @@
 /* === DESIGN DARK MODERNE === */
+:root {
+  color-scheme: dark; /* empêche Safari iOS de plaquer un rendu natif clair sur les champs */
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -73,6 +77,8 @@ input[type="text"], input[type="number"], select {
   padding: 0.85rem 1.2rem;
   color: white;
   -webkit-text-fill-color: white; /* Safari iOS ignore parfois color: sur les champs texte */
+  -webkit-appearance: none;
+  appearance: none;
   opacity: 1;
   font-size: 1rem;
   margin: 0.5rem 0;

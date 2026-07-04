@@ -313,6 +313,71 @@
       const gameStateRef = roomRef.child('gameState');
       const playersRef = roomRef.child('players');
 
+      // ==================== FILET DE SÉCURITÉ ====================
+      // Si on arrive sur cette page (rechargement, retour navigateur, lien
+      // direct...) sans que waiting.html ait eu l'occasion de fusionner les
+      // sélections dans gameState.songs, on le fait nous-mêmes ici. Ça évite
+      // TOUT le tableau vide indépendamment de comment on est arrivé sur
+      // cette page.
+      let songsFixAttempted = false;
+      async function ensureSongsPopulated() {
+        if (!isHost || songsFixAttempted) return;
+        songsFixAttempted = true;
+
+        const songsSnap = await gameStateRef.child('songs').once('value');
+        const existing = songsSnap.val();
+        if (Array.isArray(existing) && existing.length > 0) return; // déjà bon
+
+        const [selSnap, playersSnap, configSnap] = await Promise.all([
+          roomRef.child('selections').once('value'),
+          roomRef.child('players').once('value'),
+          roomRef.child('config').once('value')
+        ]);
+        const selections = selSnap.val() || {};
+        const players = playersSnap.val() || {};
+        const config = configSnap.val() || {};
+        const playerIds = Object.keys(players);
+
+        let allSongs = [];
+        if (selections.host && Array.isArray(selections.host.songs)) {
+          allSongs = allSongs.concat(selections.host.songs);
+        }
+        playerIds.forEach((id) => {
+          const sel = selections[id];
+          if (sel && Array.isArray(sel.songs)) allSongs = allSongs.concat(sel.songs);
+        });
+
+        if (allSongs.length === 0) {
+          console.log('Aucune chanson trouvée dans les sélections, impossible de réparer.');
+          return;
+        }
+
+        for (let i = allSongs.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const tmp = allSongs[i]; allSongs[i] = allSongs[j]; allSongs[j] = tmp;
+        }
+        const scores = {};
+        playerIds.forEach((id) => { scores[id] = 0; });
+
+        await gameStateRef.update({
+          songs: allSongs,
+          currentSongIndex: 0,
+          scores: scores,
+          playerAttempts: {},
+          buzzer: null,
+          buzzerLocked: false,
+          reopenAt: 0,
+          roundActive: false,
+          roundStartTime: 0,
+          mode: config.mode || 'classic',
+          maxAttempts: (config.maxAttempts !== undefined) ? config.maxAttempts : 3,
+          blurEnabled: !!config.blurEnabled,
+          lockOthersOnBuzz: (config.lockOthersOnBuzz !== undefined) ? config.lockOthersOnBuzz : true
+        });
+        console.log('Chansons réparées automatiquement :', allSongs.length);
+      }
+      ensureSongsPopulated();
+
       // ==================== VARIABLES PARTAGÉES ====================
       let currentAudio = null;
       let gameSongs = [];
@@ -451,6 +516,12 @@
 
         hostPlay.addEventListener('click', () => {
           if (roundActive) return;
+          const song = gameSongs[currentSongIndex];
+          if (!song || !song.previewUrl) {
+            alert('Aucune chanson chargée. Retour à la sélection...');
+            window.location.href = 'selection.html';
+            return;
+          }
           const startTime = Date.now();
           gameStateRef.update({
             roundStartTime: startTime,
@@ -460,17 +531,12 @@
             reopenAt: 0
           });
           // Lecture de l'extrait
-          const song = gameSongs[currentSongIndex];
-          if (song && song.previewUrl) {
-            if (currentAudio) currentAudio.pause();
-            currentAudio = new Audio(song.previewUrl);
-            currentAudio.play().catch(e => {
-              console.log('Erreur lecture audio', e);
-              alert('Impossible de lire l\'extrait audio.');
-            });
-          } else {
-            alert('Aucun extrait disponible pour cette chanson.');
-          }
+          if (currentAudio) currentAudio.pause();
+          currentAudio = new Audio(song.previewUrl);
+          currentAudio.play().catch(e => {
+            console.log('Erreur lecture audio', e);
+            alert('Impossible de lire l\'extrait audio.');
+          });
         });
 
         // Révélation avec popup jolie

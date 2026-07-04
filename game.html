@@ -204,6 +204,9 @@
   <div id="app">
     <h1>🎧 Blind Test</h1>
 
+    <!-- Panneau de diagnostic : à lire et me rapporter si un problème persiste -->
+    <div id="debugPanel" style="position:fixed; bottom:0; left:0; right:0; background:#000; color:#7fff9f; font-size:0.7rem; padding:6px 10px; font-family:monospace; z-index:9999; opacity:0.9;"></div>
+
     <!-- Vue HÔTE -->
     <div id="host-view" class="hidden">
       <div class="game-header">
@@ -382,6 +385,14 @@
         mode = gs.mode || 'classic';
         maxAttempts = (gs.maxAttempts !== undefined && gs.maxAttempts !== null) ? gs.maxAttempts : 3;
         blurEnabled = gs.blurEnabled || false;
+
+        const debugPanel = document.getElementById('debugPanel');
+        if (debugPanel) {
+          debugPanel.textContent =
+            `room:${roomCode} · role:${isHost ? 'host' : 'player'} · chansons:${gameSongs.length} · ` +
+            `index:${currentSongIndex} · round:${roundActive} · buzzer:${buzzer ? buzzer.name : '-'} · ` +
+            `mode:${mode} · essais:${maxAttempts}`;
+        }
 
         // Mettre à jour les interfaces
         if (isHost) {

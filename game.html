@@ -280,6 +280,7 @@
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <script src="js/state.js"></script>
 
   <script>
     (function() {
@@ -297,10 +298,10 @@
       const db = firebase.database();
 
       // ==================== RÉCUPÉRATION DE L'ÉTAT LOCAL ====================
-      const roomCode = sessionStorage.getItem('blindtest_roomCode');
-      const isHost = sessionStorage.getItem('blindtest_isHost') === 'true';
-      const clientId = sessionStorage.getItem('blindtest_clientId');
-      const playerName = sessionStorage.getItem('blindtest_playerName') || 'Joueur';
+      const roomCode = AppState.roomCode;
+      const isHost = AppState.isHost === true;
+      const clientId = AppState.clientId;
+      const playerName = AppState.playerName || 'Joueur';
 
       if (!roomCode) {
         alert('Aucune partie en cours. Retour à l\'accueil.');

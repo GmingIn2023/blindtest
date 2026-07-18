@@ -450,6 +450,11 @@
       }
 
       // ==================== AFFICHAGE DE LA BONNE VUE ====================
+      // Déclarées ici pour être accessibles depuis l'écoute Firebase plus
+      // bas, même si elles sont définies à l'intérieur de initHost()/initPlayer().
+      let updateHostUI = function() {};
+      let updatePlayerUI = function() {};
+
       const hostView = document.getElementById('host-view');
       const playerView = document.getElementById('player-view');
       if (isHost) {
@@ -511,7 +516,7 @@
           }
         }, 100);
 
-        function updateHostUI() {
+        updateHostUI = function() {
           if (gameSongs.length > 0) {
             hostSongCounter.textContent = `Chanson ${currentSongIndex+1} / ${gameSongs.length}`;
           }
@@ -667,7 +672,7 @@
           }
         });
 
-        function updatePlayerUI() {
+        updatePlayerUI = function() {
           if (gameSongs[currentSongIndex]) {
             playerSongInfo.textContent = `Chanson ${currentSongIndex+1} / ${gameSongs.length}`;
           }

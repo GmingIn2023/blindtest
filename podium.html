@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <title>Podium · Blind Test</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    #app { max-width: 480px; }
+
+    .winner-banner {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      animation: winnerPop 0.6s ease-out;
+    }
+    .winner-banner .trophy { font-size: 3.5rem; display: block; }
+    .winner-banner h1 { font-size: 1.5rem; margin: 0.4rem 0 0.1rem; }
+    .winner-banner p { color: #8aaec0; margin: 0; }
+    @keyframes winnerPop {
+      0% { opacity: 0; transform: scale(0.7) translateY(-20px); }
+      60% { opacity: 1; transform: scale(1.08) translateY(0); }
+      100% { transform: scale(1); }
+    }
+
+    .podium-stage {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 0.8rem;
+      margin: 2rem 0 1.5rem;
+      height: 190px;
+    }
+    .podium-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 30%;
+      animation: riseUp 0.7s ease-out backwards;
+    }
+    .podium-block .avatar { font-size: 2rem; }
+    .podium-block .pname { font-weight: 700; font-size: 0.95rem; margin-top: 0.2rem; text-align: center; word-break: break-word; }
+    .podium-block .pscore { color: #d4ffb0; font-size: 0.85rem; margin-bottom: 0.4rem; }
+    .podium-bar {
+      width: 100%;
+      border-radius: 12px 12px 0 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 0.5rem;
+      font-size: 1.6rem;
+    }
+    .rank-1 { order: 2; } .rank-1 .podium-bar { height: 130px; background: linear-gradient(180deg,#ffd75e,#c99a1e); }
+    .rank-2 { order: 1; } .rank-2 .podium-bar { height: 95px;  background: linear-gradient(180deg,#d8dee6,#9aa4b2); }
+    .rank-3 { order: 3; } .rank-3 .podium-bar { height: 65px;  background: linear-gradient(180deg,#e0a76f,#a9713c); }
+    @keyframes riseUp {
+      0% { opacity: 0; transform: translateY(40px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .rank-2 { animation-delay: 0.05s; }
+    .rank-1 { animation-delay: 0.2s; }
+    .rank-3 { animation-delay: 0.35s; }
+
+    .rest-list {
+      background: #1a1f25;
+      border-radius: 1rem;
+      padding: 0.5rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .rest-list div {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #2d353e;
+      font-size: 0.9rem;
+    }
+    .rest-list div:last-child { border-bottom: none; }
+
+    .confetti-emoji {
+      position: fixed;
+      top: -40px;
+      font-size: 1.4rem;
+      animation: confettiFall linear forwards;
+      pointer-events: none;
+      z-index: 999;
+    }
+    @keyframes confettiFall {
+      to { transform: translateY(110vh) rotate(360deg); opacity: 0.2; }
+    }
+
+    #restartBtn { width: 100%; margin-top: 0.5rem; }
+    #waitingForHost { text-align: center; color: #8aaec0; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="winner-banner">
+      <span class="trophy">🏆</span>
+      <h1 id="winnerText">Calcul des résultats...</h1>
+      <p>Fin de la partie</p>
+    </div>
+
+    <div class="podium-stage" id="podiumStage"></div>
+    <div class="rest-list" id="restList"></div>
+
+    <button id="restartBtn" class="primary hidden">🔁 Recommencer (même code)</button>
+    <p id="waitingForHost" class="hidden">En attente que l'hôte relance une partie...</p>
+    <p style="text-align:center; margin-top:1rem;">
+      <a href="index.html" style="color:#8aaec0;">← Quitter</a>
+    </p>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <script src="js/firebase-init.js"></script>
+  <script src="js/state.js"></script>
+  <script>
+    (function() {
+      const roomCode = AppState.roomCode;
+      const isHost = AppState.isHost === true;
+      const clientId = AppState.clientId;
+
+      if (!roomCode) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      const roomRef = db.ref('rooms/' + roomCode);
+
+      function spawnConfetti() {
+        const emojis = ['🎉', '🎊', '⭐', '🎵'];
+        for (let i = 0; i < 24; i++) {
+          const el = document.createElement('div');
+          el.className = 'confetti-emoji';
+          el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+          el.style.left = Math.random() * 100 + 'vw';
+          el.style.animationDuration = (2 + Math.random() * 1.5) + 's';
+          el.style.animationDelay = (Math.random() * 0.6) + 's';
+          document.body.appendChild(el);
+          setTimeout(() => el.remove(), 4000);
+        }
+      }
+
+      Promise.all([
+        roomRef.child('gameState/scores').once('value'),
+        roomRef.child('players').once('value')
+      ]).then(([scoresSnap, playersSnap]) => {
+        const scores = scoresSnap.val() || {};
+        const players = playersSnap.val() || {};
+
+        const ranked = Object.entries(players)
+          .map(([id, p]) => ({ id, name: p.name, avatar: p.avatar || '🎧', score: scores[id] || 0 }))
+          .sort((a, b) => b.score - a.score);
+
+        if (ranked.length === 0) {
+          document.getElementById('winnerText').textContent = 'Aucun joueur trouvé';
+          return;
+        }
+
+        const winner = ranked[0];
+        const winnerText = document.getElementById('winnerText');
+        if (clientId === winner.id) {
+          winnerText.textContent = `Bravo, tu as gagné ! 🎉`;
+        } else {
+          winnerText.textContent = `${winner.avatar} ${winner.name} a gagné !`;
+        }
+        spawnConfetti();
+
+        // Podium (top 3)
+        const stage = document.getElementById('podiumStage');
+        const top3 = ranked.slice(0, 3);
+        top3.forEach((p, idx) => {
+          const block = document.createElement('div');
+          block.className = 'podium-block rank-' + (idx + 1);
+          block.innerHTML = `
+            <div class="avatar">${p.avatar}</div>
+            <div class="pname">${p.name}</div>
+            <div class="pscore">${p.score} pts</div>
+            <div class="podium-bar">${idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}</div>
+          `;
+          stage.appendChild(block);
+        });
+
+        // Le reste du classement
+        const restList = document.getElementById('restList');
+        const rest = ranked.slice(3);
+        if (rest.length === 0) {
+          restList.classList.add('hidden');
+        } else {
+          rest.forEach((p, idx) => {
+            const row = document.createElement('div');
+            row.innerHTML = `<span>${idx + 4}. ${p.avatar} ${p.name}</span><span>${p.score} pts</span>`;
+            restList.appendChild(row);
+          });
+        }
+      });
+
+      // ==================== REDÉMARRER (même code de room) ====================
+      const restartBtn = document.getElementById('restartBtn');
+      const waitingForHost = document.getElementById('waitingForHost');
+
+      if (isHost) {
+        restartBtn.classList.remove('hidden');
+        restartBtn.addEventListener('click', async () => {
+          restartBtn.disabled = true;
+          restartBtn.textContent = 'Redémarrage...';
+          // On garde la config (réglages) telle quelle, on remet tout le
+          // reste à zéro, et on renvoie tout le monde choisir des chansons.
+          await roomRef.update({
+            status: 'selection',
+            selections: {},
+            gameState: {
+              currentSongIndex: 0,
+              songs: [],
+              scores: {},
+              playerAttempts: {},
+              buzzer: null,
+              buzzerLocked: false,
+              reopenAt: 0,
+              roundStartTime: 0,
+              roundActive: false
+            }
+          });
+          window.location.href = 'selection.html';
+        });
+      } else {
+        waitingForHost.classList.remove('hidden');
+        // Dès que l'hôte relance, on repart automatiquement vers la sélection
+        roomRef.child('status').on('value', (snap) => {
+          if (snap.val() === 'selection') {
+            window.location.href = 'selection.html';
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -198,6 +198,54 @@
       color: #ffaa33;
       margin: 0.5rem 0;
     }
+    /* Flash plein écran au moment d'un buzz */
+    .buzz-flash {
+      position: fixed; inset: 0; z-index: 500;
+      background: radial-gradient(circle, rgba(255,80,80,0.35) 0%, rgba(255,80,80,0) 70%);
+      pointer-events: none;
+      animation: buzzPulse 0.6s ease-out;
+    }
+    .buzz-flash.hidden { display: none; }
+    @keyframes buzzPulse {
+      0% { opacity: 0; transform: scale(0.8); }
+      30% { opacity: 1; transform: scale(1.05); }
+      100% { opacity: 0; transform: scale(1); }
+    }
+
+    /* Pochette révélée par quadrants (hôte uniquement) */
+    .quadrant-cover {
+      position: relative;
+      width: 160px; height: 160px;
+      margin: 1rem auto;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #000;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+    .quadrant-cover.hidden { display: none; }
+    .quadrant {
+      background-size: 320px 320px;
+      filter: blur(18px);
+      opacity: 0;
+      transition: opacity 0.6s ease, filter 1.5s ease;
+    }
+    #quad-0 { background-position: 0 0; }
+    #quad-1 { background-position: -160px 0; }
+    #quad-2 { background-position: 0 -160px; }
+    #quad-3 { background-position: -160px -160px; }
+
+    /* Bouton Révéler devient vert quand une bonne réponse a été trouvée */
+    .reveal-btn.correct-ready {
+      background: #2fae5f !important;
+      border-color: #4fd97f !important;
+      animation: revealPulse 1s ease-in-out infinite;
+    }
+    @keyframes revealPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(79,217,127,0.5); }
+      50% { box-shadow: 0 0 0 10px rgba(79,217,127,0); }
+    }
   </style>
 </head>
 <body>
@@ -208,6 +256,9 @@
     <div id="debugPanel" style="position:fixed; bottom:0; left:0; right:0; background:#000; color:#7fff9f; font-size:0.7rem; padding:6px 10px; font-family:monospace; z-index:9999; opacity:0.9;"></div>
     <div id="mergeDebugPanel" style="position:fixed; bottom:22px; left:0; right:0; background:#000; color:#ffcf5c; font-size:0.7rem; padding:6px 10px; font-family:monospace; z-index:9999; opacity:0.9;"></div>
 
+    <!-- Flash plein écran quand quelqu'un buzz -->
+    <div id="buzzFlash" class="buzz-flash hidden"></div>
+
     <!-- Vue HÔTE -->
     <div id="host-view" class="hidden">
       <div class="game-header">
@@ -216,6 +267,12 @@
         <button id="hostReveal" class="reveal-btn">🔎 Révéler</button>
       </div>
       <div class="timer-big" id="hostTimer">00:00.0</div>
+      <div id="quadrantCover" class="quadrant-cover hidden">
+        <div class="quadrant" id="quad-0"></div>
+        <div class="quadrant" id="quad-1"></div>
+        <div class="quadrant" id="quad-2"></div>
+        <div class="quadrant" id="quad-3"></div>
+      </div>
       <div id="hostNotification" class="notification"></div>
       <div id="hostScoreboard" class="scoreboard"></div>
       <button id="hostNext" class="primary">⏩ Chanson suivante</button>
@@ -230,6 +287,7 @@
       <div id="cooldownDisplay" class="cooldown-timer"></div>
       <button class="buzzer-btn" id="playerBuzzer">JE SAIS !</button>
       <div id="playerFeedback" style="text-align:center;"></div>
+      <div id="playerScoreboard" class="scoreboard"></div>
     </div>
 
     <!-- Popup de révélation (hôte) -->
@@ -406,6 +464,10 @@
 
       // ==================== VARIABLES PARTAGÉES ====================
       let currentAudio = null;
+      let currentWebAudioSource = null;
+      let audioCtx = null;
+      let previousBuzzerId = null; // pour détecter la transition null -> quelqu'un (flash)
+      let lastCorrectSongIndex = -1; // pour le bouton Révéler qui devient vert
       let gameSongs = [];
       let currentSongIndex = 0;
       let roundActive = false;
@@ -424,6 +486,35 @@
       let answerTimerInterval = null;
       let choiceTimerInterval = null;
       let answerStartTime = 0;
+
+      // Classement en direct, trié par score, réutilisé par l'hôte et les joueurs
+      function renderScoreboard(targetId) {
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        playersRef.once('value', (snap) => {
+          const players = snap.val() || {};
+          const ranked = Object.entries(players)
+            .map(([id, p]) => ({ id, name: p.name, avatar: p.avatar || '', score: scores[id] || 0 }))
+            .sort((a, b) => b.score - a.score);
+
+          let html = '<strong>🏆 Classement</strong><br>';
+          ranked.forEach((p, idx) => {
+            const isBuzzing = buzzer && buzzer.id === p.id;
+            const attempts = playerAttempts[p.id] || {};
+            const attemptsLeft = (attempts.attemptsLeft !== undefined) ? attempts.attemptsLeft : maxAttempts;
+            const attemptsText = maxAttempts === 0 ? '∞' : attemptsLeft;
+            const medal = ['🥇', '🥈', '🥉'][idx] || `${idx + 1}.`;
+            const rowStyle = isBuzzing
+              ? 'background:#3a2d2d;border-radius:8px;padding:3px 8px;margin:2px 0;'
+              : 'opacity:0.8;padding:3px 8px;';
+            html += `<div style="${rowStyle}">
+              ${isBuzzing ? '🔴' : medal} ${p.avatar} ${p.name}: ${p.score} pts
+              <span style="color:#8aaec0;font-size:0.82em;">· essais: ${attemptsText}</span>
+            </div>`;
+          });
+          target.innerHTML = html;
+        });
+      }
 
       // ==================== FONCTIONS UTILITAIRES ====================
       function normalize(str) {
@@ -447,6 +538,107 @@
       }
       function getCooldown(attemptCount) {
         return 3000 + (attemptCount - 1) * 2000; // 3s, 5s, 7s...
+      }
+
+      // Score façon Kahoot : plus on répond vite, plus on gagne de points.
+      // <0.5s -> 100 pts. Puis -15 pts/seconde jusqu'à 4s, puis -10 pts/seconde
+      // au-delà, avec un plancher à 20 pts tant que la réponse est correcte.
+      function computeKahootPoints(elapsedMs) {
+        const t = elapsedMs / 1000;
+        if (t < 0.5) return 100;
+        let points;
+        if (t <= 4) {
+          points = 100 - 15 * t;
+        } else {
+          points = (100 - 15 * 4) - 10 * (t - 4);
+        }
+        return Math.max(20, Math.round(points));
+      }
+
+      function getAudioContext() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        return audioCtx;
+      }
+      function reverseBuffer(ctx, buffer) {
+        const out = ctx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+        for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+          const src = buffer.getChannelData(ch);
+          const dst = out.getChannelData(ch);
+          for (let i = 0; i < src.length; i++) dst[i] = src[src.length - 1 - i];
+        }
+        return out;
+      }
+      function phaseCancelInstrumental(ctx, buffer) {
+        if (buffer.numberOfChannels < 2) return buffer;
+        const out = ctx.createBuffer(2, buffer.length, buffer.sampleRate);
+        const left = buffer.getChannelData(0);
+        const right = buffer.getChannelData(1);
+        const outL = out.getChannelData(0);
+        const outR = out.getChannelData(1);
+        for (let i = 0; i < left.length; i++) {
+          const diff = (left[i] - right[i]) / 2;
+          outL[i] = diff;
+          outR[i] = diff;
+        }
+        return out;
+      }
+
+      function stopCurrentPlayback() {
+        if (currentAudio) { try { currentAudio.pause(); } catch(e){} currentAudio = null; }
+        if (currentWebAudioSource) { try { currentWebAudioSource.stop(); } catch(e){} currentWebAudioSource = null; }
+      }
+
+      // Joue l'extrait en respectant les réglages choisis à la sélection :
+      // position de départ, durée, inversion, instrumental.
+      async function playSongClip(song) {
+        stopCurrentPlayback();
+        const clipStart = song.clipStart || 0;
+        const clipDuration = song.clipDuration || 10;
+
+        if (!song.reverse && !song.instrumental) {
+          // Cas simple et fiable : lecture directe, pas de traitement audio
+          currentAudio = new Audio(song.previewUrl);
+          currentAudio.addEventListener('loadedmetadata', () => {
+            currentAudio.currentTime = clipStart;
+          });
+          currentAudio.play().catch(e => console.log('Erreur lecture audio', e));
+          setTimeout(() => { if (currentAudio) currentAudio.pause(); }, clipDuration * 1000);
+          return;
+        }
+
+        // Reverse et/ou instrumental : traitement Web Audio (nécessite de
+        // décoder l'extrait complet). Si ça échoue (réseau/CORS), on retombe
+        // sur une lecture normale plutôt que de ne rien jouer du tout.
+        try {
+          const ctx = getAudioContext();
+          const res = await fetch(song.previewUrl);
+          const arrayBuffer = await res.arrayBuffer();
+          let buffer = await ctx.decodeAudioData(arrayBuffer);
+          if (song.instrumental) buffer = phaseCancelInstrumental(ctx, buffer);
+          if (song.reverse) buffer = reverseBuffer(ctx, buffer);
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(ctx.destination);
+          const playFrom = song.reverse ? Math.max(0, buffer.duration - clipStart - clipDuration) : clipStart;
+          source.start(0, playFrom, clipDuration);
+          currentWebAudioSource = source;
+        } catch (e) {
+          console.log('Traitement audio impossible, lecture normale à la place', e);
+          currentAudio = new Audio(song.previewUrl);
+          currentAudio.play().catch(() => {});
+        }
+      }
+
+      // Flash plein écran visible par tout le monde quand quelqu'un buzz
+      function triggerBuzzFlash() {
+        const flash = document.getElementById('buzzFlash');
+        if (!flash) return;
+        flash.classList.remove('hidden');
+        // Redémarre l'animation CSS à chaque déclenchement
+        flash.style.animation = 'none';
+        void flash.offsetWidth;
+        flash.style.animation = '';
+        setTimeout(() => flash.classList.add('hidden'), 650);
       }
 
       // ==================== AFFICHAGE DE LA BONNE VUE ====================
@@ -482,6 +674,14 @@
         maxAttempts = (gs.maxAttempts !== undefined && gs.maxAttempts !== null) ? gs.maxAttempts : 3;
         blurEnabled = gs.blurEnabled || false;
 
+        // Quelqu'un vient de buzzer (transition null -> quelqu'un) : flash
+        // visible par tout le monde, hôte comme joueurs.
+        const currentBuzzerId = buzzer ? buzzer.id : null;
+        if (currentBuzzerId && currentBuzzerId !== previousBuzzerId) {
+          triggerBuzzFlash();
+        }
+        previousBuzzerId = currentBuzzerId;
+
         const debugPanel = document.getElementById('debugPanel');
         if (debugPanel) {
           debugPanel.textContent =
@@ -513,8 +713,47 @@
           if (roundActive && roundStartTime > 0) {
             const elapsed = Date.now() - roundStartTime;
             hostTimer.textContent = formatTimer(elapsed);
+            updateQuadrantCover(elapsed);
+          } else {
+            // Filet de sécurité : si la manche n'est plus active (bonne
+            // réponse trouvée, révélée, etc.) mais qu'un extrait joue encore
+            // sur cet appareil, on l'arrête.
+            stopCurrentPlayback();
           }
         }, 100);
+
+        function resetQuadrantCover(song) {
+          const container = document.getElementById('quadrantCover');
+          if (!blurEnabled) { container.classList.add('hidden'); return; }
+          container.classList.remove('hidden');
+          const url = song && song.artwork ? song.artwork : '';
+          for (let i = 0; i < 4; i++) {
+            const q = document.getElementById('quad-' + i);
+            q.style.backgroundImage = url ? `url('${url}')` : 'none';
+            q.style.opacity = '0';
+            q.style.filter = 'blur(18px)';
+          }
+        }
+
+        // Coin par coin (2s/4s/6s/8s), puis le flou diminue progressivement
+        function updateQuadrantCover(elapsedMs) {
+          if (!blurEnabled) return;
+          const container = document.getElementById('quadrantCover');
+          if (!container || container.classList.contains('hidden')) return;
+          const t = elapsedMs / 1000;
+          const revealTimes = [2, 4, 6, 8];
+          for (let i = 0; i < 4; i++) {
+            if (t >= revealTimes[i]) {
+              document.getElementById('quad-' + i).style.opacity = '1';
+            }
+          }
+          if (t > 8) {
+            const blurAmount = Math.max(4, 18 - (t - 8) * 3.5);
+            for (let i = 0; i < 4; i++) {
+              document.getElementById('quad-' + i).style.filter = `blur(${blurAmount}px)`;
+            }
+          }
+        }
 
         updateHostUI = function() {
           if (gameSongs.length > 0) {
@@ -525,24 +764,7 @@
         }
 
         function updateHostScoreboard() {
-          playersRef.once('value', (snap) => {
-            const players = snap.val() || {};
-            let html = '<strong>📋 Joueurs</strong><br>';
-            Object.entries(players).forEach(([id, p]) => {
-              const isBuzzing = buzzer && buzzer.id === id;
-              const attempts = playerAttempts[id] || {};
-              const attemptsLeft = (attempts.attemptsLeft !== undefined) ? attempts.attemptsLeft : maxAttempts;
-              const attemptsText = maxAttempts === 0 ? '∞' : attemptsLeft;
-              const rowStyle = isBuzzing
-                ? 'background:#3a2d2d;border-radius:8px;padding:3px 8px;margin:2px 0;'
-                : 'opacity:0.75;padding:3px 8px;';
-              html += `<div style="${rowStyle}">
-                ${isBuzzing ? '🔴' : '⚪'} ${p.avatar || ''} ${p.name}: ${scores[id] || 0} pts
-                <span style="color:#8aaec0;font-size:0.82em;">· essais: ${attemptsText}</span>
-              </div>`;
-            });
-            hostScoreboard.innerHTML = html;
-          });
+          renderScoreboard('hostScoreboard');
         }
 
         hostPlay.addEventListener('click', async () => {
@@ -575,28 +797,25 @@
             buzzerLocked: false,
             reopenAt: 0
           });
-          // Lecture de l'extrait
-          if (currentAudio) currentAudio.pause();
-          currentAudio = new Audio(song.previewUrl);
-          currentAudio.play().catch(e => {
-            console.log('Erreur lecture audio', e);
-            alert('Impossible de lire l\'extrait audio.');
-          });
+          hostReveal.classList.remove('correct-ready');
+          resetQuadrantCover(song);
+          // Lecture de l'extrait, en respectant les réglages choisis à la sélection
+          playSongClip(song);
         });
 
         // Révélation avec popup jolie
         hostReveal.addEventListener('click', () => {
           const song = gameSongs[currentSongIndex];
           if (!song) return;
-          if (currentAudio) currentAudio.pause();
+          stopCurrentPlayback();
           gameStateRef.update({ roundActive: false, buzzer: null, buzzerLocked: true, reopenAt: 0 });
+          hostReveal.classList.remove('correct-ready');
           const popup = document.getElementById('popupReveal');
           const cover = document.getElementById('revealCover');
           const title = document.getElementById('revealTitle');
           const artist = document.getElementById('revealArtist');
           cover.src = song.artwork || 'https://via.placeholder.com/120';
-          if (blurEnabled) cover.classList.add('blur');
-          else cover.classList.remove('blur');
+          cover.classList.remove('blur');
           title.textContent = song.title;
           artist.textContent = song.artist;
           popup.classList.remove('hidden');
@@ -607,7 +826,8 @@
         });
 
         hostNext.addEventListener('click', () => {
-          if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+          stopCurrentPlayback();
+          hostReveal.classList.remove('correct-ready');
           if (currentSongIndex + 1 < gameSongs.length) {
             gameStateRef.update({
               currentSongIndex: currentSongIndex + 1,
@@ -615,11 +835,12 @@
               roundStartTime: 0,
               buzzer: null,
               buzzerLocked: false,
-              reopenAt: 0
+              reopenAt: 0,
+              playerAttempts: {} // essais remis à zéro pour la nouvelle chanson
             });
           } else {
-            alert('Fin du jeu ! (page podium à venir)');
-            // Rediriger vers results.html (à créer)
+            gameStateRef.parent.update({ status: 'finished' });
+            window.location.href = 'podium.html';
           }
         });
 
@@ -634,6 +855,9 @@
                 setTimeout(() => hostNotification.textContent = '', 3000);
               }
             });
+            if (res.correct) {
+              hostReveal.classList.add('correct-ready');
+            }
             snap.ref.remove(); // nettoyer
           }
         });
@@ -677,6 +901,7 @@
             playerSongInfo.textContent = `Chanson ${currentSongIndex+1} / ${gameSongs.length}`;
           }
           playerScore.textContent = (scores[clientId] || 0) + ' pts';
+          renderScoreboard('playerScoreboard');
 
           const attempts = playerAttempts[clientId] || { attemptsLeft: maxAttempts, cooldownUntil: 0, attemptCount: 0 };
           playerAttemptsDiv.textContent = `Essais restants: ${maxAttempts === 0 ? '∞' : attempts.attemptsLeft}`;
@@ -710,10 +935,15 @@
           }
 
           if (buzzer && buzzer.id !== clientId) {
-            playerBuzzer.disabled = true;
-            cooldownDisplay.textContent = '';
-            playerFeedback.textContent = lockOthersOnBuzz ? `🔒 ${buzzer.name} a buzzé...` : '';
-            return;
+            if (lockOthersOnBuzz) {
+              playerBuzzer.disabled = true;
+              cooldownDisplay.textContent = '';
+              playerFeedback.textContent = `🔒 ${buzzer.name} a buzzé...`;
+              return;
+            }
+            // Option désactivée : pas de blocage visuel forcé, les vérifications
+            // suivantes (cooldown, essais...) décident normalement. La
+            // transaction Firebase empêche de toute façon de voler le buzzer.
           }
 
           if (reopenAt && now < reopenAt) {
@@ -823,12 +1053,7 @@
           const elapsed = roundActive ? Date.now() - roundStartTime : 0;
           let points = 0;
           if (isCorrect) {
-            if (mode === 'kahoot') {
-              const seconds = elapsed / 1000;
-              points = Math.max(20, 100 - Math.floor(seconds * 10));
-            } else {
-              points = 50;
-            }
+            points = computeKahootPoints(elapsed);
           } else {
             points = -50;
           }
@@ -957,11 +1182,14 @@
           };
 
           if (isCorrect) {
-            // Bonne réponse : la manche est terminée, plus personne ne peut buzzer.
+            // Bonne réponse : la manche est terminée, plus personne ne peut buzzer,
+            // et le chrono s'arrête tout de suite (pas besoin d'attendre que
+            // l'hôte clique sur Révéler).
             attempts.attemptsLeft = 0;
             attempts.cooldownUntil = 0;
             updates.buzzerLocked = true;
             updates.reopenAt = 0;
+            updates.roundActive = false;
           } else {
             // Mauvaise réponse : cooldown perso escaladé (3s, 5s, 7s...) + 3s de blocage
             // global avant que quiconque (y compris les autres) puisse retenter sa chance.
@@ -986,8 +1214,9 @@
             titleEl.textContent = '🎉 Bravo !';
             msgEl.innerHTML = `+${points} points`;
           } else {
+            // On ne révèle jamais le titre à un joueur qui s'est trompé
             titleEl.textContent = '❌ Faux !';
-            msgEl.innerHTML = `-50 points<br>Réponse : ${correctInfo}`;
+            msgEl.innerHTML = `-50 points`;
           }
           popup.classList.remove('hidden');
           setTimeout(() => popup.classList.add('hidden'), 3000);

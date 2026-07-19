@@ -120,6 +120,26 @@
     (function() {
       const form = document.getElementById('config-form');
       const errorDiv = document.getElementById('configError');
+      const isEditMode = new URLSearchParams(window.location.search).get('edit') === '1';
+      const submitBtn = form.querySelector('button[type="submit"], button:not([type])') || document.querySelector('#config-form button');
+
+      // En mode édition (icône ⚙️ depuis la sélection), on pré-remplit le
+      // formulaire avec les réglages actuels de la room au lieu d'un
+      // formulaire vierge.
+      if (isEditMode && AppState.roomCode) {
+        db.ref('rooms/' + AppState.roomCode + '/config').once('value', (snap) => {
+          const cfg = snap.val();
+          if (!cfg) return;
+          const modeRadio = document.querySelector(`input[name="gameMode"][value="${cfg.mode}"]`);
+          if (modeRadio) modeRadio.checked = true;
+          document.getElementById('maxAttempts').value = cfg.maxAttempts;
+          document.getElementById('blurCheck').checked = !!cfg.blurEnabled;
+          document.getElementById('lockOthersCheck').checked = !!cfg.lockOthersOnBuzz;
+          document.getElementById('playerCount').value = cfg.expectedPlayerCount;
+          document.getElementById('totalSongs').value = cfg.totalSongs;
+        });
+        if (submitBtn) submitBtn.textContent = '💾 Enregistrer les réglages';
+      }
 
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -145,6 +165,28 @@
           return;
         }
 
+        const newConfig = {
+          mode: mode,
+          maxAttempts: maxAttempts,
+          blurEnabled: blurEnabled,
+          lockOthersOnBuzz: lockOthersOnBuzz,
+          expectedPlayerCount: playerCount,
+          totalSongs: totalSongs,
+          hostSongsCount: totalSongs - playerCount
+        };
+
+        // ===== Mode édition : on met juste à jour la room existante =====
+        if (isEditMode && AppState.roomCode) {
+          try {
+            await db.ref('rooms/' + AppState.roomCode + '/config').set(newConfig);
+            window.location.href = 'selection.html';
+          } catch (error) {
+            errorDiv.textContent = 'Erreur: ' + error.message;
+          }
+          return;
+        }
+
+        // ===== Mode normal : création d'une toute nouvelle room =====
         const roomCode = generateRoomCode();
         console.log('Création partie code:', roomCode);
 
@@ -155,15 +197,7 @@
         try {
           const roomRef = db.ref('rooms/' + roomCode);
           await roomRef.set({
-            config: {
-              mode: mode,
-              maxAttempts: maxAttempts,
-              blurEnabled: blurEnabled,
-              lockOthersOnBuzz: lockOthersOnBuzz,
-              expectedPlayerCount: playerCount,
-              totalSongs: totalSongs,
-              hostSongsCount: totalSongs - playerCount
-            },
+            config: newConfig,
             players: {},
             selections: {},
             gameState: {

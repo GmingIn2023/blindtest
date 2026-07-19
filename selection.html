@@ -167,10 +167,11 @@
 </head>
 <body>
   <div id="app">
-    <h1>🎵 Sélection des chansons K</h1>
+    <h1>🎵 Sélection des chansons</h1>
     <div id="selection-header" class="selection-header">
       <span id="role-message"></span>
       <span id="counter" class="counter">0 / ?</span>
+      <a id="settingsGear" href="config.html?edit=1" class="hidden" title="Modifier les réglages" style="font-size:1.3rem; text-decoration:none;">⚙️</a>
     </div>
     <div class="search-container">
       <div class="search-box">
@@ -291,6 +292,8 @@
 
       if (isHost) {
         roleMsg.textContent = '🎤 Hôte : choisis tes chansons';
+        const gear = document.getElementById('settingsGear');
+        if (gear) gear.classList.remove('hidden');
       } else {
         roleMsg.textContent = '🎵 Joueur : choisis TA chanson (1 seule)';
       }

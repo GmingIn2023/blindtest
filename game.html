@@ -246,6 +246,49 @@
       0%, 100% { box-shadow: 0 0 0 0 rgba(79,217,127,0.5); }
       50% { box-shadow: 0 0 0 10px rgba(79,217,127,0); }
     }
+    /* Grille de vote du mode Playlist - "à qui appartient cette chanson ?" */
+    .playlist-vote-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+      gap: 0.7rem;
+      margin: 1rem 0;
+    }
+    .playlist-vote-grid.hidden { display: none; }
+    .vote-square {
+      background: #1a1f25;
+      border: 2px solid #2d353e;
+      border-radius: 1rem;
+      padding: 1rem 0.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    .vote-square .vs-avatar { font-size: 1.8rem; display: block; }
+    .vote-square .vs-name { font-size: 0.85rem; margin-top: 0.3rem; word-break: break-word; }
+    .vote-square.selected { border-color: #3b6eff; background: #1c2a4a; }
+    .vote-square.correct { border-color: #4fd97f; background: #17301f; }
+    .vote-square.wrong { border-color: #ff6b6b; background: #351c1c; opacity: 0.7; }
+    .vote-square.disabled { pointer-events: none; opacity: 0.6; }
+    .instrumental-visual {
+      display: flex;
+      justify-content: center;
+      gap: 1.2rem;
+      font-size: 2.2rem;
+      margin: 1.5rem 0;
+    }
+    .instrumental-visual.hidden { display: none; }
+    .instrumental-visual span {
+      animation: instBounce 1s ease-in-out infinite;
+    }
+    .instrumental-visual span:nth-child(1) { animation-delay: 0s; }
+    .instrumental-visual span:nth-child(2) { animation-delay: 0.15s; }
+    .instrumental-visual span:nth-child(3) { animation-delay: 0.3s; }
+    .instrumental-visual span:nth-child(4) { animation-delay: 0.45s; }
+    .instrumental-visual span:nth-child(5) { animation-delay: 0.6s; }
+    @keyframes instBounce {
+      0%, 100% { transform: translateY(0); opacity: 0.6; }
+      50% { transform: translateY(-14px); opacity: 1; }
+    }
   </style>
 </head>
 <body>
@@ -253,9 +296,6 @@
     <h1>🎧 Blind Test</h1>
 
     <!-- Panneau de diagnostic : à lire et me rapporter si un problème persiste -->
-    <div id="debugPanel" style="position:fixed; bottom:0; left:0; right:0; background:#000; color:#7fff9f; font-size:0.7rem; padding:6px 10px; font-family:monospace; z-index:9999; opacity:0.9;"></div>
-    <div id="mergeDebugPanel" style="position:fixed; bottom:22px; left:0; right:0; background:#000; color:#ffcf5c; font-size:0.7rem; padding:6px 10px; font-family:monospace; z-index:9999; opacity:0.9;"></div>
-
     <!-- Flash plein écran quand quelqu'un buzz -->
     <div id="buzzFlash" class="buzz-flash hidden"></div>
 
@@ -265,6 +305,7 @@
         <span id="hostSongCounter" class="song-counter">Chanson 1 / ?</span>
         <button id="hostPlay" class="play-btn">▶️</button>
         <button id="hostReveal" class="reveal-btn">🔎 Révéler</button>
+        <button id="hostRestartClip" class="play-btn" title="Recommencer l'extrait depuis le début">⏮️</button>
       </div>
       <div class="timer-big" id="hostTimer">00:00.0</div>
       <div id="quadrantCover" class="quadrant-cover hidden">
@@ -272,6 +313,9 @@
         <div class="quadrant" id="quad-1"></div>
         <div class="quadrant" id="quad-2"></div>
         <div class="quadrant" id="quad-3"></div>
+      </div>
+      <div id="instrumentalVisual" class="instrumental-visual hidden">
+        <span>🎸</span><span>🥁</span><span>🎹</span><span>🎷</span><span>🎻</span>
       </div>
       <div id="hostNotification" class="notification"></div>
       <div id="hostScoreboard" class="scoreboard"></div>
@@ -286,6 +330,7 @@
       <div id="playerAttempts" style="text-align:center;">Essais restants: ∞</div>
       <div id="cooldownDisplay" class="cooldown-timer"></div>
       <button class="buzzer-btn" id="playerBuzzer">JE SAIS !</button>
+      <div id="playlistVoteGrid" class="playlist-vote-grid hidden"></div>
       <div id="playerFeedback" style="text-align:center;"></div>
       <div id="playerScoreboard" class="scoreboard"></div>
     </div>
@@ -478,6 +523,7 @@
       let buzzerLocked = false;   // true = manche verrouillée (bonne réponse trouvée)
       let reopenAt = 0;           // timestamp: le buzzer redevient dispo pour tous après une erreur
       let lockOthersOnBuzz = true;
+      let votes = {}; // mode Playlist : { playerId: { guess: ownerId, at: timestamp } }
       let mode = 'classic';
       let maxAttempts = 3;
       let blurEnabled = false;
@@ -545,12 +591,12 @@
       // au-delà, avec un plancher à 20 pts tant que la réponse est correcte.
       function computeKahootPoints(elapsedMs) {
         const t = elapsedMs / 1000;
-        if (t < 0.5) return 100;
+        if (t < 1) return 100;
         let points;
-        if (t <= 4) {
-          points = 100 - 15 * t;
+        if (t <= 5) {
+          points = 100 - 10 * (t - 1);
         } else {
-          points = (100 - 15 * 4) - 10 * (t - 4);
+          points = 60 - 5 * (t - 5);
         }
         return Math.max(20, Math.round(points));
       }
@@ -590,12 +636,56 @@
 
       // Joue l'extrait en respectant les réglages choisis à la sélection :
       // position de départ, durée, inversion, instrumental.
+      function buildAudioGraph(ctx, source, song) {
+        source.playbackRate.value = song.speed || 1;
+        source.detune.value = (song.pitch || 0) * 100; // demi-tons -> cents
+
+        let node = source;
+        const fv = song.filterValue || 0;
+        if (fv > 15) {
+          const hp = ctx.createBiquadFilter();
+          hp.type = 'highpass';
+          hp.frequency.value = 100 + (fv / 100) * 4000;
+          node.connect(hp);
+          node = hp;
+        } else if (fv < -15) {
+          const lp = ctx.createBiquadFilter();
+          lp.type = 'lowpass';
+          lp.frequency.value = 8000 + (fv / 100) * 7800;
+          node.connect(lp);
+          node = lp;
+        }
+
+        if (song.radioMode) {
+          const hp2 = ctx.createBiquadFilter();
+          hp2.type = 'highpass';
+          hp2.frequency.value = 300;
+          const lp2 = ctx.createBiquadFilter();
+          lp2.type = 'lowpass';
+          lp2.frequency.value = 3400;
+          const shaper = ctx.createWaveShaper();
+          const curve = new Float32Array(256);
+          for (let i = 0; i < 256; i++) {
+            const x = (i / 255) * 2 - 1;
+            curve[i] = Math.tanh(x * 3);
+          }
+          shaper.curve = curve;
+          node.connect(hp2);
+          hp2.connect(lp2);
+          lp2.connect(shaper);
+          node = shaper;
+        }
+        return node;
+      }
+
       async function playSongClip(song) {
         stopCurrentPlayback();
         const clipStart = song.clipStart || 0;
         const clipDuration = song.clipDuration || 10;
+        const needsWebAudio = song.reverse || song.instrumental || (song.speed && song.speed !== 1) ||
+          (song.pitch && song.pitch !== 0) || Math.abs(song.filterValue || 0) > 15 || song.radioMode;
 
-        if (!song.reverse && !song.instrumental) {
+        if (!needsWebAudio) {
           // Cas simple et fiable : lecture directe, pas de traitement audio
           currentAudio = new Audio(song.previewUrl);
           currentAudio.addEventListener('loadedmetadata', () => {
@@ -606,9 +696,9 @@
           return;
         }
 
-        // Reverse et/ou instrumental : traitement Web Audio (nécessite de
-        // décoder l'extrait complet). Si ça échoue (réseau/CORS), on retombe
-        // sur une lecture normale plutôt que de ne rien jouer du tout.
+        // Tout effet (reverse/instrumental/vitesse/pitch/filtre/radio) passe par
+        // Web Audio (nécessite de décoder l'extrait complet). Si ça échoue
+        // (réseau/CORS), on retombe sur une lecture normale plutôt que rien.
         try {
           const ctx = getAudioContext();
           const res = await fetch(song.previewUrl);
@@ -618,7 +708,8 @@
           if (song.reverse) buffer = reverseBuffer(ctx, buffer);
           const source = ctx.createBufferSource();
           source.buffer = buffer;
-          source.connect(ctx.destination);
+          const outNode = buildAudioGraph(ctx, source, song);
+          outNode.connect(ctx.destination);
           const playFrom = song.reverse ? Math.max(0, buffer.duration - clipStart - clipDuration) : clipStart;
           source.start(0, playFrom, clipDuration);
           currentWebAudioSource = source;
@@ -670,6 +761,7 @@
         buzzerLocked = gs.buzzerLocked || false;
         reopenAt = gs.reopenAt || 0;
         lockOthersOnBuzz = (gs.lockOthersOnBuzz !== undefined) ? gs.lockOthersOnBuzz : true;
+        votes = gs.votes || {};
         mode = gs.mode || 'classic';
         maxAttempts = (gs.maxAttempts !== undefined && gs.maxAttempts !== null) ? gs.maxAttempts : 3;
         blurEnabled = gs.blurEnabled || false;
@@ -681,14 +773,6 @@
           triggerBuzzFlash();
         }
         previousBuzzerId = currentBuzzerId;
-
-        const debugPanel = document.getElementById('debugPanel');
-        if (debugPanel) {
-          debugPanel.textContent =
-            `room:${roomCode} · role:${isHost ? 'host' : 'player'} · chansons:${gameSongs.length} · ` +
-            `index:${currentSongIndex} · round:${roundActive} · buzzer:${buzzer ? buzzer.name : '-'} · ` +
-            `mode:${mode} · essais:${maxAttempts}`;
-        }
 
         // Mettre à jour les interfaces
         if (isHost) {
@@ -729,9 +813,12 @@
           const url = song && song.artwork ? song.artwork : '';
           for (let i = 0; i < 4; i++) {
             const q = document.getElementById('quad-' + i);
+            q.style.transition = 'none'; // reset instantané, sans animation résiduelle de l'ancienne chanson
             q.style.backgroundImage = url ? `url('${url}')` : 'none';
             q.style.opacity = '0';
             q.style.filter = 'blur(18px)';
+            void q.offsetWidth; // force le navigateur à appliquer avant de réactiver la transition
+            q.style.transition = '';
           }
         }
 
@@ -760,6 +847,10 @@
             hostSongCounter.textContent = `Chanson ${currentSongIndex+1} / ${gameSongs.length}`;
           }
           updateHostScoreboard();
+          const instVisual = document.getElementById('instrumentalVisual');
+          if (instVisual) {
+            instVisual.classList.toggle('hidden', !(mode === 'instrumental' && roundActive));
+          }
           // Le bouton "Suivant" est toujours cliquable : l'hôte peut skip librement
         }
 
@@ -795,7 +886,8 @@
             roundActive: true,
             buzzer: null,
             buzzerLocked: false,
-            reopenAt: 0
+            reopenAt: 0,
+            votes: {}
           });
           hostReveal.classList.remove('correct-ready');
           resetQuadrantCover(song);
@@ -803,13 +895,62 @@
           playSongClip(song);
         });
 
+        // Recommencer l'extrait en cours depuis le début (sans changer de chanson)
+        document.getElementById('hostRestartClip').addEventListener('click', () => {
+          const song = gameSongs[currentSongIndex];
+          if (!song || !song.previewUrl) return;
+          const startTime = Date.now();
+          gameStateRef.update({
+            roundStartTime: startTime,
+            roundActive: true,
+            buzzer: null,
+            buzzerLocked: false,
+            reopenAt: 0,
+            votes: {}
+          });
+          hostReveal.classList.remove('correct-ready');
+          resetQuadrantCover(song);
+          playSongClip(song);
+        });
+
+        // Mode Playlist : calcule les scores de tous les votes d'un coup
+        // (contrairement au buzzer classique, tout le monde vote en même temps).
+        async function revealPlaylistRound(song) {
+          const votesSnap = await gameStateRef.child('votes').once('value');
+          const currentVotes = votesSnap.val() || {};
+          const newScores = Object.assign({}, scores);
+          Object.entries(currentVotes).forEach(([playerId, v]) => {
+            const isCorrect = v.guess === song.ownerId;
+            const elapsed = Math.max(0, (v.at || roundStartTime) - roundStartTime);
+            const pts = isCorrect ? computeKahootPoints(elapsed) : -10;
+            newScores[playerId] = (newScores[playerId] || 0) + pts;
+          });
+          await gameStateRef.update({ scores: newScores, roundActive: false, buzzerLocked: true, reopenAt: 0 });
+
+          const popup = document.getElementById('popupReveal');
+          const cover = document.getElementById('revealCover');
+          const title = document.getElementById('revealTitle');
+          const artist = document.getElementById('revealArtist');
+          cover.src = song.artwork || 'https://via.placeholder.com/120';
+          cover.classList.remove('blur');
+          title.textContent = song.title;
+          artist.textContent = `${song.artist} · 🎧 Playlist de ${song.ownerName || '?'}`;
+          popup.classList.remove('hidden');
+        }
+
         // Révélation avec popup jolie
         hostReveal.addEventListener('click', () => {
           const song = gameSongs[currentSongIndex];
           if (!song) return;
           stopCurrentPlayback();
-          gameStateRef.update({ roundActive: false, buzzer: null, buzzerLocked: true, reopenAt: 0 });
           hostReveal.classList.remove('correct-ready');
+
+          if (mode === 'playlist') {
+            revealPlaylistRound(song);
+            return;
+          }
+
+          gameStateRef.update({ roundActive: false, buzzer: null, buzzerLocked: true, reopenAt: 0 });
           const popup = document.getElementById('popupReveal');
           const cover = document.getElementById('revealCover');
           const title = document.getElementById('revealTitle');
@@ -828,7 +969,10 @@
         hostNext.addEventListener('click', () => {
           stopCurrentPlayback();
           hostReveal.classList.remove('correct-ready');
+          hostTimer.textContent = '00:00.0'; // reset immédiat, pas d'attente du prochain Play
           if (currentSongIndex + 1 < gameSongs.length) {
+            const nextSong = gameSongs[currentSongIndex + 1];
+            resetQuadrantCover(nextSong); // efface l'ancienne cover tout de suite, rien n'apparaît avant l'heure
             gameStateRef.update({
               currentSongIndex: currentSongIndex + 1,
               roundActive: false,
@@ -836,7 +980,8 @@
               buzzer: null,
               buzzerLocked: false,
               reopenAt: 0,
-              playerAttempts: {} // essais remis à zéro pour la nouvelle chanson
+              playerAttempts: {}, // essais remis à zéro pour la nouvelle chanson
+              votes: {}
             });
           } else {
             gameStateRef.parent.update({ status: 'finished' });
@@ -872,6 +1017,38 @@
         const cooldownDisplay = document.getElementById('cooldownDisplay');
         const playerBuzzer = document.getElementById('playerBuzzer');
         const playerFeedback = document.getElementById('playerFeedback');
+        const voteGrid = document.getElementById('playlistVoteGrid');
+
+        // ===== Mode Playlist : grille de vote "à qui appartient cette chanson ?" =====
+        function renderVoteGrid() {
+          playersRef.once('value', (snap) => {
+            const players = snap.val() || {};
+            const myVote = votes[clientId] ? votes[clientId].guess : null;
+            const song = gameSongs[currentSongIndex];
+            const revealed = buzzerLocked; // on considère la manche révélée une fois verrouillée
+
+            voteGrid.innerHTML = '';
+            Object.entries(players).forEach(([id, p]) => {
+              if (id === clientId) return; // deviner sa propre chanson n'a pas de sens
+              const sq = document.createElement('div');
+              sq.className = 'vote-square';
+              if (myVote === id) sq.classList.add('selected');
+              if (revealed) {
+                sq.classList.add('disabled');
+                if (song && song.ownerId === id) sq.classList.add('correct');
+                else if (myVote === id) sq.classList.add('wrong');
+              } else if (!roundActive) {
+                sq.classList.add('disabled');
+              }
+              sq.innerHTML = `<span class="vs-avatar">${p.avatar || '🎧'}</span><span class="vs-name">${p.name}</span>`;
+              sq.addEventListener('click', () => {
+                if (revealed || !roundActive) return;
+                gameStateRef.child('votes/' + clientId).set({ guess: id, at: Date.now() });
+              });
+              voteGrid.appendChild(sq);
+            });
+          });
+        }
 
         // Timer en continu
         setInterval(() => {
@@ -879,7 +1056,8 @@
             const elapsed = Date.now() - roundStartTime;
             playerTimer.textContent = formatTimer(elapsed);
           }
-        }, 100);
+          if (mode === 'playlist') renderVoteGrid();
+        }, 300);
 
         // Empêche de rouvrir la popup deux fois pour la même prise de buzzer
         let popupOpenForBuzzAt = 0;
@@ -902,6 +1080,26 @@
           }
           playerScore.textContent = (scores[clientId] || 0) + ' pts';
           renderScoreboard('playerScoreboard');
+
+          if (mode === 'playlist') {
+            playerBuzzer.classList.add('hidden');
+            voteGrid.classList.remove('hidden');
+            playerAttemptsDiv.textContent = '';
+            cooldownDisplay.textContent = '';
+            if (!roundActive && !buzzerLocked) {
+              playerFeedback.textContent = '⏸️ En attente du lancement...';
+            } else if (buzzerLocked) {
+              const song = gameSongs[currentSongIndex];
+              const myVote = votes[clientId] ? votes[clientId].guess : null;
+              const correct = song && myVote === song.ownerId;
+              playerFeedback.textContent = correct ? '✅ Bien joué !' : '❌ Raté !';
+            } else {
+              playerFeedback.textContent = votes[clientId] ? '✅ Vote enregistré, tu peux changer d\'avis' : '👆 Choisis qui a ajouté cette chanson';
+            }
+            return;
+          }
+          playerBuzzer.classList.remove('hidden');
+          voteGrid.classList.add('hidden');
 
           const attempts = playerAttempts[clientId] || { attemptsLeft: maxAttempts, cooldownUntil: 0, attemptCount: 0 };
           playerAttemptsDiv.textContent = `Essais restants: ${maxAttempts === 0 ? '∞' : attempts.attemptsLeft}`;
@@ -1054,8 +1252,10 @@
           let points = 0;
           if (isCorrect) {
             points = computeKahootPoints(elapsed);
+            if (mode === 'instrumental') points = Math.round(points * 1.5);
           } else {
-            points = -50;
+            const existing = playerAttempts[clientId] || {};
+            points = (existing.attemptCount || 0) >= 1 ? -20 : -10;
           }
           await sendResult(points, isCorrect, correct, elapsed);
         }
@@ -1102,10 +1302,10 @@
           const elapsed = roundActive ? Date.now() - roundStartTime : 0;
           let points = 0;
           if (isCorrect) {
-            const seconds = elapsed / 1000;
-            points = Math.max(20, 100 - Math.floor(seconds * 10));
+            points = computeKahootPoints(elapsed);
           } else {
-            points = -50;
+            const existing = playerAttempts[clientId] || {};
+            points = (existing.attemptCount || 0) >= 1 ? -20 : -10;
           }
           await sendResult(points, isCorrect, correct.title, elapsed);
         }

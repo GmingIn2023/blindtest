@@ -205,9 +205,10 @@
           restartBtn.disabled = true;
           restartBtn.textContent = 'Redémarrage...';
           // On garde la config (réglages) telle quelle, on remet tout le
-          // reste à zéro, et on renvoie tout le monde choisir des chansons.
+          // reste à zéro, et on renvoie tout le monde dans un lobby — c'est
+          // l'hôte qui décide ensuite quand relancer la sélection.
           await roomRef.update({
-            status: 'selection',
+            status: 'lobby',
             selections: {},
             gameState: {
               currentSongIndex: 0,
@@ -221,14 +222,14 @@
               roundActive: false
             }
           });
-          window.location.href = 'selection.html';
+          window.location.href = 'host-lobby.html';
         });
       } else {
         waitingForHost.classList.remove('hidden');
-        // Dès que l'hôte relance, on repart automatiquement vers la sélection
+        // Dès que l'hôte relance, on repart vers le lobby (même code, même nom)
         roomRef.child('status').on('value', (snap) => {
-          if (snap.val() === 'selection') {
-            window.location.href = 'selection.html';
+          if (snap.val() === 'lobby') {
+            window.location.href = 'waiting.html';
           }
         });
       }

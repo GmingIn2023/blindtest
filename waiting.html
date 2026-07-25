@@ -219,10 +219,23 @@
       }
 
       // Mise à jour immédiate
-      updateProgress();
-
-      // Mise à jour périodique toutes les 2 secondes
-      setInterval(updateProgress, 2000);
+      roomRef.child('status').once('value', (statusSnap) => {
+        if (statusSnap.val() === 'lobby') {
+          // On revient d'un redémarrage : on attend juste que l'hôte relance
+          // la sélection depuis le lobby, pas besoin de vérifier des choix
+          // de chansons qui n'existent pas encore à ce stade.
+          waitingMessage.innerHTML = '⏳ En attente que l\'hôte relance une partie...';
+          waitingProgress.innerHTML = '';
+          roomRef.child('status').on('value', (snap) => {
+            if (snap.val() === 'selection') {
+              window.location.href = 'selection.html';
+            }
+          });
+          return;
+        }
+        updateProgress();
+        setInterval(updateProgress, 2000);
+      });
 
       // Bouton actualiser manuel
       document.getElementById('refreshBtn').addEventListener('click', updateProgress);

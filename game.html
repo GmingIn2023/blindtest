@@ -320,6 +320,9 @@
       <div id="hostNotification" class="notification"></div>
       <div id="hostScoreboard" class="scoreboard"></div>
       <button id="hostNext" class="primary">⏩ Chanson suivante</button>
+      <p style="text-align:center; margin-top:1.2rem;">
+        <a href="#" id="backToLobbyLink" style="color:#8aaec0;">🏠 Retour à la lobby</a>
+      </p>
     </div>
 
     <!-- Vue JOUEUR -->
@@ -334,6 +337,9 @@
       <div id="playerFeedback" style="text-align:center;"></div>
       <div id="playerScoreboard" class="scoreboard"></div>
     </div>
+
+    <!-- Petite icône de sortie réelle, discrète en bas à droite -->
+    <button id="quitIcon" title="Quitter" style="position:fixed; bottom:10px; right:10px; background:none; border:none; font-size:1.1rem; opacity:0.5; z-index:998;">📲</button>
 
     <!-- Popup de révélation (hôte) -->
     <div id="popupReveal" class="popup hidden">
@@ -428,6 +434,31 @@
       // disponibles pile au moment du chargement de la page.
       let songsFixAttempted = false;
 
+      // Si les doublons sont acceptés, deux joueurs qui ont choisi la même
+      // chanson ne comptent que pour UNE chanson dans la partie (mode Playlist).
+      function dedupeSongsForMerge(allSongs) {
+        const byUrl = new Map();
+        const result = [];
+        allSongs.forEach((song) => {
+          const key = song.previewUrl;
+          if (key && byUrl.has(key)) {
+            const existing = byUrl.get(key);
+            const existingIds = existing.ownerIds || (existing.ownerId ? [existing.ownerId] : []);
+            const existingNames = existing.ownerNames || (existing.ownerName ? [existing.ownerName] : []);
+            if (song.ownerId && !existingIds.includes(song.ownerId)) {
+              existing.ownerIds = existingIds.concat([song.ownerId]);
+              existing.ownerNames = existingNames.concat([song.ownerName]);
+              delete existing.ownerId;
+              delete existing.ownerName;
+            }
+          } else {
+            byUrl.set(key, song);
+            result.push(song);
+          }
+        });
+        return result;
+      }
+
       async function tryMergeOnce(mergeDebug, attempt, maxTries) {
         const songsSnap = await gameStateRef.child('songs').once('value');
         const existing = songsSnap.val();
@@ -454,6 +485,10 @@
           const sel = selections[id];
           if (sel && Array.isArray(sel.songs)) allSongs = allSongs.concat(sel.songs);
         });
+
+        if (config.allowDuplicates) {
+          allSongs = dedupeSongsForMerge(allSongs);
+        }
 
         if (mergeDebug) {
           mergeDebug.textContent = `🔧 essai ${attempt}/${maxTries} : selections.host=${selections.host ? (selections.host.songs || []).length : 'ABSENT'} ` +
@@ -567,6 +602,19 @@
         if (!str) return '';
         return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
       }
+      // Une chanson a normalement un seul propriétaire (ownerId), mais si les
+      // doublons sont acceptés, une chanson choisie par 2 joueurs différents
+      // est fusionnée en une seule entrée avec plusieurs propriétaires.
+      function getSongOwnerIds(song) {
+        if (!song) return [];
+        if (Array.isArray(song.ownerIds)) return song.ownerIds;
+        return song.ownerId ? [song.ownerId] : [];
+      }
+      function getSongOwnerNames(song) {
+        if (!song) return [];
+        if (Array.isArray(song.ownerNames)) return song.ownerNames;
+        return song.ownerName ? [song.ownerName] : [];
+      }
       function formatTimer(ms) {
         if (ms < 0) ms = 0;
         let seconds = Math.floor(ms / 1000);
@@ -605,6 +653,14 @@
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         return audioCtx;
       }
+      // Bug corrigé : sur iOS Safari (et Chrome), un AudioContext démarre
+      // parfois "suspended" tant qu'il n'est pas explicitement relancé après
+      // un geste utilisateur — sans ça, aucun son ne sort, silencieusement.
+      async function ensureAudioContextRunning(ctx) {
+        if (ctx.state === 'suspended') {
+          try { await ctx.resume(); } catch (e) { console.log('Impossible de relancer l\'audio', e); }
+        }
+      }
       function reverseBuffer(ctx, buffer) {
         const out = ctx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
         for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
@@ -629,6 +685,26 @@
         return out;
       }
 
+      // Variante 2 : atténue les fréquences typiques de la voix humaine
+      // (autour de 800Hz et 2,5kHz) au lieu de jouer sur la position stéréo.
+      // Technique différente de la variante 1, donne un résultat différent
+      // selon le morceau.
+      function applyVocalNotch(ctx, node) {
+        const notch1 = ctx.createBiquadFilter();
+        notch1.type = 'peaking';
+        notch1.frequency.value = 800;
+        notch1.Q.value = 1.2;
+        notch1.gain.value = -14;
+        const notch2 = ctx.createBiquadFilter();
+        notch2.type = 'peaking';
+        notch2.frequency.value = 2500;
+        notch2.Q.value = 1.1;
+        notch2.gain.value = -14;
+        node.connect(notch1);
+        notch1.connect(notch2);
+        return notch2;
+      }
+
       function stopCurrentPlayback() {
         if (currentAudio) { try { currentAudio.pause(); } catch(e){} currentAudio = null; }
         if (currentWebAudioSource) { try { currentWebAudioSource.stop(); } catch(e){} currentWebAudioSource = null; }
@@ -641,6 +717,11 @@
         source.detune.value = (song.pitch || 0) * 100; // demi-tons -> cents
 
         let node = source;
+        const variant = song.instrumentalVariant || 1;
+        if (song.instrumental && (variant === 2 || variant === 3)) {
+          node = applyVocalNotch(ctx, node);
+        }
+
         const fv = song.filterValue || 0;
         if (fv > 15) {
           const hp = ctx.createBiquadFilter();
@@ -701,10 +782,12 @@
         // (réseau/CORS), on retombe sur une lecture normale plutôt que rien.
         try {
           const ctx = getAudioContext();
+          await ensureAudioContextRunning(ctx);
           const res = await fetch(song.previewUrl);
           const arrayBuffer = await res.arrayBuffer();
           let buffer = await ctx.decodeAudioData(arrayBuffer);
-          if (song.instrumental) buffer = phaseCancelInstrumental(ctx, buffer);
+          const variant = song.instrumentalVariant || 1;
+          if (song.instrumental && (variant === 1 || variant === 3)) buffer = phaseCancelInstrumental(ctx, buffer);
           if (song.reverse) buffer = reverseBuffer(ctx, buffer);
           const source = ctx.createBufferSource();
           source.buffer = buffer;
@@ -746,6 +829,52 @@
       } else {
         playerView.classList.remove('hidden');
         initPlayer();
+      }
+
+      // Si le statut de la room repasse à 'lobby' (l'hôte a cliqué sur
+      // "Retour à la lobby"), tout le monde suit automatiquement.
+      roomRef.child('status').on('value', (snap) => {
+        if (snap.val() === 'lobby') {
+          window.location.href = 'waiting.html';
+        }
+      });
+
+      // "Retour à la lobby" : remet la room à zéro (mêmes réglages, même
+      // code) comme si la partie venait de se terminer, sans repasser par
+      // le podium.
+      const backToLobbyLink = document.getElementById('backToLobbyLink');
+      if (backToLobbyLink) {
+        backToLobbyLink.addEventListener('click', async (e) => {
+          e.preventDefault();
+          if (!confirm('Retourner à la lobby ? La partie en cours sera arrêtée pour tout le monde.')) return;
+          stopCurrentPlayback();
+          await roomRef.update({
+            status: 'lobby',
+            selections: {},
+            gameState: {
+              currentSongIndex: 0,
+              songs: [],
+              scores: {},
+              playerAttempts: {},
+              buzzer: null,
+              buzzerLocked: false,
+              reopenAt: 0,
+              roundStartTime: 0,
+              roundActive: false
+            }
+          });
+          window.location.href = 'host-lobby.html';
+        });
+      }
+
+      // Petite icône discrète : quitter réellement l'application
+      const quitIcon = document.getElementById('quitIcon');
+      if (quitIcon) {
+        quitIcon.addEventListener('click', () => {
+          if (confirm('Sûr de vouloir quitter ?')) {
+            window.location.href = 'index.html';
+          }
+        });
       }
 
       // ==================== ÉCOUTE GLOBALE DE L'ÉTAT ====================
@@ -918,9 +1047,11 @@
         async function revealPlaylistRound(song) {
           const votesSnap = await gameStateRef.child('votes').once('value');
           const currentVotes = votesSnap.val() || {};
+          const ownerIds = getSongOwnerIds(song);
+          const ownerNames = getSongOwnerNames(song);
           const newScores = Object.assign({}, scores);
           Object.entries(currentVotes).forEach(([playerId, v]) => {
-            const isCorrect = v.guess === song.ownerId;
+            const isCorrect = ownerIds.includes(v.guess);
             const elapsed = Math.max(0, (v.at || roundStartTime) - roundStartTime);
             const pts = isCorrect ? computeKahootPoints(elapsed) : -10;
             newScores[playerId] = (newScores[playerId] || 0) + pts;
@@ -934,7 +1065,7 @@
           cover.src = song.artwork || 'https://via.placeholder.com/120';
           cover.classList.remove('blur');
           title.textContent = song.title;
-          artist.textContent = `${song.artist} · 🎧 Playlist de ${song.ownerName || '?'}`;
+          artist.textContent = `${song.artist} · 🎧 Playlist de ${ownerNames.join(' & ') || '?'}`;
           popup.classList.remove('hidden');
         }
 
@@ -1035,7 +1166,7 @@
               if (myVote === id) sq.classList.add('selected');
               if (revealed) {
                 sq.classList.add('disabled');
-                if (song && song.ownerId === id) sq.classList.add('correct');
+                if (song && getSongOwnerIds(song).includes(id)) sq.classList.add('correct');
                 else if (myVote === id) sq.classList.add('wrong');
               } else if (!roundActive) {
                 sq.classList.add('disabled');
@@ -1082,6 +1213,16 @@
           renderScoreboard('playerScoreboard');
 
           if (mode === 'playlist') {
+            const song = gameSongs[currentSongIndex];
+            const isOwnSong = song && getSongOwnerIds(song).includes(clientId);
+            if (isOwnSong) {
+              playerBuzzer.classList.add('hidden');
+              voteGrid.classList.add('hidden');
+              playerAttemptsDiv.textContent = '';
+              cooldownDisplay.textContent = '';
+              playerFeedback.textContent = '🙈 C\'est ta chanson ! Tu es mis de côté pour cette manche.';
+              return;
+            }
             playerBuzzer.classList.add('hidden');
             voteGrid.classList.remove('hidden');
             playerAttemptsDiv.textContent = '';
@@ -1089,9 +1230,8 @@
             if (!roundActive && !buzzerLocked) {
               playerFeedback.textContent = '⏸️ En attente du lancement...';
             } else if (buzzerLocked) {
-              const song = gameSongs[currentSongIndex];
               const myVote = votes[clientId] ? votes[clientId].guess : null;
-              const correct = song && myVote === song.ownerId;
+              const correct = song && getSongOwnerIds(song).includes(myVote);
               playerFeedback.textContent = correct ? '✅ Bien joué !' : '❌ Raté !';
             } else {
               playerFeedback.textContent = votes[clientId] ? '✅ Vote enregistré, tu peux changer d\'avis' : '👆 Choisis qui a ajouté cette chanson';
@@ -1100,6 +1240,15 @@
           }
           playerBuzzer.classList.remove('hidden');
           voteGrid.classList.add('hidden');
+
+          const song = gameSongs[currentSongIndex];
+          const isOwnSong = song && getSongOwnerIds(song).includes(clientId);
+          if (isOwnSong) {
+            playerBuzzer.disabled = true;
+            cooldownDisplay.textContent = '';
+            playerFeedback.textContent = '🙈 C\'est ta chanson ! Tu ne peux pas deviner cette fois.';
+            return;
+          }
 
           const attempts = playerAttempts[clientId] || { attemptsLeft: maxAttempts, cooldownUntil: 0, attemptCount: 0 };
           playerAttemptsDiv.textContent = `Essais restants: ${maxAttempts === 0 ? '∞' : attempts.attemptsLeft}`;

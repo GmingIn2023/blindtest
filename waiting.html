@@ -94,6 +94,32 @@
       // Étape manquante qui causait tous les bugs de jeu : personne ne
       // fusionnait jamais les sélections (hôte + joueurs) dans
       // gameState.songs. game.html recevait donc toujours un tableau vide.
+      // Si les doublons sont acceptés, deux joueurs qui ont choisi la même
+      // chanson ne comptent que pour UNE chanson dans la partie, mais les
+      // deux sont des réponses valides (mode Playlist).
+      function dedupeSongs(allSongs) {
+        const byUrl = new Map();
+        const result = [];
+        allSongs.forEach((song) => {
+          const key = song.previewUrl;
+          if (key && byUrl.has(key)) {
+            const existing = byUrl.get(key);
+            const existingIds = existing.ownerIds || (existing.ownerId ? [existing.ownerId] : []);
+            const existingNames = existing.ownerNames || (existing.ownerName ? [existing.ownerName] : []);
+            if (song.ownerId && !existingIds.includes(song.ownerId)) {
+              existing.ownerIds = existingIds.concat([song.ownerId]);
+              existing.ownerNames = existingNames.concat([song.ownerName]);
+              delete existing.ownerId;
+              delete existing.ownerName;
+            }
+          } else {
+            byUrl.set(key, song);
+            result.push(song);
+          }
+        });
+        return result;
+      }
+
       async function mergeSelectionsIntoGameState(selections, playerList) {
         if (alreadyMerged) return;
         alreadyMerged = true;
@@ -112,6 +138,10 @@
               allSongs = allSongs.concat(sel.songs);
             }
           });
+
+          if (config.allowDuplicates) {
+            allSongs = dedupeSongs(allSongs);
+          }
 
           // Mélange l'ordre des chansons (Fisher-Yates)
           for (let i = allSongs.length - 1; i > 0; i--) {

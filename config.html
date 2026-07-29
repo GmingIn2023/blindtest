@@ -72,7 +72,11 @@
           <label class="radio-label"><input type="radio" name="gameMode" value="playlist"> 🎧 Playlist (deviner à qui appartient la chanson)</label>
         </div>
         <div id="playlistModeNote" class="hint-text hidden" style="color:#f5a623; margin-top:0.5rem;">
-          ⚠️ Minimum 3 joueurs (hors hôte). Chaque joueur construit sa propre playlist de 5 chansons — l'hôte n'en choisit pas.
+          ⚠️ Minimum 3 joueurs (hors hôte). Chaque joueur construit sa propre playlist — l'hôte n'en choisit pas.
+        </div>
+        <div id="playlistSongsPerPlayerGroup" class="hidden" style="margin-top:0.8rem;">
+          <label>🎵 Chansons par joueur (mode Playlist)</label>
+          <input type="number" id="playlistSongsPerPlayer" min="3" max="5" value="5">
         </div>
       </div>
 
@@ -88,6 +92,16 @@
         </label>
         <label class="checkbox-label" style="margin-top:0.8rem;">
           <input type="checkbox" id="lockOthersCheck" checked> 🔒 Verrouiller les autres joueurs pendant qu'un joueur répond
+        </label>
+        <label class="checkbox-label" style="margin-top:0.8rem;">
+          <input type="checkbox" id="allowDuplicatesCheck"> 🎭 Accepter les doublons (deux joueurs choisissent la même chanson)
+        </label>
+        <p class="hint-text" style="margin-top:0.3rem;">
+          Désactivé : la 2e personne à choisir une chanson déjà prise doit en changer.<br>
+          Activé : la chanson n'apparaît qu'une fois dans la partie, et les deux joueurs comptent comme bonne réponse.
+        </p>
+        <label class="checkbox-label" style="margin-top:0.8rem;">
+          <input type="checkbox" id="advancedSettingsCheck"> 🛠️ Paramètres avancés pour les joueurs (pitch, filtre de fréquences)
         </label>
       </div>
 
@@ -128,14 +142,17 @@
       // Affiche/masque les champs selon le mode choisi
       const totalSongsGroup = document.getElementById('totalSongsGroup');
       const playlistModeNote = document.getElementById('playlistModeNote');
+      const playlistSongsPerPlayerGroup = document.getElementById('playlistSongsPerPlayerGroup');
       function updateModeUI() {
         const mode = document.querySelector('input[name="gameMode"]:checked')?.value;
         if (mode === 'playlist') {
           totalSongsGroup.classList.add('hidden');
           playlistModeNote.classList.remove('hidden');
+          playlistSongsPerPlayerGroup.classList.remove('hidden');
         } else {
           totalSongsGroup.classList.remove('hidden');
           playlistModeNote.classList.add('hidden');
+          playlistSongsPerPlayerGroup.classList.add('hidden');
         }
       }
       document.querySelectorAll('input[name="gameMode"]').forEach(r => r.addEventListener('change', updateModeUI));
@@ -153,8 +170,11 @@
           document.getElementById('maxAttempts').value = cfg.maxAttempts;
           document.getElementById('blurCheck').checked = !!cfg.blurEnabled;
           document.getElementById('lockOthersCheck').checked = !!cfg.lockOthersOnBuzz;
+          document.getElementById('allowDuplicatesCheck').checked = !!cfg.allowDuplicates;
+          document.getElementById('advancedSettingsCheck').checked = !!cfg.advancedSettings;
           document.getElementById('playerCount').value = cfg.expectedPlayerCount;
           document.getElementById('totalSongs').value = cfg.totalSongs;
+          document.getElementById('playlistSongsPerPlayer').value = cfg.playlistSongsPerPlayer || 5;
           updateModeUI();
         });
         if (submitBtn) submitBtn.textContent = '💾 Enregistrer les réglages';
@@ -172,6 +192,8 @@
         const maxAttempts = parseInt(document.getElementById('maxAttempts').value, 10) || 0;
         const blurEnabled = document.getElementById('blurCheck').checked;
         const lockOthersOnBuzz = document.getElementById('lockOthersCheck').checked;
+        const allowDuplicates = document.getElementById('allowDuplicatesCheck').checked;
+        const advancedSettings = document.getElementById('advancedSettingsCheck').checked;
         const playerCount = parseInt(document.getElementById('playerCount').value, 10);
 
         if (isNaN(playerCount) || playerCount < 1) {
@@ -183,11 +205,16 @@
           return;
         }
 
-        let totalSongs, hostSongsCount;
+        let totalSongs, hostSongsCount, playlistSongsPerPlayer = 5;
         if (mode === 'playlist') {
+          playlistSongsPerPlayer = parseInt(document.getElementById('playlistSongsPerPlayer').value, 10) || 5;
+          if (playlistSongsPerPlayer < 3 || playlistSongsPerPlayer > 5) {
+            errorDiv.textContent = 'Le nombre de chansons par joueur doit être entre 3 et 5.';
+            return;
+          }
           // Pas de quota "hôte" en mode Playlist : chaque joueur construit
-          // sa propre playlist de 5 chansons, l'hôte n'en choisit aucune.
-          totalSongs = playerCount * 5;
+          // sa propre playlist, l'hôte n'en choisit aucune.
+          totalSongs = playerCount * playlistSongsPerPlayer;
           hostSongsCount = 0;
         } else {
           totalSongs = parseInt(document.getElementById('totalSongs').value, 10);
@@ -203,9 +230,12 @@
           maxAttempts: maxAttempts,
           blurEnabled: blurEnabled,
           lockOthersOnBuzz: lockOthersOnBuzz,
+          allowDuplicates: allowDuplicates,
+          advancedSettings: advancedSettings,
           expectedPlayerCount: playerCount,
           totalSongs: totalSongs,
-          hostSongsCount: hostSongsCount
+          hostSongsCount: hostSongsCount,
+          playlistSongsPerPlayer: playlistSongsPerPlayer
         };
 
         // ===== Mode édition : on met juste à jour la room existante =====

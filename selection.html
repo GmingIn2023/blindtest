@@ -216,16 +216,29 @@
         <input type="checkbox" id="instrumentalCheck">
         🎸 Sans voix <span class="experimental-tag">(expérimental, ne marche pas toujours)</span>
       </label>
+      <div id="instrumentalVariants" class="preset-buttons hidden" style="margin-top:0.4rem;">
+        <button type="button" class="variant-btn" data-variant="1">🎚️ Stéréo</button>
+        <button type="button" class="variant-btn" data-variant="2">🎼 Fréquences</button>
+        <button type="button" class="variant-btn" data-variant="3">💪 Renforcé</button>
+      </div>
+      <div class="hint-text" id="variantHint"></div>
 
       <label>⚡ Vitesse : <span id="speedValue">1.0x</span></label>
       <input type="range" id="speedSlider" min="0.4" max="2.5" step="0.1" value="1">
 
-      <label>🎼 Pitch (tonalité) : <span id="pitchValue">0</span> demi-tons <span class="experimental-tag">(expérimental)</span></label>
-      <input type="range" id="pitchSlider" min="-12" max="12" step="1" value="0">
+      <div id="advancedSettingsSection" class="hidden" style="margin-top:0.8rem; border-top:1px solid #2d353e; padding-top:0.6rem;">
+        <button type="button" id="advancedToggleBtn" style="background:none; border:none; color:#8aaec0; padding:0; display:flex; align-items:center; gap:0.4rem; cursor:pointer;">
+          <span id="advancedToggleArrow">🔽</span> Paramètres avancés
+        </button>
+        <div id="advancedSettingsContent" class="hidden">
+          <label>🎼 Pitch (tonalité) : <span id="pitchValue">0</span> demi-tons <span class="experimental-tag">(expérimental)</span></label>
+          <input type="range" id="pitchSlider" min="-12" max="12" step="1" value="0">
 
-      <label>🎚️ Filtre fréquences <span class="experimental-tag">(expérimental)</span></label>
-      <input type="range" id="filterSlider" min="-100" max="100" step="5" value="0">
-      <div class="hint-text" id="filterHint">Neutre</div>
+          <label>🎚️ Filtre fréquences <span class="experimental-tag">(expérimental)</span></label>
+          <input type="range" id="filterSlider" min="-100" max="100" step="5" value="0">
+          <div class="hint-text" id="filterHint">Neutre</div>
+        </div>
+      </div>
 
       <label class="checkbox-label">
         <input type="checkbox" id="radioModeCheck">
@@ -275,12 +288,16 @@
 
       let gameMode = 'classic';
       let playerQuota = 1; // 1 chanson en mode normal, 5 en mode Playlist (mini-playlist)
+      let advancedSettingsEnabled = false;
+      let allowDuplicates = false;
 
       configRef.once('value', (snap) => {
         const config = snap.val();
         if (config) {
           gameMode = config.mode || 'classic';
-          playerQuota = gameMode === 'playlist' ? 5 : 1;
+          advancedSettingsEnabled = !!config.advancedSettings;
+          allowDuplicates = !!config.allowDuplicates;
+          playerQuota = gameMode === 'playlist' ? (config.playlistSongsPerPlayer || 5) : 1;
 
           if (isHost) {
             if (gameMode === 'playlist') {
@@ -578,6 +595,25 @@
       const positionHint = document.getElementById('positionHint');
       const reverseCheck = document.getElementById('reverseCheck');
       const instrumentalCheck = document.getElementById('instrumentalCheck');
+      const instrumentalVariants = document.getElementById('instrumentalVariants');
+      const variantHint = document.getElementById('variantHint');
+      const variantBtns = document.querySelectorAll('.variant-btn');
+      let selectedVariant = 1;
+      const variantDescriptions = {
+        1: 'Coupe ce qui est centré dans le mix (souvent la voix, parfois aussi basse/grosse caisse).',
+        2: 'Atténue les fréquences typiques de la voix humaine.',
+        3: 'Combine les deux techniques précédentes pour un résultat plus marqué.'
+      };
+      function setVariant(v) {
+        selectedVariant = v;
+        variantBtns.forEach(b => b.classList.toggle('active', parseInt(b.dataset.variant, 10) === v));
+        variantHint.textContent = variantDescriptions[v];
+      }
+      variantBtns.forEach(b => b.addEventListener('click', () => setVariant(parseInt(b.dataset.variant, 10))));
+      instrumentalCheck.addEventListener('change', () => {
+        instrumentalVariants.classList.toggle('hidden', !instrumentalCheck.checked);
+        variantHint.classList.toggle('hidden', !instrumentalCheck.checked);
+      });
       const speedSlider = document.getElementById('speedSlider');
       const speedValue = document.getElementById('speedValue');
       const pitchSlider = document.getElementById('pitchSlider');
@@ -585,6 +621,15 @@
       const filterSlider = document.getElementById('filterSlider');
       const filterHint = document.getElementById('filterHint');
       const radioModeCheck = document.getElementById('radioModeCheck');
+      const advancedSettingsSection = document.getElementById('advancedSettingsSection');
+      const advancedToggleBtn = document.getElementById('advancedToggleBtn');
+      const advancedToggleArrow = document.getElementById('advancedToggleArrow');
+      const advancedSettingsContent = document.getElementById('advancedSettingsContent');
+      advancedToggleBtn.addEventListener('click', () => {
+        const isOpen = !advancedSettingsContent.classList.contains('hidden');
+        advancedSettingsContent.classList.toggle('hidden', isOpen);
+        advancedToggleArrow.textContent = isOpen ? '🔽' : '🔼';
+      });
       const previewBtn = document.getElementById('previewBtn');
       const confirmBtn = document.getElementById('confirmSelectBtn');
       const cancelBtn = document.getElementById('cancelSelectBtn');
@@ -624,12 +669,17 @@
         durationSlider.value = 10;
         durationValue.textContent = '10';
         reverseCheck.checked = false;
+        setVariant(1);
         if (gameMode === 'instrumental') {
           instrumentalCheck.checked = true;
           instrumentalCheck.disabled = true;
+          instrumentalVariants.classList.remove('hidden');
+          variantHint.classList.remove('hidden');
         } else {
           instrumentalCheck.checked = false;
           instrumentalCheck.disabled = false;
+          instrumentalVariants.classList.add('hidden');
+          variantHint.classList.add('hidden');
         }
         speedSlider.value = 1;
         speedValue.textContent = '1.0x';
@@ -638,6 +688,9 @@
         filterSlider.value = 0;
         updateFilterHint();
         radioModeCheck.checked = false;
+        advancedSettingsSection.classList.toggle('hidden', !advancedSettingsEnabled);
+        advancedSettingsContent.classList.add('hidden');
+        advancedToggleArrow.textContent = '🔽';
         positionSlider.value = 0;
         positionHint.textContent = "Chargement de l'aperçu...";
         previewTotalDuration = 30;
@@ -705,6 +758,11 @@
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         return audioCtx;
       }
+      async function ensureAudioContextRunning(ctx) {
+        if (ctx.state === 'suspended') {
+          try { await ctx.resume(); } catch (e) { console.log('Impossible de relancer l\'audio', e); }
+        }
+      }
 
       function reverseBuffer(ctx, buffer) {
         const out = ctx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
@@ -731,12 +789,30 @@
         return out;
       }
 
+      // Variante 2 : atténue les fréquences typiques de la voix humaine
+      function applyVocalNotch(ctx, node) {
+        const notch1 = ctx.createBiquadFilter();
+        notch1.type = 'peaking';
+        notch1.frequency.value = 800;
+        notch1.Q.value = 1.2;
+        notch1.gain.value = -14;
+        const notch2 = ctx.createBiquadFilter();
+        notch2.type = 'peaking';
+        notch2.frequency.value = 2500;
+        notch2.Q.value = 1.1;
+        notch2.gain.value = -14;
+        node.connect(notch1);
+        notch1.connect(notch2);
+        return notch2;
+      }
+
       let cachedBuffer = null;
       let cachedBufferUrl = null;
 
       async function loadBufferForSong(url) {
         if (cachedBufferUrl === url && cachedBuffer) return cachedBuffer;
         const ctx = getAudioContext();
+        await ensureAudioContextRunning(ctx);
         const res = await fetch(url);
         const arrayBuffer = await res.arrayBuffer();
         const buffer = await ctx.decodeAudioData(arrayBuffer);
@@ -752,6 +828,11 @@
         source.detune.value = (settings.pitch || 0) * 100; // demi-tons -> cents
 
         let node = source;
+        const variant = settings.instrumentalVariant || 1;
+        if (settings.instrumental && (variant === 2 || variant === 3)) {
+          node = applyVocalNotch(ctx, node);
+        }
+
         const fv = settings.filterValue || 0;
         if (fv > 15) {
           const hp = ctx.createBiquadFilter();
@@ -794,7 +875,8 @@
           speed: parseFloat(speedSlider.value) || 1,
           pitch: parseInt(pitchSlider.value, 10) || 0,
           filterValue: parseFloat(filterSlider.value) || 0,
-          radioMode: radioModeCheck.checked
+          radioMode: radioModeCheck.checked,
+          instrumentalVariant: selectedVariant
         };
       }
 
@@ -825,7 +907,9 @@
         try {
           const ctx = getAudioContext();
           let buffer = await loadBufferForSong(draftSong.previewUrl);
-          if (wantsInstrumental) buffer = phaseCancelInstrumental(ctx, buffer);
+          if (wantsInstrumental && (settings.instrumentalVariant === 1 || settings.instrumentalVariant === 3)) {
+            buffer = phaseCancelInstrumental(ctx, buffer);
+          }
           if (wantsReverse) buffer = reverseBuffer(ctx, buffer);
 
           const source = ctx.createBufferSource();
@@ -844,8 +928,26 @@
 
       previewBtn.addEventListener('click', playPreview);
 
+      async function isSongAlreadyTaken(song) {
+        const selSnap = await selectionsRef.once('value');
+        const selections = selSnap.val() || {};
+        return Object.values(selections).some((entry) =>
+          entry && Array.isArray(entry.songs) &&
+          entry.songs.some((s) => s.previewUrl && song.previewUrl && s.previewUrl === song.previewUrl)
+        );
+      }
+
       confirmBtn.addEventListener('click', async () => {
         if (!draftSong) return;
+
+        if (!allowDuplicates) {
+          const taken = await isSongAlreadyTaken(draftSong);
+          if (taken) {
+            modalError.textContent = '⚠️ Chanson déjà sélectionnée par quelqu\'un d\'autre, choisis-en une autre.';
+            return; // la modale reste ouverte, rien n'est sauvegardé
+          }
+        }
+
         const cardToRemove = draftCard;
         const modalSettings = readModalSettings();
         const songData = {
@@ -857,6 +959,7 @@
           clipDuration: parseFloat(durationSlider.value) || 10,
           reverse: reverseCheck.checked,
           instrumental: gameMode === 'instrumental' ? true : instrumentalCheck.checked,
+          instrumentalVariant: modalSettings.instrumentalVariant,
           speed: modalSettings.speed,
           pitch: modalSettings.pitch,
           filterValue: modalSettings.filterValue,
@@ -901,10 +1004,10 @@
             alert('Tu as déjà choisi toutes tes chansons');
             return;
           }
-          if (gameMode === 'playlist') {
-            songData.ownerId = clientId;
-            songData.ownerName = playerName;
-          }
+          // On tague toujours le propriétaire (pas seulement en mode Playlist) :
+          // ça sert à exclure ce joueur de la devinette sur sa propre chanson.
+          songData.ownerId = clientId;
+          songData.ownerName = playerName;
           playerSelectedList.push(songData);
           const isDone = playerSelectedList.length >= playerQuota;
           counterSpan.textContent = `${playerSelectedList.length} / ${playerQuota}`;

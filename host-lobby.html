@@ -51,6 +51,7 @@
     <div class="player-list">
       <div style="font-weight:700; margin-bottom:0.8rem;">👥 Joueurs connectés</div>
       <div id="connectedPlayersList"></div>
+      <p style="color:#8aaec0; font-size:0.8rem; margin-top:0.6rem;">💡 Appui long sur un joueur pour le renommer ou l'expulser.</p>
     </div>
     <button id="startSelectionBtn" class="primary" style="width:100%;" disabled>⏳ En attente...</button>
     <p style="text-align:center; margin-top:1.5rem;">
@@ -100,7 +101,7 @@
           connectedPlayersList.innerHTML = '<div style="color:#8aaec0; text-align:center; padding:1rem;">Aucun joueur connecté</div>';
         } else {
           connectedPlayersList.innerHTML = playerArray.map(p => 
-            `<span class="player-tag">${p.avatar || '🐶'} ${escapeHTML(p.name)}</span>`
+            `<span class="player-tag" data-id="${p.id}" data-name="${escapeHTML(p.name)}">${p.avatar || '🐶'} ${escapeHTML(p.name)}</span>`
           ).join('');
         }
 
@@ -136,6 +137,45 @@
           setTimeout(() => copyBtn.textContent = '📋 Copier le code', 2000);
         });
       });
+
+      // Appui long sur un joueur : le renommer ou l'expulser de la lobby
+      let pressTimer = null;
+      let longPressTriggered = false;
+
+      function showPlayerActions(playerId, playerName) {
+        const choice = prompt(
+          `${playerName}\n\nTape un nouveau nom pour le renommer, ou écris EXPULSER pour le retirer de la lobby.`,
+          playerName
+        );
+        if (choice === null) return;
+        const trimmed = choice.trim();
+        if (trimmed.toUpperCase() === 'EXPULSER') {
+          if (confirm(`Expulser ${playerName} de la lobby ?`)) {
+            playersRef.child(playerId).remove();
+          }
+        } else if (trimmed && trimmed !== playerName) {
+          playersRef.child(playerId).update({ name: trimmed });
+        }
+      }
+
+      function startPress(e) {
+        const tag = e.target.closest('.player-tag');
+        if (!tag) return;
+        longPressTriggered = false;
+        pressTimer = setTimeout(() => {
+          longPressTriggered = true;
+          showPlayerActions(tag.dataset.id, tag.dataset.name);
+        }, 550);
+      }
+      function cancelPress() {
+        if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+      }
+      connectedPlayersList.addEventListener('touchstart', startPress);
+      connectedPlayersList.addEventListener('touchend', cancelPress);
+      connectedPlayersList.addEventListener('touchmove', cancelPress);
+      connectedPlayersList.addEventListener('mousedown', startPress);
+      connectedPlayersList.addEventListener('mouseup', cancelPress);
+      connectedPlayersList.addEventListener('mouseleave', cancelPress);
 
       // Lancer la sélection
       startBtn.addEventListener('click', async () => {

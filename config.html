@@ -76,7 +76,7 @@
         </div>
         <div id="playlistSongsPerPlayerGroup" class="hidden" style="margin-top:0.8rem;">
           <label>🎵 Chansons par joueur (mode Playlist)</label>
-          <input type="number" id="playlistSongsPerPlayer" min="3" max="5" value="5">
+          <input type="number" id="playlistSongsPerPlayer" min="2" max="5" value="5">
         </div>
       </div>
 
@@ -94,12 +94,12 @@
           <input type="checkbox" id="lockOthersCheck" checked> 🔒 Verrouiller les autres joueurs pendant qu'un joueur répond
         </label>
         <label class="checkbox-label" style="margin-top:0.8rem;">
-          <input type="checkbox" id="allowDuplicatesCheck"> 🎭 Accepter les doublons (deux joueurs choisissent la même chanson)
+          <input type="checkbox" id="multipleCorrectCheck"> 🏁 Accepter plusieurs bonnes réponses par manche
         </label>
-        <p class="hint-text" style="margin-top:0.3rem;">
-          Désactivé : la 2e personne à choisir une chanson déjà prise doit en changer.<br>
-          Activé : la chanson n'apparaît qu'une fois dans la partie, et les deux joueurs comptent comme bonne réponse.
-        </p>
+        <label class="checkbox-label" style="margin-top:0.8rem;">
+          <input type="checkbox" id="allowDuplicatesCheck"> 🎭 Accepter les doublons
+        </label>
+        <p class="hint-text" id="duplicatesHint" style="margin-top:0.3rem; color:#8aaec0;"></p>
         <label class="checkbox-label" style="margin-top:0.8rem;">
           <input type="checkbox" id="advancedSettingsCheck"> 🛠️ Paramètres avancés pour les joueurs (pitch, filtre de fréquences)
         </label>
@@ -158,6 +158,17 @@
       document.querySelectorAll('input[name="gameMode"]').forEach(r => r.addEventListener('change', updateModeUI));
       updateModeUI();
 
+      // Texte d'explication intelligent : change selon l'état de la case
+      const allowDuplicatesCheck = document.getElementById('allowDuplicatesCheck');
+      const duplicatesHint = document.getElementById('duplicatesHint');
+      function updateDuplicatesHint() {
+        duplicatesHint.textContent = allowDuplicatesCheck.checked
+          ? 'La chanson n\'apparaîtra qu\'une fois dans la partie, et les deux joueurs compteront comme bonne réponse.'
+          : 'La 2e personne à choisir une chanson déjà prise devra en changer.';
+      }
+      allowDuplicatesCheck.addEventListener('change', updateDuplicatesHint);
+      updateDuplicatesHint();
+
       // En mode édition (icône ⚙️ depuis la sélection), on pré-remplit le
       // formulaire avec les réglages actuels de la room au lieu d'un
       // formulaire vierge.
@@ -170,12 +181,14 @@
           document.getElementById('maxAttempts').value = cfg.maxAttempts;
           document.getElementById('blurCheck').checked = !!cfg.blurEnabled;
           document.getElementById('lockOthersCheck').checked = !!cfg.lockOthersOnBuzz;
+          document.getElementById('multipleCorrectCheck').checked = !!cfg.multipleCorrectAllowed;
           document.getElementById('allowDuplicatesCheck').checked = !!cfg.allowDuplicates;
           document.getElementById('advancedSettingsCheck').checked = !!cfg.advancedSettings;
           document.getElementById('playerCount').value = cfg.expectedPlayerCount;
           document.getElementById('totalSongs').value = cfg.totalSongs;
           document.getElementById('playlistSongsPerPlayer').value = cfg.playlistSongsPerPlayer || 5;
           updateModeUI();
+          updateDuplicatesHint();
         });
         if (submitBtn) submitBtn.textContent = '💾 Enregistrer les réglages';
       }
@@ -192,6 +205,7 @@
         const maxAttempts = parseInt(document.getElementById('maxAttempts').value, 10) || 0;
         const blurEnabled = document.getElementById('blurCheck').checked;
         const lockOthersOnBuzz = document.getElementById('lockOthersCheck').checked;
+        const multipleCorrectAllowed = document.getElementById('multipleCorrectCheck').checked;
         const allowDuplicates = document.getElementById('allowDuplicatesCheck').checked;
         const advancedSettings = document.getElementById('advancedSettingsCheck').checked;
         const playerCount = parseInt(document.getElementById('playerCount').value, 10);
@@ -208,8 +222,8 @@
         let totalSongs, hostSongsCount, playlistSongsPerPlayer = 5;
         if (mode === 'playlist') {
           playlistSongsPerPlayer = parseInt(document.getElementById('playlistSongsPerPlayer').value, 10) || 5;
-          if (playlistSongsPerPlayer < 3 || playlistSongsPerPlayer > 5) {
-            errorDiv.textContent = 'Le nombre de chansons par joueur doit être entre 3 et 5.';
+          if (playlistSongsPerPlayer < 2 || playlistSongsPerPlayer > 5) {
+            errorDiv.textContent = 'Le nombre de chansons par joueur doit être entre 2 et 5.';
             return;
           }
           // Pas de quota "hôte" en mode Playlist : chaque joueur construit
@@ -230,6 +244,7 @@
           maxAttempts: maxAttempts,
           blurEnabled: blurEnabled,
           lockOthersOnBuzz: lockOthersOnBuzz,
+          multipleCorrectAllowed: multipleCorrectAllowed,
           allowDuplicates: allowDuplicates,
           advancedSettings: advancedSettings,
           expectedPlayerCount: playerCount,

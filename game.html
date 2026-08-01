@@ -436,13 +436,18 @@
 
       // Si les doublons sont acceptés, deux joueurs qui ont choisi la même
       // chanson ne comptent que pour UNE chanson dans la partie (mode Playlist).
+      function normalizeKeyForDedup(str) {
+        if (!str) return '';
+        return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      }
+
       function dedupeSongsForMerge(allSongs) {
-        const byUrl = new Map();
+        const byKey = new Map();
         const result = [];
         allSongs.forEach((song) => {
-          const key = song.previewUrl;
-          if (key && byUrl.has(key)) {
-            const existing = byUrl.get(key);
+          const key = normalizeKeyForDedup(song.title) + '|' + normalizeKeyForDedup(song.artist);
+          if (byKey.has(key)) {
+            const existing = byKey.get(key);
             const existingIds = existing.ownerIds || (existing.ownerId ? [existing.ownerId] : []);
             const existingNames = existing.ownerNames || (existing.ownerName ? [existing.ownerName] : []);
             if (song.ownerId && !existingIds.includes(song.ownerId)) {
@@ -452,7 +457,7 @@
               delete existing.ownerName;
             }
           } else {
-            byUrl.set(key, song);
+            byKey.set(key, song);
             result.push(song);
           }
         });
@@ -517,7 +522,8 @@
           mode: config.mode || 'classic',
           maxAttempts: (config.maxAttempts !== undefined) ? config.maxAttempts : 3,
           blurEnabled: !!config.blurEnabled,
-          lockOthersOnBuzz: (config.lockOthersOnBuzz !== undefined) ? config.lockOthersOnBuzz : true
+          lockOthersOnBuzz: (config.lockOthersOnBuzz !== undefined) ? config.lockOthersOnBuzz : true,
+          multipleCorrectAllowed: !!config.multipleCorrectAllowed
         });
         if (mergeDebug) mergeDebug.textContent += ` → ✅ écrit avec succès (${allSongs.length} chansons)`;
         return true;
@@ -558,6 +564,7 @@
       let buzzerLocked = false;   // true = manche verrouillée (bonne réponse trouvée)
       let reopenAt = 0;           // timestamp: le buzzer redevient dispo pour tous après une erreur
       let lockOthersOnBuzz = true;
+      let multipleCorrectAllowed = false;
       let votes = {}; // mode Playlist : { playerId: { guess: ownerId, at: timestamp } }
       let mode = 'classic';
       let maxAttempts = 3;
@@ -639,12 +646,12 @@
       // au-delà, avec un plancher à 20 pts tant que la réponse est correcte.
       function computeKahootPoints(elapsedMs) {
         const t = elapsedMs / 1000;
-        if (t < 1) return 100;
+        if (t < 3) return 100;
         let points;
         if (t <= 5) {
-          points = 100 - 10 * (t - 1);
+          points = 100 - 10 * (t - 3);
         } else {
-          points = 60 - 5 * (t - 5);
+          points = 80 - 5 * (t - 5);
         }
         return Math.max(20, Math.round(points));
       }
@@ -685,24 +692,23 @@
         return out;
       }
 
-      // Variante 2 : atténue les fréquences typiques de la voix humaine
-      // (autour de 800Hz et 2,5kHz) au lieu de jouer sur la position stéréo.
-      // Technique différente de la variante 1, donne un résultat différent
-      // selon le morceau.
-      function applyVocalNotch(ctx, node) {
-        const notch1 = ctx.createBiquadFilter();
-        notch1.type = 'peaking';
-        notch1.frequency.value = 800;
-        notch1.Q.value = 1.2;
-        notch1.gain.value = -14;
-        const notch2 = ctx.createBiquadFilter();
-        notch2.type = 'peaking';
-        notch2.frequency.value = 2500;
-        notch2.Q.value = 1.1;
-        notch2.gain.value = -14;
-        node.connect(notch1);
-        notch1.connect(notch2);
-        return notch2;
+      // Variante 2 : atténue les fréquences typiques de la voix humaine sur
+      // 3 bandes, intensité réglable de léger à marqué.
+      function applyVocalNotch(ctx, node, intensity) {
+        const pct = (intensity !== undefined ? intensity : 60) / 100;
+        const gain = -4 - pct * 20;
+        const bands = [400, 1200, 2800];
+        let current = node;
+        bands.forEach((freq) => {
+          const f = ctx.createBiquadFilter();
+          f.type = 'peaking';
+          f.frequency.value = freq;
+          f.Q.value = 1 + pct * 1.5;
+          f.gain.value = gain;
+          current.connect(f);
+          current = f;
+        });
+        return current;
       }
 
       function stopCurrentPlayback() {
@@ -719,7 +725,7 @@
         let node = source;
         const variant = song.instrumentalVariant || 1;
         if (song.instrumental && (variant === 2 || variant === 3)) {
-          node = applyVocalNotch(ctx, node);
+          node = applyVocalNotch(ctx, node, song.instrumentalIntensity);
         }
 
         const fv = song.filterValue || 0;
@@ -759,27 +765,101 @@
         return node;
       }
 
+      // Chaîne d'effets pour un MediaElementSourceNode (vitesse/filtre/radio) :
+      // pas de playbackRate/detune ici (ça n'existe que sur un
+      // AudioBufferSourceNode) — la vitesse passe directement par
+      // audio.playbackRate. Avantage : pas besoin de télécharger/décoder le
+      // fichier brut, donc pas de souci de CORS pour ces effets-là.
+      function buildAudioGraphForElement(ctx, node, song) {
+        const fv = song.filterValue || 0;
+        if (fv > 15) {
+          const hp = ctx.createBiquadFilter();
+          hp.type = 'highpass';
+          hp.frequency.value = 100 + (fv / 100) * 4000;
+          node.connect(hp);
+          node = hp;
+        } else if (fv < -15) {
+          const lp = ctx.createBiquadFilter();
+          lp.type = 'lowpass';
+          lp.frequency.value = 8000 + (fv / 100) * 7800;
+          node.connect(lp);
+          node = lp;
+        }
+        if (song.radioMode) {
+          const hp2 = ctx.createBiquadFilter();
+          hp2.type = 'highpass';
+          hp2.frequency.value = 300;
+          const lp2 = ctx.createBiquadFilter();
+          lp2.type = 'lowpass';
+          lp2.frequency.value = 3400;
+          const shaper = ctx.createWaveShaper();
+          const curve = new Float32Array(256);
+          for (let i = 0; i < 256; i++) {
+            const x = (i / 255) * 2 - 1;
+            curve[i] = Math.tanh(x * 3);
+          }
+          shaper.curve = curve;
+          node.connect(hp2);
+          hp2.connect(lp2);
+          lp2.connect(shaper);
+          node = shaper;
+        }
+        return node;
+      }
+
+      // Avertit l'hôte (discrètement) qu'un effet n'a pas pu s'appliquer,
+      // au lieu d'échouer en silence sans que personne ne comprenne pourquoi.
+      function notifyEffectIssue(msg) {
+        const notif = document.getElementById('hostNotification');
+        if (notif) {
+          notif.textContent = msg;
+          setTimeout(() => { if (notif.textContent === msg) notif.textContent = ''; }, 4000);
+        }
+        console.log(msg);
+      }
+
       async function playSongClip(song) {
         stopCurrentPlayback();
         const clipStart = song.clipStart || 0;
         const clipDuration = song.clipDuration || 10;
-        const needsWebAudio = song.reverse || song.instrumental || (song.speed && song.speed !== 1) ||
-          (song.pitch && song.pitch !== 0) || Math.abs(song.filterValue || 0) > 15 || song.radioMode;
+        // Reverse/instrumental/pitch ont vraiment besoin des octets bruts
+        // (retournement, annulation de phase, detune). Vitesse, filtre et
+        // radio n'en ont PAS besoin : chemin plus fiable (audio direct +
+        // MediaElementSource), c'est ce qui plantait silencieusement avant.
+        const needsBuffer = song.reverse || song.instrumental || (song.pitch && song.pitch !== 0);
+        const needsGraph = Math.abs(song.filterValue || 0) > 15 || song.radioMode;
+        const needsSpeed = song.speed && song.speed !== 1;
 
-        if (!needsWebAudio) {
-          // Cas simple et fiable : lecture directe, pas de traitement audio
-          currentAudio = new Audio(song.previewUrl);
-          currentAudio.addEventListener('loadedmetadata', () => {
-            currentAudio.currentTime = clipStart;
-          });
-          currentAudio.play().catch(e => console.log('Erreur lecture audio', e));
-          setTimeout(() => { if (currentAudio) currentAudio.pause(); }, clipDuration * 1000);
+        if (!needsBuffer) {
+          try {
+            const audio = new Audio(song.previewUrl);
+            audio.crossOrigin = 'anonymous';
+            currentAudio = audio;
+            if (needsSpeed) audio.playbackRate = song.speed;
+
+            if (needsGraph) {
+              const ctx = getAudioContext();
+              await ensureAudioContextRunning(ctx);
+              const source = ctx.createMediaElementSource(audio);
+              const outNode = buildAudioGraphForElement(ctx, source, song);
+              outNode.connect(ctx.destination);
+            }
+            audio.addEventListener('loadedmetadata', () => { audio.currentTime = clipStart; });
+            await audio.play();
+            setTimeout(() => { if (currentAudio === audio) audio.pause(); }, clipDuration * 1000);
+          } catch (e) {
+            notifyEffectIssue('⚠️ Effet audio indisponible, lecture normale utilisée.');
+            stopCurrentPlayback();
+            currentAudio = new Audio(song.previewUrl);
+            currentAudio.play().catch(() => {});
+            setTimeout(() => { if (currentAudio) currentAudio.pause(); }, clipDuration * 1000);
+          }
           return;
         }
 
-        // Tout effet (reverse/instrumental/vitesse/pitch/filtre/radio) passe par
-        // Web Audio (nécessite de décoder l'extrait complet). Si ça échoue
-        // (réseau/CORS), on retombe sur une lecture normale plutôt que rien.
+        // Reverse / instrumental / pitch : besoin du buffer brut (peut
+        // échouer selon le réseau/CORS — on prévient et on retombe sur une
+        // lecture normale plutôt que rien du tout).
         try {
           const ctx = getAudioContext();
           await ensureAudioContextRunning(ctx);
@@ -797,9 +877,10 @@
           source.start(0, playFrom, clipDuration);
           currentWebAudioSource = source;
         } catch (e) {
-          console.log('Traitement audio impossible, lecture normale à la place', e);
+          notifyEffectIssue('⚠️ Effet (reverse/instrumental/pitch) indisponible pour cette chanson, lecture normale utilisée.');
           currentAudio = new Audio(song.previewUrl);
           currentAudio.play().catch(() => {});
+          setTimeout(() => { if (currentAudio) currentAudio.pause(); }, clipDuration * 1000);
         }
       }
 
@@ -890,6 +971,7 @@
         buzzerLocked = gs.buzzerLocked || false;
         reopenAt = gs.reopenAt || 0;
         lockOthersOnBuzz = (gs.lockOthersOnBuzz !== undefined) ? gs.lockOthersOnBuzz : true;
+        multipleCorrectAllowed = gs.multipleCorrectAllowed || false;
         votes = gs.votes || {};
         mode = gs.mode || 'classic';
         maxAttempts = (gs.maxAttempts !== undefined && gs.maxAttempts !== null) ? gs.maxAttempts : 3;
@@ -1396,7 +1478,8 @@
           const correct = song.title;
           const normAnswer = normalize(answer);
           const normCorrect = normalize(correct);
-          const isCorrect = normAnswer === normCorrect || normCorrect.includes(normAnswer) || normAnswer.includes(normCorrect);
+          const isCorrect = normAnswer.length > 0 &&
+            (normAnswer === normCorrect || normCorrect.includes(normAnswer) || normAnswer.includes(normCorrect));
           const elapsed = roundActive ? Date.now() - roundStartTime : 0;
           let points = 0;
           if (isCorrect) {
@@ -1531,14 +1614,21 @@
           };
 
           if (isCorrect) {
-            // Bonne réponse : la manche est terminée, plus personne ne peut buzzer,
-            // et le chrono s'arrête tout de suite (pas besoin d'attendre que
-            // l'hôte clique sur Révéler).
             attempts.attemptsLeft = 0;
             attempts.cooldownUntil = 0;
-            updates.buzzerLocked = true;
-            updates.reopenAt = 0;
-            updates.roundActive = false;
+            if (multipleCorrectAllowed) {
+              // Plusieurs bonnes réponses possibles par manche : pas de
+              // verrouillage, les autres peuvent encore essayer (départagés
+              // par les points, les plus rapides gagnant plus).
+              updates.reopenAt = 0;
+            } else {
+              // Comportement par défaut : une seule bonne réponse acceptée,
+              // la manche est terminée, plus personne ne peut buzzer, et le
+              // chrono s'arrête tout de suite.
+              updates.buzzerLocked = true;
+              updates.reopenAt = 0;
+              updates.roundActive = false;
+            }
           } else {
             // Mauvaise réponse : cooldown perso escaladé (3s, 5s, 7s...) + 3s de blocage
             // global avant que quiconque (y compris les autres) puisse retenter sa chance.
@@ -1565,7 +1655,7 @@
           } else {
             // On ne révèle jamais le titre à un joueur qui s'est trompé
             titleEl.textContent = '❌ Faux !';
-            msgEl.innerHTML = `-50 points`;
+            msgEl.innerHTML = `${points} points`;
           }
           popup.classList.remove('hidden');
           setTimeout(() => popup.classList.add('hidden'), 3000);

@@ -182,7 +182,7 @@
       <div id="results" class="results-grid"></div>
     </div>
     <p style="text-align:center; margin-top:1rem;">
-      <a href="index.html" style="color:#8aaec0;">← Annuler</a>
+      <a href="#" id="backToLobbyLink" style="color:#8aaec0;">🏠 Retourner à la lobby</a>
     </p>
   </div>
 
@@ -214,7 +214,7 @@
       </label>
       <label class="checkbox-label">
         <input type="checkbox" id="instrumentalCheck">
-        🎸 Sans voix <span class="experimental-tag">(expérimental, ne marche pas toujours)</span>
+        🎸 Sans voix
       </label>
       <div id="instrumentalVariants" class="preset-buttons hidden" style="margin-top:0.4rem;">
         <button type="button" class="variant-btn" data-variant="1">🎚️ Stéréo</button>
@@ -222,9 +222,18 @@
         <button type="button" class="variant-btn" data-variant="3">💪 Renforcé</button>
       </div>
       <div class="hint-text" id="variantHint"></div>
+      <div id="variantIntensityGroup" class="hidden" style="margin-top:0.4rem;">
+        <label>🎛️ Intensité : <span id="variantIntensityValue">60</span>%</label>
+        <input type="range" id="variantIntensitySlider" min="10" max="100" step="5" value="60">
+      </div>
 
       <label>⚡ Vitesse : <span id="speedValue">1.0x</span></label>
       <input type="range" id="speedSlider" min="0.4" max="2.5" step="0.1" value="1">
+
+      <label class="checkbox-label">
+        <input type="checkbox" id="radioModeCheck">
+        📻 Mode Radio / Téléphone
+      </label>
 
       <div id="advancedSettingsSection" class="hidden" style="margin-top:0.8rem; border-top:1px solid #2d353e; padding-top:0.6rem;">
         <button type="button" id="advancedToggleBtn" style="background:none; border:none; color:#8aaec0; padding:0; display:flex; align-items:center; gap:0.4rem; cursor:pointer;">
@@ -239,11 +248,6 @@
           <div class="hint-text" id="filterHint">Neutre</div>
         </div>
       </div>
-
-      <label class="checkbox-label">
-        <input type="checkbox" id="radioModeCheck">
-        📻 Mode Radio / Téléphone <span class="experimental-tag">(expérimental — son compressé, bande passante réduite)</span>
-      </label>
 
       <div class="modal-actions">
         <button type="button" id="previewBtn">▶️ Écouter l'extrait</button>
@@ -275,9 +279,50 @@
       const selectionsRef = roomRef.child('selections');
       const configRef = roomRef.child('config');
 
+      // "Retour à la lobby" : si l'hôte, on remet la room à zéro (mêmes
+      // réglages, même code) et tout le monde est renvoyé au même endroit.
+      const backToLobbyLink = document.getElementById('backToLobbyLink');
+      if (backToLobbyLink) {
+        backToLobbyLink.addEventListener('click', async (e) => {
+          e.preventDefault();
+          if (isHost) {
+            if (!confirm('Retourner à la lobby ? La sélection en cours sera annulée pour tout le monde.')) return;
+            await roomRef.update({
+              status: 'lobby',
+              selections: {},
+              gameState: {
+                currentSongIndex: 0,
+                songs: [],
+                scores: {},
+                playerAttempts: {},
+                buzzer: null,
+                buzzerLocked: false,
+                reopenAt: 0,
+                roundStartTime: 0,
+                roundActive: false
+              }
+            });
+            window.location.href = 'host-lobby.html';
+          } else {
+            window.location.href = 'waiting.html';
+          }
+        });
+      }
+
       let hostQuota = 0;
       let hostSelected = [];
       let playerSelectedList = [];
+
+      // Si l'hôte retourne à la lobby pendant que d'autres sont encore sur
+      // cette page, les joueurs suivent automatiquement (l'hôte navigue
+      // déjà lui-même explicitement après son clic, pas besoin ici).
+      if (!isHost) {
+        roomRef.child('status').on('value', (snap) => {
+          if (snap.val() === 'lobby') {
+            window.location.href = 'waiting.html';
+          }
+        });
+      }
 
       const roleMsg = document.getElementById('role-message');
       const counterSpan = document.getElementById('counter');
@@ -598,21 +643,29 @@
       const instrumentalVariants = document.getElementById('instrumentalVariants');
       const variantHint = document.getElementById('variantHint');
       const variantBtns = document.querySelectorAll('.variant-btn');
+      const variantIntensityGroup = document.getElementById('variantIntensityGroup');
+      const variantIntensitySlider = document.getElementById('variantIntensitySlider');
+      const variantIntensityValue = document.getElementById('variantIntensityValue');
       let selectedVariant = 1;
       const variantDescriptions = {
         1: 'Coupe ce qui est centré dans le mix (souvent la voix, parfois aussi basse/grosse caisse).',
-        2: 'Atténue les fréquences typiques de la voix humaine.',
-        3: 'Combine les deux techniques précédentes pour un résultat plus marqué.'
+        2: 'Atténue les fréquences typiques de la voix humaine, intensité réglable.',
+        3: 'Combine les deux techniques précédentes, intensité réglable.'
       };
       function setVariant(v) {
         selectedVariant = v;
         variantBtns.forEach(b => b.classList.toggle('active', parseInt(b.dataset.variant, 10) === v));
         variantHint.textContent = variantDescriptions[v];
+        variantIntensityGroup.classList.toggle('hidden', v === 1);
       }
+      variantIntensitySlider.addEventListener('input', () => {
+        variantIntensityValue.textContent = variantIntensitySlider.value;
+      });
       variantBtns.forEach(b => b.addEventListener('click', () => setVariant(parseInt(b.dataset.variant, 10))));
       instrumentalCheck.addEventListener('change', () => {
         instrumentalVariants.classList.toggle('hidden', !instrumentalCheck.checked);
         variantHint.classList.toggle('hidden', !instrumentalCheck.checked);
+        variantIntensityGroup.classList.toggle('hidden', !instrumentalCheck.checked || selectedVariant === 1);
       });
       const speedSlider = document.getElementById('speedSlider');
       const speedValue = document.getElementById('speedValue');
@@ -669,6 +722,8 @@
         durationSlider.value = 10;
         durationValue.textContent = '10';
         reverseCheck.checked = false;
+        variantIntensitySlider.value = 60;
+        variantIntensityValue.textContent = '60';
         setVariant(1);
         if (gameMode === 'instrumental') {
           instrumentalCheck.checked = true;
@@ -698,6 +753,7 @@
         // On charge juste les métadonnées (durée réelle du clip), pas tout le fichier
         if (previewAudioEl) { previewAudioEl.pause(); }
         previewAudioEl = new Audio();
+        previewMediaSource = null; // nouvel élément <audio> = nouveau nœud possible
         previewAudioEl.preload = 'metadata';
         previewAudioEl.src = song.previewUrl;
         previewAudioEl.addEventListener('loadedmetadata', () => {
@@ -789,21 +845,24 @@
         return out;
       }
 
-      // Variante 2 : atténue les fréquences typiques de la voix humaine
-      function applyVocalNotch(ctx, node) {
-        const notch1 = ctx.createBiquadFilter();
-        notch1.type = 'peaking';
-        notch1.frequency.value = 800;
-        notch1.Q.value = 1.2;
-        notch1.gain.value = -14;
-        const notch2 = ctx.createBiquadFilter();
-        notch2.type = 'peaking';
-        notch2.frequency.value = 2500;
-        notch2.Q.value = 1.1;
-        notch2.gain.value = -14;
-        node.connect(notch1);
-        notch1.connect(notch2);
-        return notch2;
+      // Variante 2 : atténue les fréquences typiques de la voix humaine sur
+      // 3 bandes (plus large que la simple version à 2 bandes précédente),
+      // intensité réglable de léger à marqué.
+      function applyVocalNotch(ctx, node, intensity) {
+        const pct = (intensity !== undefined ? intensity : 60) / 100;
+        const gain = -4 - pct * 20; // -4dB (léger) à -24dB (fort)
+        const bands = [400, 1200, 2800];
+        let current = node;
+        bands.forEach((freq) => {
+          const f = ctx.createBiquadFilter();
+          f.type = 'peaking';
+          f.frequency.value = freq;
+          f.Q.value = 1 + pct * 1.5;
+          f.gain.value = gain;
+          current.connect(f);
+          current = f;
+        });
+        return current;
       }
 
       let cachedBuffer = null;
@@ -830,7 +889,7 @@
         let node = source;
         const variant = settings.instrumentalVariant || 1;
         if (settings.instrumental && (variant === 2 || variant === 3)) {
-          node = applyVocalNotch(ctx, node);
+          node = applyVocalNotch(ctx, node, settings.instrumentalIntensity);
         }
 
         const fv = settings.filterValue || 0;
@@ -870,13 +929,53 @@
         return node;
       }
 
+      function buildAudioGraphForElement(ctx, node, settings) {
+        const fv = settings.filterValue || 0;
+        if (fv > 15) {
+          const hp = ctx.createBiquadFilter();
+          hp.type = 'highpass';
+          hp.frequency.value = 100 + (fv / 100) * 4000;
+          node.connect(hp);
+          node = hp;
+        } else if (fv < -15) {
+          const lp = ctx.createBiquadFilter();
+          lp.type = 'lowpass';
+          lp.frequency.value = 8000 + (fv / 100) * 7800;
+          node.connect(lp);
+          node = lp;
+        }
+        if (settings.radioMode) {
+          const hp2 = ctx.createBiquadFilter();
+          hp2.type = 'highpass';
+          hp2.frequency.value = 300;
+          const lp2 = ctx.createBiquadFilter();
+          lp2.type = 'lowpass';
+          lp2.frequency.value = 3400;
+          const shaper = ctx.createWaveShaper();
+          const curve = new Float32Array(256);
+          for (let i = 0; i < 256; i++) {
+            const x = (i / 255) * 2 - 1;
+            curve[i] = Math.tanh(x * 3);
+          }
+          shaper.curve = curve;
+          node.connect(hp2);
+          hp2.connect(lp2);
+          lp2.connect(shaper);
+          node = shaper;
+        }
+        return node;
+      }
+
+      let previewMediaSource = null; // un seul par élément <audio>, remis à null à chaque nouvelle chanson
+
       function readModalSettings() {
         return {
           speed: parseFloat(speedSlider.value) || 1,
           pitch: parseInt(pitchSlider.value, 10) || 0,
           filterValue: parseFloat(filterSlider.value) || 0,
           radioMode: radioModeCheck.checked,
-          instrumentalVariant: selectedVariant
+          instrumentalVariant: selectedVariant,
+          instrumentalIntensity: parseInt(variantIntensitySlider.value, 10) || 60
         };
       }
 
@@ -888,24 +987,47 @@
         const wantsReverse = reverseCheck.checked;
         const wantsInstrumental = instrumentalCheck.checked;
         const settings = readModalSettings();
-        const needsWebAudio = wantsReverse || wantsInstrumental || settings.speed !== 1 ||
-          settings.pitch !== 0 || Math.abs(settings.filterValue) > 15 || settings.radioMode;
+        // Reverse/instrumental/pitch ont vraiment besoin des octets bruts.
+        // Vitesse/filtre/radio n'en ont pas besoin : chemin plus fiable
+        // (audio direct + MediaElementSource), sans dépendre du CORS.
+        const needsBuffer = wantsReverse || wantsInstrumental || settings.pitch !== 0;
+        const needsGraph = Math.abs(settings.filterValue) > 15 || settings.radioMode;
 
-        if (!needsWebAudio) {
-          // Cas simple et 100% fiable : lecture directe via <audio>, pas de CORS impliqué
-          previewAudioEl.currentTime = start;
-          previewAudioEl.play().catch(() => {
+        if (!needsBuffer) {
+          try {
+            previewAudioEl.playbackRate = settings.speed !== 1 ? settings.speed : 1;
+
+            if (needsGraph) {
+              const ctx = getAudioContext();
+              await ensureAudioContextRunning(ctx);
+              if (!previewMediaSource) {
+                previewMediaSource = ctx.createMediaElementSource(previewAudioEl);
+              } else {
+                previewMediaSource.disconnect();
+              }
+              const outNode = buildAudioGraphForElement(ctx, previewMediaSource, settings);
+              outNode.connect(ctx.destination);
+            } else if (previewMediaSource) {
+              // Pas de filtre cette fois, mais l'élément est déjà câblé dans
+              // le graphe Web Audio depuis un essai précédent : on le
+              // reconnecte directement à la sortie, sans filtre.
+              previewMediaSource.disconnect();
+              previewMediaSource.connect(getAudioContext().destination);
+            }
+            previewAudioEl.currentTime = start;
+            await previewAudioEl.play();
+            stopPreviewTimer = setTimeout(() => previewAudioEl.pause(), dur * 1000);
+          } catch (e) {
             modalError.textContent = "Impossible de lire l'extrait (appuie une fois sur l'écran puis réessaie).";
-          });
-          stopPreviewTimer = setTimeout(() => previewAudioEl.pause(), dur * 1000);
+          }
           return;
         }
 
-        // Tout effet (reverse/instrumental/vitesse/pitch/filtre/radio) passe par
-        // Web Audio, ce qui nécessite de décoder l'audio brut. Dépend du CORS
-        // du CDN — on tente, et on prévient si ça échoue.
+        // Reverse / instrumental / pitch : besoin du buffer brut. Dépend du
+        // CORS du CDN — on tente, et on prévient si ça échoue.
         try {
           const ctx = getAudioContext();
+          await ensureAudioContextRunning(ctx);
           let buffer = await loadBufferForSong(draftSong.previewUrl);
           if (wantsInstrumental && (settings.instrumentalVariant === 1 || settings.instrumentalVariant === 3)) {
             buffer = phaseCancelInstrumental(ctx, buffer);
@@ -928,12 +1050,18 @@
 
       previewBtn.addEventListener('click', playPreview);
 
+      function normalizeKey(str) {
+        if (!str) return '';
+        return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      }
+
       async function isSongAlreadyTaken(song) {
         const selSnap = await selectionsRef.once('value');
         const selections = selSnap.val() || {};
+        const key = normalizeKey(song.trackName) + '|' + normalizeKey(song.artistName);
         return Object.values(selections).some((entry) =>
           entry && Array.isArray(entry.songs) &&
-          entry.songs.some((s) => s.previewUrl && song.previewUrl && s.previewUrl === song.previewUrl)
+          entry.songs.some((s) => (normalizeKey(s.title) + '|' + normalizeKey(s.artist)) === key)
         );
       }
 
@@ -960,6 +1088,7 @@
           reverse: reverseCheck.checked,
           instrumental: gameMode === 'instrumental' ? true : instrumentalCheck.checked,
           instrumentalVariant: modalSettings.instrumentalVariant,
+          instrumentalIntensity: modalSettings.instrumentalIntensity,
           speed: modalSettings.speed,
           pitch: modalSettings.pitch,
           filterValue: modalSettings.filterValue,

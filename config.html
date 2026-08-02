@@ -163,7 +163,7 @@
       const duplicatesHint = document.getElementById('duplicatesHint');
       function updateDuplicatesHint() {
         duplicatesHint.textContent = allowDuplicatesCheck.checked
-          ? 'La chanson n\'apparaîtra qu\'une fois dans la partie, et les deux joueurs compteront comme bonne réponse.'
+          ? 'La chanson n\'apparaîtra qu\'une fois dans la partie.'
           : 'La 2e personne à choisir une chanson déjà prise devra en changer.';
       }
       allowDuplicatesCheck.addEventListener('change', updateDuplicatesHint);

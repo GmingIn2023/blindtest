@@ -668,6 +668,26 @@
           try { await ctx.resume(); } catch (e) { console.log('Impossible de relancer l\'audio', e); }
         }
       }
+      // Déblocage définitif dès la toute première interaction sur la page :
+      // sans ça, le tout premier son (souvent un effet type reverse/instrumental)
+      // peut échouer silencieusement même si on relance le contexte plus tard,
+      // car iOS exige que le déblocage ait lieu DANS le tout premier geste.
+      let audioUnlocked = false;
+      function unlockAudioOnce() {
+        if (audioUnlocked) return;
+        audioUnlocked = true;
+        try {
+          const ctx = getAudioContext();
+          if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+          const buffer = ctx.createBuffer(1, 1, 22050);
+          const src = ctx.createBufferSource();
+          src.buffer = buffer;
+          src.connect(ctx.destination);
+          src.start(0);
+        } catch (e) { console.log('Déblocage audio impossible', e); }
+      }
+      document.addEventListener('touchstart', unlockAudioOnce, { once: true });
+      document.addEventListener('click', unlockAudioOnce, { once: true });
       function reverseBuffer(ctx, buffer) {
         const out = ctx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
         for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
@@ -692,18 +712,23 @@
         return out;
       }
 
-      // Variante 2 : atténue les fréquences typiques de la voix humaine sur
-      // 3 bandes, intensité réglable de léger à marqué.
+      // Variante 2 : creuse largement toute la zone où vit la voix humaine,
+      // intensité réglable de léger à très marqué.
       function applyVocalNotch(ctx, node, intensity) {
         const pct = (intensity !== undefined ? intensity : 60) / 100;
-        const gain = -4 - pct * 20;
-        const bands = [400, 1200, 2800];
+        const gain = -8 - pct * 24;
+        const bands = [
+          { freq: 300,  q: 0.7 },
+          { freq: 900,  q: 0.7 },
+          { freq: 2200, q: 0.7 },
+          { freq: 4000, q: 0.7 }
+        ];
         let current = node;
-        bands.forEach((freq) => {
+        bands.forEach((b) => {
           const f = ctx.createBiquadFilter();
           f.type = 'peaking';
-          f.frequency.value = freq;
-          f.Q.value = 1 + pct * 1.5;
+          f.frequency.value = b.freq;
+          f.Q.value = b.q;
           f.gain.value = gain;
           current.connect(f);
           current = f;
@@ -826,7 +851,8 @@
         // (retournement, annulation de phase, detune). Vitesse, filtre et
         // radio n'en ont PAS besoin : chemin plus fiable (audio direct +
         // MediaElementSource), c'est ce qui plantait silencieusement avant.
-        const needsBuffer = song.reverse || song.instrumental || (song.pitch && song.pitch !== 0);
+        const isRealInstrumentalVariant = song.instrumental && song.instrumentalVariant === 4;
+        const needsBuffer = song.reverse || (song.instrumental && !isRealInstrumentalVariant) || (song.pitch && song.pitch !== 0);
         const needsGraph = Math.abs(song.filterValue || 0) > 15 || song.radioMode;
         const needsSpeed = song.speed && song.speed !== 1;
 
@@ -1126,11 +1152,13 @@
 
         // Mode Playlist : calcule les scores de tous les votes d'un coup
         // (contrairement au buzzer classique, tout le monde vote en même temps).
-        async function revealPlaylistRound(song) {
+        // Calcule et applique les points du vote en cours (mode Playlist),
+        // séparé de l'affichage du popup pour pouvoir être appelé aussi
+        // depuis "Chanson suivante" si l'hôte n'a pas cliqué Révéler.
+        async function scorePlaylistRound(song) {
           const votesSnap = await gameStateRef.child('votes').once('value');
           const currentVotes = votesSnap.val() || {};
           const ownerIds = getSongOwnerIds(song);
-          const ownerNames = getSongOwnerNames(song);
           const newScores = Object.assign({}, scores);
           Object.entries(currentVotes).forEach(([playerId, v]) => {
             const isCorrect = ownerIds.includes(v.guess);
@@ -1138,7 +1166,13 @@
             const pts = isCorrect ? computeKahootPoints(elapsed) : -10;
             newScores[playerId] = (newScores[playerId] || 0) + pts;
           });
+          scores = newScores;
           await gameStateRef.update({ scores: newScores, roundActive: false, buzzerLocked: true, reopenAt: 0 });
+        }
+
+        async function revealPlaylistRound(song) {
+          const ownerNames = getSongOwnerNames(song);
+          await scorePlaylistRound(song);
 
           const popup = document.getElementById('popupReveal');
           const cover = document.getElementById('revealCover');
@@ -1179,10 +1213,18 @@
           document.getElementById('popupReveal').classList.add('hidden');
         });
 
-        hostNext.addEventListener('click', () => {
+        hostNext.addEventListener('click', async () => {
           stopCurrentPlayback();
           hostReveal.classList.remove('correct-ready');
           hostTimer.textContent = '00:00.0'; // reset immédiat, pas d'attente du prochain Play
+
+          // En mode Playlist, si l'hôte passe à la suite sans avoir cliqué
+          // Révéler, les votes en cours doivent quand même compter.
+          if (mode === 'playlist' && !buzzerLocked) {
+            const currentSong = gameSongs[currentSongIndex];
+            if (currentSong) await scorePlaylistRound(currentSong);
+          }
+
           if (currentSongIndex + 1 < gameSongs.length) {
             const nextSong = gameSongs[currentSongIndex + 1];
             resetQuadrantCover(nextSong); // efface l'ancienne cover tout de suite, rien n'apparaît avant l'heure

@@ -111,6 +111,38 @@
       padding: 1rem;
       margin: 1rem 0;
     }
+    .scoreboard-row {
+      transition: transform 0.5s ease;
+      will-change: transform;
+    }
+    .scoreboard-row.score-pulse {
+      animation: scorePulse 0.7s ease;
+    }
+    .votes-breakdown {
+      margin: 0.8rem 0;
+      text-align: left;
+      background: #10161c;
+      border-radius: 1rem;
+      padding: 0.7rem 1rem;
+    }
+    .votes-breakdown.hidden { display: none; }
+    .votes-breakdown-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.35rem 0;
+      opacity: 0;
+      transform: translateX(-10px);
+      animation: voteRowIn 0.4s ease forwards;
+    }
+    @keyframes voteRowIn {
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .votes-breakdown-row .vb-points.correct { color: #4fd97f; font-weight: 700; }
+    .votes-breakdown-row .vb-points.wrong { color: #ff6b6b; font-weight: 700; }
+    @keyframes scorePulse {
+      0% { background-color: rgba(79,217,127,0.35); }
+      100% { background-color: transparent; }
+    }
 
     /* Vue Joueur */
     .buzzer-btn {
@@ -347,6 +379,7 @@
       <img id="revealCover" class="popup-cover" src="" alt="cover">
       <h2 id="revealTitle"></h2>
       <p id="revealArtist"></p>
+      <div id="revealVotesBreakdown" class="votes-breakdown hidden"></div>
       <button id="closeReveal" class="primary">Fermer</button>
     </div>
 
@@ -576,6 +609,19 @@
       let answerStartTime = 0;
 
       // Classement en direct, trié par score, réutilisé par l'hôte et les joueurs
+      const scoreboardPrevState = {}; // { targetId: { scores: {id: score} } }
+
+      function animateScoreNumber(el, from, to, duration) {
+        const start = performance.now();
+        function tick(now) {
+          const t = Math.min(1, (now - start) / duration);
+          const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+          el.textContent = Math.round(from + (to - from) * eased);
+          if (t < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      }
+
       function renderScoreboard(targetId) {
         const target = document.getElementById(targetId);
         if (!target) return;
@@ -584,6 +630,18 @@
           const ranked = Object.entries(players)
             .map(([id, p]) => ({ id, name: p.name, avatar: p.avatar || '', score: scores[id] || 0 }))
             .sort((a, b) => b.score - a.score);
+
+          const prev = scoreboardPrevState[targetId];
+          const prevScores = prev ? prev.scores : {};
+
+          // FLIP étape 1 : positions AVANT reconstruction du HTML
+          const firstRects = {};
+          if (prev) {
+            ranked.forEach((p) => {
+              const el = target.querySelector(`[data-pid="${p.id}"]`);
+              if (el) firstRects[p.id] = el.getBoundingClientRect();
+            });
+          }
 
           let html = '<strong>🏆 Classement</strong><br>';
           ranked.forEach((p, idx) => {
@@ -595,12 +653,45 @@
             const rowStyle = isBuzzing
               ? 'background:#3a2d2d;border-radius:8px;padding:3px 8px;margin:2px 0;'
               : 'opacity:0.8;padding:3px 8px;';
-            html += `<div style="${rowStyle}">
-              ${isBuzzing ? '🔴' : medal} ${p.avatar} ${p.name}: ${p.score} pts
+            const oldScore = prevScores[p.id] !== undefined ? prevScores[p.id] : p.score;
+            html += `<div class="scoreboard-row" data-pid="${p.id}" style="${rowStyle}">
+              ${isBuzzing ? '🔴' : medal} ${p.avatar} ${p.name}: <span class="sb-score">${oldScore}</span> pts
               <span style="color:#8aaec0;font-size:0.82em;">· essais: ${attemptsText}</span>
             </div>`;
           });
           target.innerHTML = html;
+
+          // FLIP étape 2 : positions APRÈS, on inverse puis on relâche vers l'identité
+          if (prev) {
+            ranked.forEach((p) => {
+              const el = target.querySelector(`[data-pid="${p.id}"]`);
+              if (!el) return;
+              const first = firstRects[p.id];
+              if (first) {
+                const last = el.getBoundingClientRect();
+                const deltaY = first.top - last.top;
+                if (Math.abs(deltaY) > 1) {
+                  el.style.transition = 'none';
+                  el.style.transform = `translateY(${deltaY}px)`;
+                  requestAnimationFrame(() => {
+                    el.style.transition = 'transform 0.5s ease';
+                    el.style.transform = '';
+                  });
+                }
+              }
+              const oldVal = prevScores[p.id] !== undefined ? prevScores[p.id] : p.score;
+              if (oldVal !== p.score) {
+                const scoreEl = el.querySelector('.sb-score');
+                animateScoreNumber(scoreEl, oldVal, p.score, 700);
+                el.classList.add('score-pulse');
+                setTimeout(() => el.classList.remove('score-pulse'), 700);
+              }
+            });
+          }
+
+          scoreboardPrevState[targetId] = {
+            scores: Object.fromEntries(ranked.map((p) => [p.id, p.score]))
+          };
         });
       }
 
@@ -748,9 +839,11 @@
         source.detune.value = (song.pitch || 0) * 100; // demi-tons -> cents
 
         let node = source;
+        let gainBoost = 1;
         const variant = song.instrumentalVariant || 1;
         if (song.instrumental && (variant === 2 || variant === 3)) {
           node = applyVocalNotch(ctx, node, song.instrumentalIntensity);
+          gainBoost *= 1.8; // compense les fréquences coupées
         }
 
         const fv = song.filterValue || 0;
@@ -760,12 +853,14 @@
           hp.frequency.value = 100 + (fv / 100) * 4000;
           node.connect(hp);
           node = hp;
+          gainBoost *= 1.6;
         } else if (fv < -15) {
           const lp = ctx.createBiquadFilter();
           lp.type = 'lowpass';
           lp.frequency.value = 8000 + (fv / 100) * 7800;
           node.connect(lp);
           node = lp;
+          gainBoost *= 1.6;
         }
 
         if (song.radioMode) {
@@ -786,6 +881,16 @@
           hp2.connect(lp2);
           lp2.connect(shaper);
           node = shaper;
+          gainBoost *= 2.2; // la bande passante réduite fait perdre beaucoup de volume perçu
+        }
+
+        // Compensation finale : les filtres coupent des fréquences, ce qui
+        // rend le résultat plus faible que l'original si on ne compense pas.
+        if (gainBoost !== 1) {
+          const gainNode = ctx.createGain();
+          gainNode.gain.value = Math.min(gainBoost, 4); // plafond pour éviter la saturation
+          node.connect(gainNode);
+          node = gainNode;
         }
         return node;
       }
@@ -796,6 +901,7 @@
       // audio.playbackRate. Avantage : pas besoin de télécharger/décoder le
       // fichier brut, donc pas de souci de CORS pour ces effets-là.
       function buildAudioGraphForElement(ctx, node, song) {
+        let gainBoost = 1;
         const fv = song.filterValue || 0;
         if (fv > 15) {
           const hp = ctx.createBiquadFilter();
@@ -803,12 +909,14 @@
           hp.frequency.value = 100 + (fv / 100) * 4000;
           node.connect(hp);
           node = hp;
+          gainBoost *= 1.6;
         } else if (fv < -15) {
           const lp = ctx.createBiquadFilter();
           lp.type = 'lowpass';
           lp.frequency.value = 8000 + (fv / 100) * 7800;
           node.connect(lp);
           node = lp;
+          gainBoost *= 1.6;
         }
         if (song.radioMode) {
           const hp2 = ctx.createBiquadFilter();
@@ -828,6 +936,13 @@
           hp2.connect(lp2);
           lp2.connect(shaper);
           node = shaper;
+          gainBoost *= 2.2;
+        }
+        if (gainBoost !== 1) {
+          const gainNode = ctx.createGain();
+          gainNode.gain.value = Math.min(gainBoost, 4);
+          node.connect(gainNode);
+          node = gainNode;
         }
         return node;
       }
@@ -1095,6 +1210,25 @@
           renderScoreboard('hostScoreboard');
         }
 
+        // Lance l'extrait et vérifie, un court instant après, que quelque
+        // chose joue vraiment. Si c'est resté silencieux (ça arrive parfois
+        // au tout premier lancement), on retente une fois automatiquement
+        // avant de demander à l'hôte de recharger la page en dernier recours.
+        async function playSongClipWithRetry(song, isRetry) {
+          const ctx = getAudioContext();
+          await ensureAudioContextRunning(ctx);
+          await playSongClip(song);
+          setTimeout(() => {
+            const isSilent = (!currentAudio || currentAudio.paused) && !currentWebAudioSource;
+            if (isSilent && !isRetry) {
+              notifyEffectIssue('🔁 Aucun son détecté, nouvel essai automatique...');
+              playSongClipWithRetry(song, true);
+            } else if (isSilent && isRetry) {
+              notifyEffectIssue('⚠️ Toujours aucun son. Recharge la page si ça persiste (ton extrait/réglages sont sauvegardés, rien n\'est perdu).');
+            }
+          }, 700);
+        }
+
         hostPlay.addEventListener('click', async () => {
           if (roundActive) return;
           let song = gameSongs[currentSongIndex];
@@ -1129,7 +1263,7 @@
           hostReveal.classList.remove('correct-ready');
           resetQuadrantCover(song);
           // Lecture de l'extrait, en respectant les réglages choisis à la sélection
-          playSongClip(song);
+          playSongClipWithRetry(song, false);
         });
 
         // Recommencer l'extrait en cours depuis le début (sans changer de chanson)
@@ -1147,7 +1281,7 @@
           });
           hostReveal.classList.remove('correct-ready');
           resetQuadrantCover(song);
-          playSongClip(song);
+          playSongClipWithRetry(song, false);
         });
 
         // Mode Playlist : calcule les scores de tous les votes d'un coup
@@ -1160,28 +1294,51 @@
           const currentVotes = votesSnap.val() || {};
           const ownerIds = getSongOwnerIds(song);
           const newScores = Object.assign({}, scores);
+          const breakdown = [];
+          const playersSnap = await playersRef.once('value');
+          const players = playersSnap.val() || {};
           Object.entries(currentVotes).forEach(([playerId, v]) => {
             const isCorrect = ownerIds.includes(v.guess);
             const elapsed = Math.max(0, (v.at || roundStartTime) - roundStartTime);
             const pts = isCorrect ? computeKahootPoints(elapsed) : -10;
             newScores[playerId] = (newScores[playerId] || 0) + pts;
+            breakdown.push({
+              name: players[playerId] ? players[playerId].name : '?',
+              points: pts,
+              correct: isCorrect
+            });
           });
           scores = newScores;
           await gameStateRef.update({ scores: newScores, roundActive: false, buzzerLocked: true, reopenAt: 0 });
+          return breakdown;
         }
 
         async function revealPlaylistRound(song) {
           const ownerNames = getSongOwnerNames(song);
-          await scorePlaylistRound(song);
+          const breakdown = await scorePlaylistRound(song);
 
           const popup = document.getElementById('popupReveal');
           const cover = document.getElementById('revealCover');
           const title = document.getElementById('revealTitle');
           const artist = document.getElementById('revealArtist');
+          const votesDiv = document.getElementById('revealVotesBreakdown');
           cover.src = song.artwork || 'https://via.placeholder.com/120';
           cover.classList.remove('blur');
           title.textContent = song.title;
           artist.textContent = `${song.artist} · 🎧 Playlist de ${ownerNames.join(' & ') || '?'}`;
+
+          if (breakdown.length > 0) {
+            votesDiv.classList.remove('hidden');
+            votesDiv.innerHTML = breakdown.map((b, idx) => `
+              <div class="votes-breakdown-row" style="animation-delay:${idx * 0.15}s">
+                <span>${b.correct ? '✅' : '❌'} ${b.name}</span>
+                <span class="vb-points ${b.correct ? 'correct' : 'wrong'}">${b.points > 0 ? '+' : ''}${b.points} pts</span>
+              </div>
+            `).join('');
+          } else {
+            votesDiv.classList.add('hidden');
+            votesDiv.innerHTML = '';
+          }
           popup.classList.remove('hidden');
         }
 

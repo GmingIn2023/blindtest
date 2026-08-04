@@ -730,12 +730,17 @@
 
       searchInstrumentalBtn.addEventListener('click', async () => {
         if (!draftSong) return;
-        instrumentalResults.innerHTML = '<div class="loading">🔎 Recherche...</div>';
-        const term = `${draftSong.trackName} ${draftSong.artistName} instrumental`;
+        instrumentalResults.innerHTML = '<div class="loading">🔎 Recherche d\'une version instrumentale...</div>';
+        const baseTerm = `${draftSong.trackName} ${draftSong.artistName}`;
         const debugLog = [];
-        const { ok, results } = await searchItunes(term, debugLog);
+        let { ok, results } = await searchItunes(`${baseTerm} instrumental`, debugLog);
         if (!ok || results.length === 0) {
-          instrumentalResults.innerHTML = '<div class="error-text">Aucune version instrumentale trouvée. Essaie "karaoké" ou change de variante.</div>';
+          instrumentalResults.innerHTML = '<div class="loading">🔎 Toujours rien, on tente "karaoké"...</div>';
+          const debugLog2 = [];
+          ({ ok, results } = await searchItunes(`${baseTerm} karaoké`, debugLog2));
+        }
+        if (!ok || results.length === 0) {
+          instrumentalResults.innerHTML = '<div class="error-text">Nope, désolé mais va falloir faire sans cette fois 🤷‍♂️, peut-être une autre fois ?</div>';
           return;
         }
         instrumentalResults.innerHTML = '';
@@ -1026,9 +1031,11 @@
         source.detune.value = (settings.pitch || 0) * 100; // demi-tons -> cents
 
         let node = source;
+        let gainBoost = 1;
         const variant = settings.instrumentalVariant || 1;
         if (settings.instrumental && (variant === 2 || variant === 3)) {
           node = applyVocalNotch(ctx, node, settings.instrumentalIntensity);
+          gainBoost *= 1.8;
         }
 
         const fv = settings.filterValue || 0;
@@ -1038,12 +1045,14 @@
           hp.frequency.value = 100 + (fv / 100) * 4000;
           node.connect(hp);
           node = hp;
+          gainBoost *= 1.6;
         } else if (fv < -15) {
           const lp = ctx.createBiquadFilter();
           lp.type = 'lowpass';
           lp.frequency.value = 8000 + (fv / 100) * 7800;
           node.connect(lp);
           node = lp;
+          gainBoost *= 1.6;
         }
 
         if (settings.radioMode) {
@@ -1064,11 +1073,20 @@
           hp2.connect(lp2);
           lp2.connect(shaper);
           node = shaper;
+          gainBoost *= 2.2;
+        }
+
+        if (gainBoost !== 1) {
+          const gainNode = ctx.createGain();
+          gainNode.gain.value = Math.min(gainBoost, 4);
+          node.connect(gainNode);
+          node = gainNode;
         }
         return node;
       }
 
       function buildAudioGraphForElement(ctx, node, settings) {
+        let gainBoost = 1;
         const fv = settings.filterValue || 0;
         if (fv > 15) {
           const hp = ctx.createBiquadFilter();
@@ -1076,12 +1094,14 @@
           hp.frequency.value = 100 + (fv / 100) * 4000;
           node.connect(hp);
           node = hp;
+          gainBoost *= 1.6;
         } else if (fv < -15) {
           const lp = ctx.createBiquadFilter();
           lp.type = 'lowpass';
           lp.frequency.value = 8000 + (fv / 100) * 7800;
           node.connect(lp);
           node = lp;
+          gainBoost *= 1.6;
         }
         if (settings.radioMode) {
           const hp2 = ctx.createBiquadFilter();
@@ -1101,6 +1121,13 @@
           hp2.connect(lp2);
           lp2.connect(shaper);
           node = shaper;
+          gainBoost *= 2.2;
+        }
+        if (gainBoost !== 1) {
+          const gainNode = ctx.createGain();
+          gainNode.gain.value = Math.min(gainBoost, 4);
+          node.connect(gainNode);
+          node = gainNode;
         }
         return node;
       }
@@ -1113,6 +1140,7 @@
           pitch: parseInt(pitchSlider.value, 10) || 0,
           filterValue: parseFloat(filterSlider.value) || 0,
           radioMode: radioModeCheck.checked,
+          instrumental: instrumentalCheck.checked,
           instrumentalVariant: selectedVariant,
           instrumentalIntensity: parseInt(variantIntensitySlider.value, 10) || 60
         };
@@ -1296,7 +1324,7 @@
             return;
           }
           if (isDone) {
-            window.location.href = 'waiting.html';
+            setTimeout(() => { window.location.href = 'waiting.html'; }, 500);
           } else {
             // On retire juste la carte choisie de la liste déjà affichée,
             // au lieu de relancer une recherche (ça évitait de retaper l'API
@@ -1326,7 +1354,7 @@
             return;
           }
           if (isDone) {
-            window.location.href = 'waiting.html';
+            setTimeout(() => { window.location.href = 'waiting.html'; }, 500);
           } else if (cardToRemove && cardToRemove.parentNode) {
             cardToRemove.remove();
           }

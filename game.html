@@ -321,6 +321,27 @@
       0%, 100% { transform: translateY(0); opacity: 0.6; }
       50% { transform: translateY(-14px); opacity: 1; }
     }
+
+    /* Mode Paroles : affichage progressif de l'extrait choisi */
+    .lyrics-display {
+      background: #10161c;
+      border: 1px solid #2d353e;
+      border-radius: 1.2rem;
+      padding: 1.4rem 1.2rem;
+      margin: 1rem 0;
+      text-align: center;
+      font-size: 1.15rem;
+      line-height: 1.7;
+      min-height: 3.5rem;
+    }
+    .lyrics-display.hidden { display: none; }
+    .lyrics-word {
+      display: inline-block;
+      margin: 0 0.2rem;
+    }
+    .lyrics-word.blank {
+      color: #3e4a57;
+    }
   </style>
 </head>
 <body>
@@ -349,6 +370,7 @@
       <div id="instrumentalVisual" class="instrumental-visual hidden">
         <span>🎸</span><span>🥁</span><span>🎹</span><span>🎷</span><span>🎻</span>
       </div>
+      <div id="hostLyricsDisplay" class="lyrics-display hidden"></div>
       <div id="hostNotification" class="notification"></div>
       <div id="hostScoreboard" class="scoreboard"></div>
       <button id="hostNext" class="primary">⏩ Chanson suivante</button>
@@ -361,6 +383,7 @@
     <div id="player-view" class="hidden">
       <div id="playerSongInfo" style="text-align:center; margin-bottom:1rem;">Chanson 1 / ?</div>
       <div class="timer-big" id="playerTimer">00:00.0</div>
+      <div id="playerLyricsDisplay" class="lyrics-display hidden"></div>
       <div id="playerScore" style="font-size:1.5rem; text-align:center; color:#d4ffb0; margin:0.5rem;">0 pts</div>
       <div id="playerAttempts" style="text-align:center;">Essais restants: ∞</div>
       <div id="cooldownDisplay" class="cooldown-timer"></div>
@@ -556,7 +579,9 @@
           maxAttempts: (config.maxAttempts !== undefined) ? config.maxAttempts : 3,
           blurEnabled: !!config.blurEnabled,
           lockOthersOnBuzz: (config.lockOthersOnBuzz !== undefined) ? config.lockOthersOnBuzz : true,
-          multipleCorrectAllowed: !!config.multipleCorrectAllowed
+          multipleCorrectAllowed: !!config.multipleCorrectAllowed,
+          lyricsSpeed: config.lyricsSpeed || 'slow',
+          lyricsSkipWords: !!config.lyricsSkipWords
         });
         if (mergeDebug) mergeDebug.textContent += ` → ✅ écrit avec succès (${allSongs.length} chansons)`;
         return true;
@@ -598,6 +623,8 @@
       let reopenAt = 0;           // timestamp: le buzzer redevient dispo pour tous après une erreur
       let lockOthersOnBuzz = true;
       let multipleCorrectAllowed = false;
+      let lyricsSpeed = 'slow';
+      let lyricsSkipWords = false;
       let votes = {}; // mode Playlist : { playerId: { guess: ownerId, at: timestamp } }
       let mode = 'classic';
       let maxAttempts = 3;
@@ -745,6 +772,22 @@
           points = 80 - 5 * (t - 5);
         }
         return Math.max(20, Math.round(points));
+      }
+
+      // Mode Paroles : calcule combien de mots sont révélés selon le temps
+      // écoulé et la vitesse choisie, avec certains mots qui restent cachés
+      // si l'option est activée (toujours les mêmes, pour que tout le monde
+      // voie exactement la même chose).
+      const LYRICS_MS_PER_WORD = { slow: 1200, medium: 700, fast: 400 };
+      function renderLyricsReveal(snippet, elapsedMs) {
+        if (!snippet) return '';
+        const words = snippet.split(/\s+/).filter(Boolean);
+        const msPerWord = LYRICS_MS_PER_WORD[lyricsSpeed] || LYRICS_MS_PER_WORD.slow;
+        const revealedCount = Math.max(0, Math.min(words.length, Math.floor(elapsedMs / msPerWord)));
+        return words.map((w, i) => {
+          const hidden = i >= revealedCount || (lyricsSkipWords && i % 3 === 2);
+          return `<span class="lyrics-word${hidden ? ' blank' : ''}">${hidden ? '▪'.repeat(Math.min(w.length, 6)) : w}</span>`;
+        }).join(' ');
       }
 
       function getAudioContext() {
@@ -1113,6 +1156,8 @@
         reopenAt = gs.reopenAt || 0;
         lockOthersOnBuzz = (gs.lockOthersOnBuzz !== undefined) ? gs.lockOthersOnBuzz : true;
         multipleCorrectAllowed = gs.multipleCorrectAllowed || false;
+        lyricsSpeed = gs.lyricsSpeed || 'slow';
+        lyricsSkipWords = gs.lyricsSkipWords || false;
         votes = gs.votes || {};
         mode = gs.mode || 'classic';
         maxAttempts = (gs.maxAttempts !== undefined && gs.maxAttempts !== null) ? gs.maxAttempts : 3;
@@ -1150,6 +1195,7 @@
             const elapsed = Date.now() - roundStartTime;
             hostTimer.textContent = formatTimer(elapsed);
             updateQuadrantCover(elapsed);
+            if (mode === 'lyrics') updateHostLyricsDisplay(elapsed);
           } else {
             // Filet de sécurité : si la manche n'est plus active (bonne
             // réponse trouvée, révélée, etc.) mais qu'un extrait joue encore
@@ -1157,6 +1203,14 @@
             stopCurrentPlayback();
           }
         }, 100);
+
+        function updateHostLyricsDisplay(elapsedMs) {
+          const display = document.getElementById('hostLyricsDisplay');
+          const song = gameSongs[currentSongIndex];
+          if (!song || !song.lyricsSnippet) { display.classList.add('hidden'); return; }
+          display.classList.remove('hidden');
+          display.innerHTML = renderLyricsReveal(song.lyricsSnippet, elapsedMs);
+        }
 
         function resetQuadrantCover(song) {
           const container = document.getElementById('quadrantCover');
@@ -1174,12 +1228,15 @@
           }
         }
 
-        // Coin par coin (2s/4s/6s/8s), puis le flou diminue progressivement
+        // Coin par coin (2s/4s/6s/8s), puis le flou diminue progressivement.
+        // En mode Paroles, tout est 1,5x plus lent (les indices arrivent
+        // déjà par le texte, pas besoin que la cover se révèle aussi vite).
         function updateQuadrantCover(elapsedMs) {
           if (!blurEnabled) return;
           const container = document.getElementById('quadrantCover');
           if (!container || container.classList.contains('hidden')) return;
-          const t = elapsedMs / 1000;
+          const slowFactor = mode === 'lyrics' ? 1.5 : 1;
+          const t = (elapsedMs / 1000) / slowFactor;
           const revealTimes = [2, 4, 6, 8];
           for (let i = 0; i < 4; i++) {
             if (t >= revealTimes[i]) {
@@ -1232,7 +1289,8 @@
         hostPlay.addEventListener('click', async () => {
           if (roundActive) return;
           let song = gameSongs[currentSongIndex];
-          if (!song || !song.previewUrl) {
+          const needsPreview = mode !== 'lyrics';
+          if (!song || (needsPreview && !song.previewUrl)) {
             // On attend que la réparation automatique ait fini avant de
             // conclure qu'il n'y a vraiment rien (évite de renvoyer à tort
             // vers la sélection si on clique Play trop vite après le
@@ -1247,7 +1305,7 @@
               song = gameSongs[currentSongIndex];
             }
           }
-          if (!song || !song.previewUrl) {
+          if (!song || (needsPreview && !song.previewUrl)) {
             alert('Aucune chanson trouvée pour cette partie. Regarde le message orange en bas de l\'écran et copie-le-moi.');
             return;
           }
@@ -1262,14 +1320,16 @@
           });
           hostReveal.classList.remove('correct-ready');
           resetQuadrantCover(song);
-          // Lecture de l'extrait, en respectant les réglages choisis à la sélection
-          playSongClipWithRetry(song, false);
+          // Mode Paroles : pas d'audio, juste la révélation progressive du texte
+          if (mode !== 'lyrics') {
+            playSongClipWithRetry(song, false);
+          }
         });
 
         // Recommencer l'extrait en cours depuis le début (sans changer de chanson)
         document.getElementById('hostRestartClip').addEventListener('click', () => {
           const song = gameSongs[currentSongIndex];
-          if (!song || !song.previewUrl) return;
+          if (!song || (mode !== 'lyrics' && !song.previewUrl)) return;
           const startTime = Date.now();
           gameStateRef.update({
             roundStartTime: startTime,
@@ -1281,7 +1341,9 @@
           });
           hostReveal.classList.remove('correct-ready');
           resetQuadrantCover(song);
-          playSongClipWithRetry(song, false);
+          if (mode !== 'lyrics') {
+            playSongClipWithRetry(song, false);
+          }
         });
 
         // Mode Playlist : calcule les scores de tous les votes d'un coup
@@ -1467,9 +1529,18 @@
           if (roundActive && roundStartTime > 0) {
             const elapsed = Date.now() - roundStartTime;
             playerTimer.textContent = formatTimer(elapsed);
+            if (mode === 'lyrics') updatePlayerLyricsDisplay(elapsed);
           }
           if (mode === 'playlist') renderVoteGrid();
         }, 300);
+
+        function updatePlayerLyricsDisplay(elapsedMs) {
+          const display = document.getElementById('playerLyricsDisplay');
+          const song = gameSongs[currentSongIndex];
+          if (!song || !song.lyricsSnippet) { display.classList.add('hidden'); return; }
+          display.classList.remove('hidden');
+          display.innerHTML = renderLyricsReveal(song.lyricsSnippet, elapsedMs);
+        }
 
         // Empêche de rouvrir la popup deux fois pour la même prise de buzzer
         let popupOpenForBuzzAt = 0;

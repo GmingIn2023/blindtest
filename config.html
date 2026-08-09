@@ -70,6 +70,7 @@
           <label class="radio-label"><input type="radio" name="gameMode" value="classic" checked> 🎵 Normal</label>
           <label class="radio-label"><input type="radio" name="gameMode" value="instrumental"> 🎸 Instrumental (deviner sans les voix)</label>
           <label class="radio-label"><input type="radio" name="gameMode" value="playlist"> 🎧 Playlist (deviner à qui appartient la chanson)</label>
+          <label class="radio-label"><input type="radio" name="gameMode" value="lyrics"> 🎤 Paroles (deviner d'où viennent les paroles)</label>
         </div>
         <div id="playlistModeNote" class="hint-text hidden" style="color:#f5a623; margin-top:0.5rem;">
           ⚠️ Minimum 3 joueurs (hors hôte). Chaque joueur construit sa propre playlist — l'hôte n'en choisit pas.
@@ -77,6 +78,17 @@
         <div id="playlistSongsPerPlayerGroup" class="hidden" style="margin-top:0.8rem;">
           <label>🎵 Chansons par joueur (mode Playlist)</label>
           <input type="number" id="playlistSongsPerPlayer" min="2" max="5" value="5">
+        </div>
+        <div id="lyricsModeGroup" class="hidden" style="margin-top:0.8rem;">
+          <label>⏱️ Vitesse d'apparition des paroles</label>
+          <div class="radio-group">
+            <label class="radio-label"><input type="radio" name="lyricsSpeed" value="slow" checked> 🐢 Lent</label>
+            <label class="radio-label"><input type="radio" name="lyricsSpeed" value="medium"> 🚶 Moyen</label>
+            <label class="radio-label"><input type="radio" name="lyricsSpeed" value="fast"> ⚡ Rapide</label>
+          </div>
+          <label class="checkbox-label" style="margin-top:0.8rem;">
+            <input type="checkbox" id="lyricsSkipWordsCheck"> 🕳️ Certains mots restent cachés (plus difficile)
+          </label>
         </div>
       </div>
 
@@ -154,6 +166,7 @@
           playlistModeNote.classList.add('hidden');
           playlistSongsPerPlayerGroup.classList.add('hidden');
         }
+        document.getElementById('lyricsModeGroup').classList.toggle('hidden', mode !== 'lyrics');
       }
       document.querySelectorAll('input[name="gameMode"]').forEach(r => r.addEventListener('change', updateModeUI));
       updateModeUI();
@@ -187,6 +200,9 @@
           document.getElementById('playerCount').value = cfg.expectedPlayerCount;
           document.getElementById('totalSongs').value = cfg.totalSongs;
           document.getElementById('playlistSongsPerPlayer').value = cfg.playlistSongsPerPlayer || 5;
+          const speedRadio = document.querySelector(`input[name="lyricsSpeed"][value="${cfg.lyricsSpeed || 'slow'}"]`);
+          if (speedRadio) speedRadio.checked = true;
+          document.getElementById('lyricsSkipWordsCheck').checked = !!cfg.lyricsSkipWords;
           updateModeUI();
           updateDuplicatesHint();
         });
@@ -206,6 +222,8 @@
         const blurEnabled = document.getElementById('blurCheck').checked;
         const lockOthersOnBuzz = document.getElementById('lockOthersCheck').checked;
         const multipleCorrectAllowed = document.getElementById('multipleCorrectCheck').checked;
+        const lyricsSpeed = document.querySelector('input[name="lyricsSpeed"]:checked')?.value || 'slow';
+        const lyricsSkipWords = document.getElementById('lyricsSkipWordsCheck').checked;
         const allowDuplicates = document.getElementById('allowDuplicatesCheck').checked;
         const advancedSettings = document.getElementById('advancedSettingsCheck').checked;
         const playerCount = parseInt(document.getElementById('playerCount').value, 10);
@@ -250,7 +268,9 @@
           expectedPlayerCount: playerCount,
           totalSongs: totalSongs,
           hostSongsCount: hostSongsCount,
-          playlistSongsPerPlayer: playlistSongsPerPlayer
+          playlistSongsPerPlayer: playlistSongsPerPlayer,
+          lyricsSpeed: lyricsSpeed,
+          lyricsSkipWords: lyricsSkipWords
         };
 
         // ===== Mode édition : on met juste à jour la room existante =====

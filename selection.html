@@ -185,6 +185,34 @@
       65%  { opacity: 1; transform: translate(-50%, 0); }
       100% { opacity: 0; transform: translate(-50%, -14px); }
     }
+    .lyrics-scroll-area {
+      max-height: 45vh;
+      overflow-y: auto;
+      background: #101418;
+      border: 1px solid #2d353e;
+      border-radius: 1rem;
+      padding: 1rem;
+      margin: 0.6rem 0;
+      -webkit-overflow-scrolling: touch;
+    }
+    .lyrics-scroll-area.hidden { display: none; }
+    .lyrics-line {
+      padding: 0.35rem 0.5rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      color: #cfd8e3;
+      line-height: 1.5;
+    }
+    .lyrics-line:active { background: #1c2530; }
+    .lyrics-line.selected {
+      background: #223047;
+      color: #fff;
+      border-left: 3px solid #5e9eff;
+    }
+    .lyrics-line.invalid {
+      background: #3a1f1f;
+      border-left: 3px solid #ff6b6b;
+    }
   </style>
 </head>
 <body>
@@ -292,6 +320,35 @@
         <button type="button" id="cancelSelectBtn">Annuler</button>
       </div>
       <div id="modalError" class="error-text"></div>
+    </div>
+  </div>
+
+  <!-- Modale de sélection des paroles (mode Paroles) -->
+  <div id="lyricsModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-song-info">
+        <img id="lyricsModalArtwork" src="" alt="cover">
+        <div>
+          <div id="lyricsModalTitle" class="song-title"></div>
+          <div id="lyricsModalArtist" class="song-artist"></div>
+        </div>
+      </div>
+
+      <p class="hint-text" id="lyricsInstructions">
+        Fais défiler les paroles et touche une ligne pour commencer ta sélection,
+        puis touche la ligne juste en dessous pour finir (2 lignes consécutives, 3 à 20 mots au total).
+      </p>
+
+      <div id="lyricsLoading" class="loading">🔎 Recherche des paroles...</div>
+      <div id="lyricsScrollArea" class="lyrics-scroll-area hidden"></div>
+      <div id="lyricsWordCountHint" class="hint-text"></div>
+
+      <div class="modal-actions">
+        <button type="button" id="confirmLyricsBtn" disabled>✅ Choisir cette chanson</button>
+        <button type="button" id="retryKaraokeLyricsBtn" class="hidden">🔎 Essayer une autre recherche</button>
+        <button type="button" id="cancelLyricsBtn">Annuler</button>
+      </div>
+      <div id="lyricsModalError" class="error-text"></div>
     </div>
   </div>
 
@@ -664,7 +721,7 @@
           return;
         }
         results.forEach(song => {
-          if (!song.previewUrl) return; // pas d'extrait dispo, inutile pour le jeu
+          if (gameMode !== 'lyrics' && !song.previewUrl) return; // pas d'extrait dispo, inutile pour le jeu (sauf en mode Paroles)
           const card = document.createElement('div');
           card.className = 'song-card';
           card.innerHTML = `
@@ -674,7 +731,10 @@
               <div class="song-artist">${escapeHTML(song.artistName || 'Inconnu')}</div>
             </div>
           `;
-          card.addEventListener('click', () => openCustomizeModal(song, card));
+          card.addEventListener('click', () => {
+            if (gameMode === 'lyrics') openLyricsPickerModal(song, card);
+            else openCustomizeModal(song, card);
+          });
           resultsDiv.appendChild(card);
         });
       }
@@ -1261,6 +1321,58 @@
         );
       }
 
+      // Sauvegarde une chanson choisie (utilisé par le mode audio classique
+      // ET le mode Paroles) : gère le quota hôte/joueur, la sauvegarde
+      // Firebase immédiate, et la redirection une fois le quota atteint.
+      async function saveSongPick(songData, cardToRemove) {
+        if (isHost) {
+          if (hostSelected.length >= hostQuota) {
+            alert('Tu as déjà choisi toutes tes chansons');
+            return;
+          }
+          hostSelected.push(songData);
+          counterSpan.textContent = `${hostSelected.length} / ${hostQuota}`;
+          const isDone = hostSelected.length >= hostQuota;
+          try {
+            await selectionsRef.child('host').set({ songs: hostSelected, done: isDone });
+            errorMsg.innerHTML = `<div style="color:#7fff9f;font-size:0.8rem;">✅ Sauvegardé (${hostSelected.length}/${hostQuota})</div>`;
+          } catch (err) {
+            hostSelected.pop();
+            counterSpan.textContent = `${hostSelected.length} / ${hostQuota}`;
+            errorMsg.innerHTML = `<div class="error-text">❌ ÉCHEC de sauvegarde Firebase : ${err && err.message ? err.message : err}</div>`;
+            return;
+          }
+          if (isDone) {
+            setTimeout(() => { window.location.href = 'waiting.html'; }, 500);
+          } else if (cardToRemove && cardToRemove.parentNode) {
+            cardToRemove.remove();
+          }
+        } else {
+          if (playerSelectedList.length >= playerQuota) {
+            alert('Tu as déjà choisi toutes tes chansons');
+            return;
+          }
+          songData.ownerId = clientId;
+          songData.ownerName = playerName;
+          playerSelectedList.push(songData);
+          const isDone = playerSelectedList.length >= playerQuota;
+          counterSpan.textContent = `${playerSelectedList.length} / ${playerQuota}`;
+          try {
+            await selectionsRef.child(clientId).set({ songs: playerSelectedList, done: isDone });
+          } catch (err) {
+            playerSelectedList.pop();
+            counterSpan.textContent = `${playerSelectedList.length} / ${playerQuota}`;
+            errorMsg.innerHTML = `<div class="error-text">❌ ÉCHEC de sauvegarde Firebase : ${err && err.message ? err.message : err}</div>`;
+            return;
+          }
+          if (isDone) {
+            setTimeout(() => { window.location.href = 'waiting.html'; }, 500);
+          } else if (cardToRemove && cardToRemove.parentNode) {
+            cardToRemove.remove();
+          }
+        }
+      }
+
       confirmBtn.addEventListener('click', async () => {
         if (!draftSong) return;
 
@@ -1302,63 +1414,180 @@
         closeModal();
         searchInput.value = '';
         showSongAddedPopup(songData);
+        await saveSongPick(songData, cardToRemove);
+      });
 
-        if (isHost) {
-          if (hostSelected.length >= hostQuota) {
-            alert('Tu as déjà choisi toutes tes chansons');
-            return;
+      // ==================== MODE PAROLES ====================
+      let lyricsDraftSong = null;
+      let lyricsDraftCard = null;
+      let lyricsSelectedStart = -1;
+      let lyricsLines = [];
+
+      const lyricsModal = document.getElementById('lyricsModal');
+      const lyricsModalArtwork = document.getElementById('lyricsModalArtwork');
+      const lyricsModalTitle = document.getElementById('lyricsModalTitle');
+      const lyricsModalArtist = document.getElementById('lyricsModalArtist');
+      const lyricsLoading = document.getElementById('lyricsLoading');
+      const lyricsScrollArea = document.getElementById('lyricsScrollArea');
+      const lyricsWordCountHint = document.getElementById('lyricsWordCountHint');
+      const confirmLyricsBtn = document.getElementById('confirmLyricsBtn');
+      const retryKaraokeLyricsBtn = document.getElementById('retryKaraokeLyricsBtn');
+      const cancelLyricsBtn = document.getElementById('cancelLyricsBtn');
+      const lyricsModalError = document.getElementById('lyricsModalError');
+
+      // api.lyrics.ovh ne supporte pas le CORS : on tente en direct (ça
+      // marche parfois quand même) puis on passe par les mêmes proxys que
+      // pour la recherche de chansons.
+      async function fetchLyricsRaw(artist, title) {
+        const target = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`;
+        try {
+          const controller = new AbortController();
+          const t = setTimeout(() => controller.abort(), 6000);
+          const res = await fetch(target, { signal: controller.signal });
+          clearTimeout(t);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.lyrics) return data.lyrics;
           }
-          hostSelected.push(songData);
-          counterSpan.textContent = `${hostSelected.length} / ${hostQuota}`;
-          const isDone = hostSelected.length >= hostQuota;
-          // Sauvegarde immédiate à CHAQUE chanson choisie (pas seulement à la
-          // fin) : si la page recharge ou si tu repars en cours de route,
-          // rien n'est perdu.
+        } catch (e) { /* tant pis, on tente les proxys */ }
+
+        for (const proxyPrefix of ['https://api.allorigins.win/raw?url=', 'https://corsproxy.io/?url=']) {
           try {
-            await selectionsRef.child('host').set({ songs: hostSelected, done: isDone });
-            errorMsg.innerHTML = `<div style="color:#7fff9f;font-size:0.8rem;">✅ Sauvegardé (${hostSelected.length}/${hostQuota})</div>`;
-          } catch (err) {
-            hostSelected.pop(); // on annule le compteur local, l'écriture a échoué
-            counterSpan.textContent = `${hostSelected.length} / ${hostQuota}`;
-            errorMsg.innerHTML = `<div class="error-text">❌ ÉCHEC de sauvegarde Firebase : ${err && err.message ? err.message : err}</div>`;
-            return;
-          }
-          if (isDone) {
-            setTimeout(() => { window.location.href = 'waiting.html'; }, 500);
-          } else {
-            // On retire juste la carte choisie de la liste déjà affichée,
-            // au lieu de relancer une recherche (ça évitait de retaper l'API
-            // trop vite, ce qui déclenchait le blocage anti-abus d'Apple).
-            if (cardToRemove && cardToRemove.parentNode) {
-              cardToRemove.remove();
+            const controller = new AbortController();
+            const t = setTimeout(() => controller.abort(), 8000);
+            const res = await fetch(proxyPrefix + encodeURIComponent(target), { signal: controller.signal });
+            clearTimeout(t);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.lyrics) return data.lyrics;
             }
+          } catch (e) { /* on tente le suivant */ }
+        }
+        return null;
+      }
+
+      function countWords(str) {
+        return str.trim().split(/\s+/).filter(Boolean).length;
+      }
+
+      function renderLyricsLines() {
+        lyricsSelectedStart = -1;
+        confirmLyricsBtn.disabled = true;
+        lyricsWordCountHint.textContent = '';
+        lyricsScrollArea.innerHTML = '';
+        lyricsLines.forEach((line, idx) => {
+          const div = document.createElement('div');
+          div.className = 'lyrics-line';
+          div.textContent = line;
+          div.dataset.idx = idx;
+          div.addEventListener('click', () => handleLyricsLineClick(idx));
+          lyricsScrollArea.appendChild(div);
+        });
+      }
+
+      function handleLyricsLineClick(idx) {
+        const rows = lyricsScrollArea.querySelectorAll('.lyrics-line');
+        if (lyricsSelectedStart === -1 || idx !== lyricsSelectedStart + 1) {
+          // Première ligne, ou on redémarre la sélection ailleurs
+          rows.forEach(r => r.classList.remove('selected', 'invalid'));
+          if (idx === lyricsSelectedStart) {
+            // Reclique sur la même ligne : annule
+            lyricsSelectedStart = -1;
+            confirmLyricsBtn.disabled = true;
+            lyricsWordCountHint.textContent = '';
+            return;
           }
+          lyricsSelectedStart = idx;
+          rows[idx].classList.add('selected');
+          confirmLyricsBtn.disabled = true;
+          lyricsWordCountHint.textContent = "Touche la ligne juste en dessous pour compléter ta sélection.";
+          return;
+        }
+        // Ligne juste en dessous : complète la paire
+        rows[idx].classList.add('selected');
+        const combined = lyricsLines[lyricsSelectedStart] + ' ' + lyricsLines[idx];
+        const wc = countWords(combined);
+        if (wc < 3 || wc > 20) {
+          rows[lyricsSelectedStart].classList.add('invalid');
+          rows[idx].classList.add('invalid');
+          lyricsWordCountHint.textContent = `⚠️ ${wc} mots — il en faut entre 3 et 20. Choisis d'autres lignes.`;
+          confirmLyricsBtn.disabled = true;
         } else {
-          if (playerSelectedList.length >= playerQuota) {
-            alert('Tu as déjà choisi toutes tes chansons');
+          rows[lyricsSelectedStart].classList.remove('invalid');
+          rows[idx].classList.remove('invalid');
+          lyricsWordCountHint.textContent = `✅ ${wc} mots sélectionnés`;
+          confirmLyricsBtn.disabled = false;
+        }
+      }
+
+      async function loadAndRenderLyrics(song, searchTitle) {
+        lyricsLoading.classList.remove('hidden');
+        lyricsScrollArea.classList.add('hidden');
+        lyricsModalError.textContent = '';
+        retryKaraokeLyricsBtn.classList.add('hidden');
+        const raw = await fetchLyricsRaw(song.artistName, searchTitle || song.trackName);
+        lyricsLoading.classList.add('hidden');
+        if (!raw) {
+          lyricsModalError.textContent = 'Nope, désolé mais va falloir faire sans cette fois 🤷‍♂️, peut-être une autre chanson ?';
+          retryKaraokeLyricsBtn.classList.remove('hidden');
+          return;
+        }
+        lyricsLines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        renderLyricsLines();
+        lyricsScrollArea.classList.remove('hidden');
+      }
+
+      function openLyricsPickerModal(song, cardEl) {
+        lyricsDraftSong = song;
+        lyricsDraftCard = cardEl || null;
+        lyricsModalArtwork.src = song.artworkUrl100 || 'https://via.placeholder.com/64';
+        lyricsModalTitle.textContent = song.trackName || 'Sans titre';
+        lyricsModalArtist.textContent = song.artistName || 'Inconnu';
+        lyricsModal.classList.remove('hidden');
+        loadAndRenderLyrics(song);
+      }
+
+      cancelLyricsBtn.addEventListener('click', () => {
+        lyricsModal.classList.add('hidden');
+        lyricsDraftSong = null;
+        lyricsDraftCard = null;
+      });
+
+      retryKaraokeLyricsBtn.addEventListener('click', () => {
+        if (lyricsDraftSong) loadAndRenderLyrics(lyricsDraftSong, lyricsDraftSong.trackName + ' karaoké');
+      });
+
+      confirmLyricsBtn.addEventListener('click', async () => {
+        if (!lyricsDraftSong || lyricsSelectedStart === -1) return;
+        const line1 = lyricsLines[lyricsSelectedStart];
+        const line2 = lyricsLines[lyricsSelectedStart + 1];
+        if (line1 === undefined || line2 === undefined) return;
+        const wc = countWords(line1 + ' ' + line2);
+        if (wc < 3 || wc > 20) return;
+
+        if (!allowDuplicates) {
+          const taken = await isSongAlreadyTaken(lyricsDraftSong);
+          if (taken) {
+            lyricsModalError.textContent = '⚠️ Chanson déjà sélectionnée par quelqu\'un d\'autre, choisis-en une autre.';
             return;
-          }
-          // On tague toujours le propriétaire (pas seulement en mode Playlist) :
-          // ça sert à exclure ce joueur de la devinette sur sa propre chanson.
-          songData.ownerId = clientId;
-          songData.ownerName = playerName;
-          playerSelectedList.push(songData);
-          const isDone = playerSelectedList.length >= playerQuota;
-          counterSpan.textContent = `${playerSelectedList.length} / ${playerQuota}`;
-          try {
-            await selectionsRef.child(clientId).set({ songs: playerSelectedList, done: isDone });
-          } catch (err) {
-            playerSelectedList.pop();
-            counterSpan.textContent = `${playerSelectedList.length} / ${playerQuota}`;
-            errorMsg.innerHTML = `<div class="error-text">❌ ÉCHEC de sauvegarde Firebase : ${err && err.message ? err.message : err}</div>`;
-            return;
-          }
-          if (isDone) {
-            setTimeout(() => { window.location.href = 'waiting.html'; }, 500);
-          } else if (cardToRemove && cardToRemove.parentNode) {
-            cardToRemove.remove();
           }
         }
+
+        const cardToRemove = lyricsDraftCard;
+        const songData = {
+          title: lyricsDraftSong.trackName || 'Titre',
+          artist: lyricsDraftSong.artistName || 'Artiste',
+          artwork: lyricsDraftSong.artworkUrl100 || 'https://via.placeholder.com/100',
+          lyricsSnippet: line1 + '\n' + line2,
+          lyricsWordCount: wc
+        };
+
+        lyricsModal.classList.add('hidden');
+        lyricsDraftSong = null;
+        lyricsDraftCard = null;
+        searchInput.value = '';
+        showSongAddedPopup(songData);
+        await saveSongPick(songData, cardToRemove);
       });
     })();
   </script>

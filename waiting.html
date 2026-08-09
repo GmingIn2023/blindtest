@@ -175,7 +175,9 @@
             maxAttempts: (config.maxAttempts !== undefined) ? config.maxAttempts : 3,
             blurEnabled: !!config.blurEnabled,
             lockOthersOnBuzz: (config.lockOthersOnBuzz !== undefined) ? config.lockOthersOnBuzz : true,
-            multipleCorrectAllowed: !!config.multipleCorrectAllowed
+            multipleCorrectAllowed: !!config.multipleCorrectAllowed,
+            lyricsSpeed: config.lyricsSpeed || 'slow',
+            lyricsSkipWords: !!config.lyricsSkipWords
           });
         }
       }

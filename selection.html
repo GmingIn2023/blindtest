@@ -19,11 +19,12 @@
     }
     .search-container { background: #1c2127; border-radius: 1.8rem; padding: 1.6rem; }
     .search-box { display: flex; gap: 0.8rem; }
+    /* Correction visibilité saisie clavier */
     .search-box input[type="text"] {
       flex: 1;
       color: #ffffff !important;
       -webkit-text-fill-color: #ffffff !important;
-      background-color: #0f1a24 !important;
+      background: #0f1a24 !important;
     }
     .results-grid { display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem; max-height: 400px; overflow-y: auto; }
     .song-card { display: flex; align-items: center; background: #1a1f25; padding: 1rem; border-radius: 1.2rem; border: 2px solid #2d353e; cursor: pointer; transition: 0.2s; }
@@ -37,10 +38,14 @@
     .loading { color: #8aaec0; padding: 0.5rem 0; }
     .error-text { color: #ff6b6b; padding: 0.5rem 0; }
 
-    /* Modale de Personnalisation */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: flex-end; justify-content: center; z-index: 1000; }
+    /* Modale de personnalisation d'extrait */
+    .modal-overlay { 
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: flex-end; justify-content: center; z-index: 1000;
+    }
     .modal-overlay.hidden { display: none; }
-    .modal-box { background: #1a1f25; border-radius: 1.6rem 1.6rem 0 0; padding: 1.6rem; width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto; }
+    .modal-box {
+      background: #1a1f25; border-radius: 1.6rem 1.6rem 0 0; padding: 1.6rem; width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto;
+    }
     .modal-song-info { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.2rem; }
     .modal-song-info img { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; }
     .modal-box label { display: block; margin-top: 1.1rem; margin-bottom: 0.4rem; font-size: 0.92rem; color: #cfe0ea; }
@@ -55,14 +60,16 @@
     #confirmSelectBtn { background: #3b6eff; color: #fff; }
     #cancelSelectBtn { background: transparent; color: #8aaec0; }
     .hint-text { font-size: 0.8rem; color: #8aaec0; margin-top: 0.3rem; }
-    .song-added-popup { position: fixed; top: 16px; left: 50%; z-index: 1200; background: #17301f; border: 1px solid #4fd97f; border-radius: 1rem; padding: 0.7rem 1.2rem; text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,0.4); animation: sapInOut 1.3s ease forwards; }
+    .song-added-popup {
+      position: fixed; top: 16px; left: 50%; z-index: 1200; background: #17301f; border: 1px solid #4fd97f; border-radius: 1rem; padding: 0.7rem 1.2rem; text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,0.4); animation: sapInOut 1.3s ease forwards;
+    }
     .song-added-popup.hidden { display: none; }
     .sap-title { font-weight: 700; }
     .sap-options { font-size: 0.8rem; color: #9fe0b5; margin-top: 0.2rem; }
     @keyframes sapInOut {
-      0%   { opacity: 0; transform: translate(-50%, -14px); }
-      20%  { opacity: 1; transform: translate(-50%, 0); }
-      65%  { opacity: 1; transform: translate(-50%, 0); }
+      0% { opacity: 0; transform: translate(-50%, -14px); }
+      20% { opacity: 1; transform: translate(-50%, 0); }
+      65% { opacity: 1; transform: translate(-50%, 0); }
       100% { opacity: 0; transform: translate(-50%, -14px); }
     }
     .lyrics-scroll-area { max-height: 45vh; overflow-y: auto; background: #101418; border: 1px solid #2d353e; border-radius: 1rem; padding: 1rem; margin: 0.6rem 0; }
@@ -108,11 +115,10 @@
         </div>
       </div>
 
-      <!-- Durée -->
+      <!-- Option Volume visible -->
       <label>⏱️ Durée de l'extrait : <span id="durationValue">10</span>s</label>
       <input type="range" id="durationSlider" min="0.5" max="15" step="0.5" value="10">
 
-      <!-- Position de départ -->
       <label>📍 Position dans l'extrait</label>
       <div class="preset-buttons">
         <button type="button" id="presetStart">⏮️ Début</button>
@@ -122,15 +128,12 @@
       <input type="range" id="positionSlider" min="0" max="30" step="0.5" value="0">
       <div class="hint-text" id="positionHint">Chargement...</div>
 
-      <!-- Vitesse -->
       <label>⚡ Vitesse : <span id="speedValue">1.0x</span></label>
       <input type="range" id="speedSlider" min="0.4" max="2.5" step="0.1" value="1">
 
-      <!-- Ajustement Volume Général de l'extrait -->
       <label>🔊 Volume de cet extrait : <span id="volumeValue">100%</span></label>
       <input type="range" id="volumeSlider" min="70" max="150" step="5" value="100">
 
-      <!-- BLOCS DES PARAMÈTRES COMPLEXES (Masqués si classicModeOnly est actif) -->
       <div id="complexControlsGroup">
         <label class="checkbox-label" style="margin-top: 1.2rem;">
           <input type="checkbox" id="instrumentalCheck"> 🎸 Sans voix
@@ -147,7 +150,7 @@
           <input type="range" id="variantIntensitySlider" min="10" max="100" step="5" value="40">
         </div>
         <div id="instrumentalSearchGroup" class="hidden" style="margin-top:0.6rem;">
-          <button type="button" id="searchInstrumentalBtn" style="width:100%;">🔍 Chercher une version instrumentale officielle</button>
+          <button type="button" id="searchInstrumentalBtn" style="width:100%;">🔍 Chercher une version instrumentale</button>
           <div id="instrumentalResults" style="margin-top:0.5rem;"></div>
         </div>
 
@@ -210,417 +213,417 @@
 
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-  
   <script src="js/firebase-init.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/state.js"></script>
   <script src="js/audio-effects.js"></script>
-  
   <script>
-    (function() {
-      const roomCode = AppState.roomCode;
-      const isHost = AppState.isHost;
-      const clientId = AppState.clientId;
-      const playerName = AppState.playerName || 'Joueur';
+  (function() {
+    const roomCode = AppState.roomCode;
+    const isHost = AppState.isHost;
+    const clientId = AppState.clientId;
+    const playerName = AppState.playerName || 'Joueur';
 
-      if (!roomCode) { window.location.href = 'index.html'; return; }
+    if (!roomCode) { window.location.href = 'index.html'; return; }
 
-      const roomRef = db.ref('rooms/' + roomCode);
-      const selectionsRef = roomRef.child('selections');
-      const configRef = roomRef.child('config');
+    const roomRef = db.ref('rooms/' + roomCode);
+    const selectionsRef = roomRef.child('selections');
+    const configRef = roomRef.child('config');
 
-      const backToLobbyLink = document.getElementById('backToLobbyLink');
-      if (backToLobbyLink) {
-        backToLobbyLink.addEventListener('click', async (e) => {
-          e.preventDefault();
-          if (isHost) {
-            if (!confirm('Annuler la sélection pour tout le monde ?')) return;
-            await roomRef.update({ status: 'lobby', selections: {}, gameState: { songs: [], scores: {} } });
-            window.location.href = 'host-lobby.html';
-          } else {
-            window.location.href = 'waiting.html';
-          }
-        });
-      }
-
-      let hostQuota = 0;
-      let hostSelected = [];
-      let playerSelectedList = [];
-      let classicModeOnly = false;
-      let playerQuota = 1;
-      let allowDuplicates = false;
-
-      configRef.once('value', (snap) => {
-        const config = snap.val();
-        if (config) {
-          gameMode = config.mode || 'classic';
-          classicModeOnly = !!config.classicModeOnly;
-          allowDuplicates = !!config.allowDuplicates;
-          playerQuota = gameMode === 'playlist' ? (config.playlistSongsPerPlayer || 5) : (config.songsPerPlayer !== undefined ? config.songsPerPlayer : 1);
-
-          if (classicModeOnly) {
-            document.getElementById('complexControlsGroup').style.display = 'none';
-          }
-
-          if (isHost) {
-            if (gameMode === 'playlist') {
-              roleMsg.textContent = 'Mode Playlist : en attente des joueurs...';
-              selectionsRef.child('host').set({ songs: [], done: true }).then(() => {
-                window.location.href = 'waiting.html';
-              });
-              return;
-            }
-            hostQuota = config.hostSongsCount || 0;
-            selectionsRef.child('host').once('value', (selSnap) => {
-              const existing = selSnap.val();
-              if (existing && Array.isArray(existing.songs)) hostSelected = existing.songs;
-              counterSpan.textContent = `${hostSelected.length} / ${hostQuota}`;
-              if (hostSelected.length >= hostQuota && hostQuota > 0) window.location.href = 'waiting.html';
-            });
-          } else {
-            if (playerQuota === 0) {
-              selectionsRef.child(clientId).set({ songs: [], done: true }).then(() => {
-                window.location.href = 'waiting.html';
-              });
-              return;
-            }
-            roleMsg.textContent = `Choisis ${playerQuota} chanson(s) pour la partie`;
-            selectionsRef.child(clientId).once('value', (selSnap) => {
-              const existing = selSnap.val();
-              if (existing && Array.isArray(existing.songs)) playerSelectedList = existing.songs;
-              counterSpan.textContent = `${playerSelectedList.length} / ${playerQuota}`;
-              if (playerSelectedList.length >= playerQuota) window.location.href = 'waiting.html';
-            });
-          }
-        }
-      });
-
-      const roleMsg = document.getElementById('role-message');
-      const counterSpan = document.getElementById('counter');
-      const searchInput = document.getElementById('searchInput');
-      const searchBtn = document.getElementById('searchBtn');
-      const errorMsg = document.getElementById('errorMsg');
-      const resultsDiv = document.getElementById('results');
-
-      // RECHERCHE DÉCLENCHÉE PAR LA TOUCHE ENTRÉE
-      searchInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          searchBtn.click();
-        }
-      });
-
-      async function searchMusic(term) {
-        const proxiedUrl = `https://corsproxy.io/?url=${encodeURIComponent(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=15`)}`;
-        try {
-          const res = await fetch(proxiedUrl);
-          const data = await res.json();
-          return data.results.map(s => ({
-            trackName: s.trackName,
-            artistName: s.artistName,
-            artworkUrl100: s.artworkUrl100,
-            previewUrl: s.previewUrl
-          })).filter(s => s.previewUrl);
-        } catch(e) {
-          try {
-            const resDz = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(`https://api.deezer.com/search?q=${encodeURIComponent(term)}&output=jsonp`)}`);
-            const text = await resDz.text();
-            const cleanText = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
-            const dataDz = JSON.parse(cleanText);
-            return dataDz.data.map(s => ({
-              trackName: s.title,
-              artistName: s.artist?.name,
-              artworkUrl100: s.album?.cover_medium,
-              previewUrl: s.preview
-            })).filter(s => s.previewUrl);
-          } catch(err) {
-            return [];
-          }
-        }
-      }
-
-      searchBtn.addEventListener('click', async () => {
-        const term = searchInput.value.trim();
-        if (!term) return;
-        searchBtn.disabled = true;
-        errorMsg.innerHTML = '<div class="loading">🔎 Recherche...</div>';
-        const results = await searchMusic(term);
-        searchBtn.disabled = false;
-        errorMsg.innerHTML = '';
-        displayResults(results);
-      });
-
-      function displayResults(results) { 
-        resultsDiv.innerHTML = ''; 
-        if (results.length === 0) { resultsDiv.innerHTML = '<div class="text-center">Aucun morceau trouvé.</div>'; return; }
-        results.forEach(song => {
-          const card = document.createElement('div');
-          card.className = 'song-card';
-          card.innerHTML = `<img src="${song.artworkUrl100}" alt="cover"><div class="song-info"><div class="song-title">${escapeHTML(song.trackName)}</div><div class="song-artist">${escapeHTML(song.artistName)}</div></div>`;
-          card.addEventListener('click', () => {
-            if (gameMode === 'lyrics') openLyricsPickerModal(song, card);
-            else openCustomizeModal(song, card);
-          });
-          resultsDiv.appendChild(card);
-        });
-      }
-
-      // MODALE DE PERSONNALISATION
-      const modal = document.getElementById('customizeModal');
-      const durationSlider = document.getElementById('durationSlider');
-      const durationValue = document.getElementById('durationValue');
-      const positionSlider = document.getElementById('positionSlider');
-      const positionHint = document.getElementById('positionHint');
-      const speedSlider = document.getElementById('speedSlider');
-      const speedValue = document.getElementById('speedValue');
-      const volumeSlider = document.getElementById('volumeSlider');
-      const volumeValue = document.getElementById('volumeValue');
-      const reverseCheck = document.getElementById('reverseCheck');
-      const instrumentalCheck = document.getElementById('instrumentalCheck');
-      const instrumentalVariants = document.getElementById('instrumentalVariants');
-      const variantIntensityGroup = document.getElementById('variantIntensityGroup');
-      const variantIntensitySlider = document.getElementById('variantIntensitySlider');
-      const variantIntensityValue = document.getElementById('variantIntensityValue');
-      const instrumentalSearchGroup = document.getElementById('instrumentalSearchGroup');
-      const searchInstrumentalBtn = document.getElementById('searchInstrumentalBtn');
-      const instrumentalResults = document.getElementById('instrumentalResults');
-      const radioModeCheck = document.getElementById('radioModeCheck');
-      const advancedSettingsContent = document.getElementById('advancedSettingsContent');
-      const advancedToggleBtn = document.getElementById('advancedToggleBtn');
-      const advancedToggleArrow = document.getElementById('advancedToggleArrow');
-      const pitchSlider = document.getElementById('pitchSlider');
-      const pitchValue = document.getElementById('pitchValue');
-      const filterSlider = document.getElementById('filterSlider');
-      const filterHint = document.getElementById('filterHint');
-
-      let draftSong = null;
-      let draftCard = null;
-      let selectedVariant = 1;
-      let pickedInstrumentalSource = null;
-
-      advancedToggleBtn.addEventListener('click', () => {
-        const isHidden = advancedSettingsContent.classList.contains('hidden');
-        advancedSettingsContent.classList.toggle('hidden', !isHidden);
-        advancedToggleArrow.textContent = isHidden ? '🔼' : '🔽';
-      });
-
-      function openCustomizeModal(song, card) {
-        draftSong = song;
-        draftCard = card;
-        document.getElementById('modalArtwork').src = song.artworkUrl100;
-        document.getElementById('modalTitle').textContent = song.trackName;
-        document.getElementById('modalArtist').textContent = song.artistName;
-        
-        durationSlider.value = 10;
-        durationValue.textContent = '10';
-        positionSlider.value = 0;
-        positionHint.textContent = 'Extrait standard';
-        speedSlider.value = 1.0;
-        speedValue.textContent = '1.0x';
-        volumeSlider.value = 100;
-        volumeValue.textContent = '100%';
-        reverseCheck.checked = false;
-        instrumentalCheck.checked = false;
-        radioModeCheck.checked = false;
-        pitchSlider.value = 0;
-        pitchValue.textContent = '0';
-        filterSlider.value = 0;
-        filterHint.textContent = 'Neutre';
-
-        instrumentalVariants.classList.add('hidden');
-        variantIntensityGroup.classList.add('hidden');
-        instrumentalSearchGroup.classList.add('hidden');
-
-        modal.classList.remove('hidden');
-      }
-
-      document.getElementById('cancelSelectBtn').onclick = () => { stopAudio(); modal.classList.add('hidden'); };
-
-      durationSlider.oninput = () => durationValue.textContent = durationSlider.value;
-      speedSlider.oninput = () => speedValue.textContent = parseFloat(speedSlider.value).toFixed(1) + 'x';
-      volumeSlider.oninput = () => volumeValue.textContent = volumeSlider.value + '%';
-      pitchSlider.oninput = () => pitchValue.textContent = pitchSlider.value;
-      filterSlider.oninput = () => {
-        const v = parseInt(filterSlider.value, 10);
-        filterHint.textContent = v > 15 ? `🔺 Coupe-bas (${v})` : v < -15 ? `🔻 Coupe-haut (${v})` : 'Neutre';
-      };
-
-      instrumentalCheck.onchange = () => {
-        const active = instrumentalCheck.checked;
-        instrumentalVariants.classList.toggle('hidden', !active);
-        variantIntensityGroup.classList.toggle('hidden', !active || (selectedVariant !== 2 && selectedVariant !== 3));
-        instrumentalSearchGroup.classList.toggle('hidden', !active || selectedVariant !== 4);
-      };
-
-      document.querySelectorAll('.variant-btn').forEach(btn => {
-        btn.onclick = () => {
-          document.querySelectorAll('.variant-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          selectedVariant = parseInt(btn.dataset.variant, 10);
-          variantIntensityGroup.classList.toggle('hidden', selectedVariant !== 2 && selectedVariant !== 3);
-          instrumentalSearchGroup.classList.toggle('hidden', selectedVariant !== 4);
-        };
-      });
-
-      document.getElementById('previewBtn').onclick = () => {
-        const songData = {
-          previewUrl: (instrumentalCheck.checked && selectedVariant === 4 && pickedInstrumentalSource) ? pickedInstrumentalSource.previewUrl : draftSong.previewUrl,
-          clipStart: parseFloat(positionSlider.value) || 0,
-          clipDuration: parseFloat(durationSlider.value) || 10,
-          reverse: reverseCheck.checked,
-          instrumental: instrumentalCheck.checked,
-          instrumentalVariant: selectedVariant,
-          instrumentalIntensity: parseInt(variantIntensitySlider.value, 10),
-          speed: parseFloat(speedSlider.value),
-          pitch: parseInt(pitchSlider.value, 10),
-          filterValue: parseInt(filterSlider.value, 10),
-          radioMode: radioModeCheck.checked,
-          customVolume: parseInt(volumeSlider.value, 10)
-        };
-        playAudioClip(songData);
-      };
-
-      document.getElementById('confirmSelectBtn').onclick = async () => {
-        stopAudio();
-        const isInstrumentalOn = instrumentalCheck.checked;
-        const songData = {
-          title: draftSong.trackName,
-          artist: draftSong.artistName,
-          artwork: draftSong.artworkUrl100,
-          previewUrl: (isInstrumentalOn && selectedVariant === 4 && pickedInstrumentalSource) ? pickedInstrumentalSource.previewUrl : draftSong.previewUrl,
-          clipStart: parseFloat(positionSlider.value) || 0,
-          clipDuration: parseFloat(durationSlider.value) || 10,
-          reverse: reverseCheck.checked,
-          instrumental: isInstrumentalOn,
-          instrumentalVariant: selectedVariant,
-          instrumentalIntensity: parseInt(variantIntensitySlider.value, 10),
-          speed: parseFloat(speedSlider.value),
-          pitch: parseInt(pitchSlider.value, 10),
-          filterValue: parseInt(filterSlider.value, 10),
-          radioMode: radioModeCheck.checked,
-          customVolume: parseInt(volumeSlider.value, 10)
-        };
-
-        modal.classList.add('hidden');
-        await saveSongPick(songData, draftCard);
-      };
-
-      async function saveSongPick(songData, card) {
+    const backToLobbyLink = document.getElementById('backToLobbyLink');
+    if (backToLobbyLink) {
+      backToLobbyLink.addEventListener('click', async (e) => {
+        e.preventDefault();
         if (isHost) {
-          hostSelected.push(songData);
-          await selectionsRef.child('host').set({ songs: hostSelected, done: hostSelected.length >= hostQuota });
-          if (hostSelected.length >= hostQuota) window.location.href = 'waiting.html';
-          else if (card) card.remove();
+          if (!confirm('Annuler la sélection ?')) return;
+          await roomRef.update({ status: 'lobby', selections: {}, gameState: { songs: [], scores: {} } });
+          window.location.href = 'host-lobby.html';
         } else {
-          songData.ownerId = clientId;
-          songData.ownerName = playerName;
-          playerSelectedList.push(songData);
-          await selectionsRef.child(clientId).set({ songs: playerSelectedList, done: playerSelectedList.length >= playerQuota });
-          if (playerSelectedList.length >= playerQuota) window.location.href = 'waiting.html';
-          else if (card) card.remove();
+          window.location.href = 'waiting.html';
+        }
+      });
+    }
+
+    let hostQuota = 0;
+    let hostSelected = [];
+    let playerSelectedList = [];
+    let classicModeOnly = false;
+    let playerQuota = 1;
+    let allowDuplicates = false;
+
+    configRef.once('value', (snap) => {
+      const config = snap.val();
+      if (config) {
+        gameMode = config.mode || 'classic';
+        classicModeOnly = !!config.classicModeOnly;
+        allowDuplicates = !!config.allowDuplicates;
+        playerQuota = gameMode === 'playlist' ? (config.playlistSongsPerPlayer || 5) : (config.songsPerPlayer !== undefined ? config.songsPerPlayer : 1);
+
+        if (classicModeOnly) {
+          document.getElementById('complexControlsGroup').style.display = 'none';
+        }
+
+        if (isHost) {
+          if (gameMode === 'playlist') {
+            roleMsg.textContent = 'Mode Playlist : en attente des joueurs...';
+            selectionsRef.child('host').set({ songs: [], done: true }).then(() => {
+              window.location.href = 'waiting.html';
+            });
+            return;
+          }
+          hostQuota = config.hostSongsCount || 0;
+          selectionsRef.child('host').once('value', (selSnap) => {
+            const existing = selSnap.val();
+            if (existing && Array.isArray(existing.songs)) hostSelected = existing.songs;
+            counterSpan.textContent = `${hostSelected.length} / ${hostQuota}`;
+            if (hostSelected.length >= hostQuota && hostQuota > 0) window.location.href = 'waiting.html';
+          });
+        } else {
+          if (playerQuota === 0) {
+            selectionsRef.child(clientId).set({ songs: [], done: true }).then(() => {
+              window.location.href = 'waiting.html';
+            });
+            return;
+          }
+          roleMsg.textContent = `Choisis ${playerQuota} chanson(s) pour la partie`;
+          selectionsRef.child(clientId).once('value', (selSnap) => {
+            const existing = selSnap.val();
+            if (existing && Array.isArray(existing.songs)) playerSelectedList = existing.songs;
+            counterSpan.textContent = `${playerSelectedList.length} / ${playerQuota}`;
+            if (playerSelectedList.length >= playerQuota) window.location.href = 'waiting.html';
+          });
         }
       }
+    });
 
-      const lyricsModal = document.getElementById('lyricsModal');
-      const lyricsScrollArea = document.getElementById('lyricsScrollArea');
-      const lyricsWordCountHint = document.getElementById('lyricsWordCountHint');
-      const confirmLyricsBtn = document.getElementById('confirmLyricsBtn');
-      let lyricsLines = [];
-      let lyricsStartIndex = -1;
+    const roleMsg = document.getElementById('role-message');
+    const counterSpan = document.getElementById('counter');
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const errorMsg = document.getElementById('errorMsg');
+    const resultsDiv = document.getElementById('results');
 
-      function openLyricsPickerModal(song, card) {
-        draftSong = song;
-        draftCard = card;
-        document.getElementById('lyricsModalArtwork').src = song.artworkUrl100;
-        document.getElementById('lyricsModalTitle').textContent = song.trackName;
-        document.getElementById('lyricsModalArtist').textContent = song.artistName;
-        lyricsModal.classList.remove('hidden');
-        fetchLyrics(song);
+    // RECHERCHE DÉCLENCHÉE PAR LA TOUCHE ENTRÉE (ALLER A LA LIGNE)
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        searchBtn.click();
       }
+    });
 
-      async function fetchLyrics(song) {
-        lyricsScrollArea.classList.add('hidden');
-        document.getElementById('lyricsLoading').classList.remove('hidden');
-        confirmLyricsBtn.disabled = true;
-
+    async function searchMusic(term) {
+      const proxiedUrl = `https://corsproxy.io/?url=${encodeURIComponent(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=15`)}`;
+      try {
+        const res = await fetch(proxiedUrl);
+        const data = await res.json();
+        return data.results.map(s => ({
+          trackName: s.trackName,
+          artistName: s.artistName,
+          artworkUrl100: s.artworkUrl100,
+          previewUrl: s.previewUrl
+        })).filter(s => s.previewUrl);
+      } catch(e) {
         try {
-          const proxied = `https://corsproxy.io/?url=${encodeURIComponent(`https://api.lyrics.ovh/v1/${encodeURIComponent(song.artistName)}/${encodeURIComponent(song.trackName)}`)}`;
-          const res = await fetch(proxied);
-          const data = await res.json();
-          lyricsLines = data.lyrics ? data.lyrics.split('\n').map(l => l.trim()).filter(l => l.length > 0) : [];
-          renderLyrics();
-        } catch(e) {
-          document.getElementById('lyricsLoading').textContent = "⚠️ Paroles introuvables.";
+          const resDz = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(`https://api.deezer.com/search?q=${encodeURIComponent(term)}&output=jsonp`)}`);
+          const text = await resDz.text();
+          const cleanText = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
+          const dataDz = JSON.parse(cleanText);
+          return dataDz.data.map(s => ({
+            trackName: s.title,
+            artistName: s.artist?.name,
+            artworkUrl100: s.album?.cover_medium,
+            previewUrl: s.preview
+          })).filter(s => s.previewUrl);
+        } catch(err) {
+          return [];
         }
       }
+    }
 
-      function renderLyrics() {
-        document.getElementById('lyricsLoading').classList.add('hidden');
-        lyricsScrollArea.classList.remove('hidden');
-        lyricsScrollArea.innerHTML = '';
-        lyricsStartIndex = -1;
+    searchBtn.addEventListener('click', async () => {
+      const term = searchInput.value.trim();
+      if (!term) return;
+      searchBtn.disabled = true;
+      errorMsg.innerHTML = '<div class="loading">🔎 Recherche...</div>';
+      const results = await searchMusic(term);
+      searchBtn.disabled = false;
+      errorMsg.innerHTML = '';
+      displayResults(results);
+    });
 
-        lyricsLines.forEach((line, idx) => {
-          const div = document.createElement('div');
-          div.className = 'lyrics-line';
-          div.textContent = line;
-          div.onclick = () => {
-            const lines = lyricsScrollArea.querySelectorAll('.lyrics-line');
-            if (lyricsStartIndex === -1 || idx === lyricsStartIndex) {
-              lines.forEach(l => l.classList.remove('selected', 'invalid'));
-              if (lyricsStartIndex === idx) { lyricsStartIndex = -1; confirmLyricsBtn.disabled = true; return; }
-              lyricsStartIndex = idx;
-              div.classList.add('selected');
-              const words = line.split(/\s+/).filter(Boolean).length;
-              validateLyrics(words);
-            } else if (idx === lyricsStartIndex + 1) {
-              div.classList.add('selected');
-              const combined = lyricsLines[lyricsStartIndex] + " " + line;
-              const words = combined.split(/\s+/).filter(Boolean).length;
-              validateLyrics(words);
-            } else {
-              lines.forEach(l => l.classList.remove('selected', 'invalid'));
-              lyricsStartIndex = idx;
-              div.classList.add('selected');
-              const words = line.split(/\s+/).filter(Boolean).length;
-              validateLyrics(words);
-            }
-          };
-          lyricsScrollArea.appendChild(div);
+    function displayResults(results) { 
+      resultsDiv.innerHTML = ''; 
+      if (results.length === 0) { resultsDiv.innerHTML = '<div class="text-center">Aucun morceau trouvé.</div>'; return; }
+      results.forEach(song => {
+        const card = document.createElement('div');
+        card.className = 'song-card';
+        card.innerHTML = `<img src="${song.artworkUrl100}" alt="cover"><div class="song-info"><div class="song-title">${escapeHTML(song.trackName)}</div><div class="song-artist">${escapeHTML(song.artistName)}</div></div>`;
+        card.addEventListener('click', () => {
+          if (gameMode === 'lyrics') openLyricsPickerModal(song, card);
+          else openCustomizeModal(song, card);
         });
-      }
+        resultsDiv.appendChild(card);
+      });
+    }
 
-      function validateLyrics(words) {
-        if (words >= 3 && words <= 30) {
-          lyricsWordCountHint.innerHTML = `<span style="color:#4fd97f;">✅ ${words} mots sélectionnés.</span>`;
-          confirmLyricsBtn.disabled = false;
-        } else {
-          lyricsWordCountHint.innerHTML = `<span style="color:#ff6b6b;">⚠️ ${words} mots. Doit être entre 3 et 30 mots.</span>`;
-          confirmLyricsBtn.disabled = true;
-        }
-      }
+    // MODALE DE PERSONNALISATION
+    const modal = document.getElementById('customizeModal');
+    const durationSlider = document.getElementById('durationSlider');
+    const durationValue = document.getElementById('durationValue');
+    const positionSlider = document.getElementById('positionSlider');
+    const positionHint = document.getElementById('positionHint');
+    const speedSlider = document.getElementById('speedSlider');
+    const speedValue = document.getElementById('speedValue');
+    const volumeSlider = document.getElementById('volumeSlider');
+    const volumeValue = document.getElementById('volumeValue');
+    const reverseCheck = document.getElementById('reverseCheck');
+    const instrumentalCheck = document.getElementById('instrumentalCheck');
+    const instrumentalVariants = document.getElementById('instrumentalVariants');
+    const variantIntensityGroup = document.getElementById('variantIntensityGroup');
+    const variantIntensitySlider = document.getElementById('variantIntensitySlider');
+    const variantIntensityValue = document.getElementById('variantIntensityValue');
+    const instrumentalSearchGroup = document.getElementById('instrumentalSearchGroup');
+    const searchInstrumentalBtn = document.getElementById('searchInstrumentalBtn');
+    const instrumentalResults = document.getElementById('instrumentalResults');
+    const radioModeCheck = document.getElementById('radioModeCheck');
+    const advancedSettingsContent = document.getElementById('advancedSettingsContent');
+    const advancedToggleBtn = document.getElementById('advancedToggleBtn');
+    const advancedToggleArrow = document.getElementById('advancedToggleArrow');
+    const pitchSlider = document.getElementById('pitchSlider');
+    const pitchValue = document.getElementById('pitchValue');
+    const filterSlider = document.getElementById('filterSlider');
+    const filterHint = document.getElementById('filterHint');
 
-      confirmLyricsBtn.onclick = async () => {
-        const l1 = lyricsLines[lyricsStartIndex] || '';
-        const l2 = lyricsLines[lyricsStartIndex + 1] || '';
-        const snippet = lyricsStartIndex !== -1 ? (l1 + (l2 ? '\n' + l2 : '')) : '';
+    let draftSong = null;
+    let draftCard = null;
+    let selectedVariant = 1;
+    let pickedInstrumentalSource = null;
 
-        const songData = {
-          title: draftSong.trackName,
-          artist: draftSong.artistName,
-          artwork: draftSong.artworkUrl100,
-          lyricsSnippet: snippet
-        };
-        lyricsModal.classList.add('hidden');
-        await saveSongPick(songData, draftCard);
+    advancedToggleBtn.addEventListener('click', () => {
+      const isHidden = advancedSettingsContent.classList.contains('hidden');
+      advancedSettingsContent.classList.toggle('hidden', !isHidden);
+      advancedToggleArrow.textContent = isHidden ? '🔼' : '🔽';
+    });
+
+    function openCustomizeModal(song, card) {
+      draftSong = song;
+      draftCard = card;
+      document.getElementById('modalArtwork').src = song.artworkUrl100;
+      document.getElementById('modalTitle').textContent = song.trackName;
+      document.getElementById('modalArtist').textContent = song.artistName;
+      
+      durationSlider.value = 10;
+      durationValue.textContent = '10';
+      positionSlider.value = 0;
+      positionHint.textContent = 'Extrait standard';
+      speedSlider.value = 1.0;
+      speedValue.textContent = '1.0x';
+      volumeSlider.value = 100;
+      volumeValue.textContent = '100%';
+      reverseCheck.checked = false;
+      instrumentalCheck.checked = false;
+      radioModeCheck.checked = false;
+      pitchSlider.value = 0;
+      pitchValue.textContent = '0';
+      filterSlider.value = 0;
+      filterHint.textContent = 'Neutre';
+
+      instrumentalVariants.classList.add('hidden');
+      variantIntensityGroup.classList.add('hidden');
+      instrumentalSearchGroup.classList.add('hidden');
+
+      modal.classList.remove('hidden');
+    }
+
+    document.getElementById('cancelSelectBtn').onclick = () => { stopAudio(); modal.classList.add('hidden'); };
+
+    durationSlider.oninput = () => durationValue.textContent = durationSlider.value;
+    speedSlider.oninput = () => speedValue.textContent = parseFloat(speedSlider.value).toFixed(1) + 'x';
+    volumeSlider.oninput = () => volumeValue.textContent = volumeSlider.value + '%';
+    pitchSlider.oninput = () => pitchValue.textContent = pitchSlider.value;
+    filterSlider.oninput = () => {
+      const v = parseInt(filterSlider.value, 10);
+      filterHint.textContent = v > 15 ? `🔺 Coupe-bas (${v})` : v < -15 ? `🔻 Coupe-haut (${v})` : 'Neutre';
+    };
+
+    instrumentalCheck.onchange = () => {
+      const active = instrumentalCheck.checked;
+      instrumentalVariants.classList.toggle('hidden', !active);
+      variantIntensityGroup.classList.toggle('hidden', !active || (selectedVariant !== 2 && selectedVariant !== 3));
+      instrumentalSearchGroup.classList.toggle('hidden', !active || selectedVariant !== 4);
+    };
+
+    document.querySelectorAll('.variant-btn').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.variant-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedVariant = parseInt(btn.dataset.variant, 10);
+        variantIntensityGroup.classList.toggle('hidden', selectedVariant !== 2 && selectedVariant !== 3);
+        instrumentalSearchGroup.classList.toggle('hidden', selectedVariant !== 4);
+      };
+    });
+
+    // Bouton Preview unifié : écouter avec les exacts mêmes effets qu'en jeu
+    document.getElementById('previewBtn').onclick = () => {
+      const songData = {
+        previewUrl: (instrumentalCheck.checked && selectedVariant === 4 && pickedInstrumentalSource) ? pickedInstrumentalSource.previewUrl : draftSong.previewUrl,
+        clipStart: parseFloat(positionSlider.value) || 0,
+        clipDuration: parseFloat(durationSlider.value) || 10,
+        reverse: reverseCheck.checked,
+        instrumental: instrumentalCheck.checked,
+        instrumentalVariant: selectedVariant,
+        instrumentalIntensity: parseInt(variantIntensitySlider.value, 10),
+        speed: parseFloat(speedSlider.value),
+        pitch: parseInt(pitchSlider.value, 10),
+        filterValue: parseInt(filterSlider.value, 10),
+        radioMode: radioModeCheck.checked,
+        customVolume: parseInt(volumeSlider.value, 10)
+      };
+      playAudioClip(songData);
+    };
+
+    document.getElementById('confirmSelectBtn').onclick = async () => {
+      stopAudio();
+      const isInstrumentalOn = instrumentalCheck.checked;
+      const songData = {
+        title: draftSong.trackName,
+        artist: draftSong.artistName,
+        artwork: draftSong.artworkUrl100,
+        previewUrl: (isInstrumentalOn && selectedVariant === 4 && pickedInstrumentalSource) ? pickedInstrumentalSource.previewUrl : draftSong.previewUrl,
+        clipStart: parseFloat(positionSlider.value) || 0,
+        clipDuration: parseFloat(durationSlider.value) || 10,
+        reverse: reverseCheck.checked,
+        instrumental: isInstrumentalOn,
+        instrumentalVariant: selectedVariant,
+        instrumentalIntensity: parseInt(variantIntensitySlider.value, 10),
+        speed: parseFloat(speedSlider.value),
+        pitch: parseInt(pitchSlider.value, 10),
+        filterValue: parseInt(filterSlider.value, 10),
+        radioMode: radioModeCheck.checked,
+        customVolume: parseInt(volumeSlider.value, 10)
       };
 
-      document.getElementById('cancelLyricsBtn').onclick = () => lyricsModal.classList.add('hidden');
+      modal.classList.add('hidden');
+      await saveSongPick(songData, draftCard);
+    };
 
-      function escapeHTML(str) {
-        return String(str).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c] || c));
+    async function saveSongPick(songData, card) {
+      if (isHost) {
+        hostSelected.push(songData);
+        await selectionsRef.child('host').set({ songs: hostSelected, done: hostSelected.length >= hostQuota });
+        if (hostSelected.length >= hostQuota) window.location.href = 'waiting.html';
+        else if (card) card.remove();
+      } else {
+        songData.ownerId = clientId;
+        songData.ownerName = playerName;
+        playerSelectedList.push(songData);
+        await selectionsRef.child(clientId).set({ songs: playerSelectedList, done: playerSelectedList.length >= playerQuota });
+        if (playerSelectedList.length >= playerQuota) window.location.href = 'waiting.html';
+        else if (card) card.remove();
       }
-    })();
+    }
+
+    // PAROLES (min 1 ligne, max 30 mots)
+    const lyricsModal = document.getElementById('lyricsModal');
+    const lyricsScrollArea = document.getElementById('lyricsScrollArea');
+    const lyricsWordCountHint = document.getElementById('lyricsWordCountHint');
+    const confirmLyricsBtn = document.getElementById('confirmLyricsBtn');
+    let lyricsLines = [];
+    let lyricsStartIndex = -1;
+
+    function openLyricsPickerModal(song, card) {
+      draftSong = song;
+      draftCard = card;
+      document.getElementById('lyricsModalArtwork').src = song.artworkUrl100;
+      document.getElementById('lyricsModalTitle').textContent = song.trackName;
+      document.getElementById('lyricsModalArtist').textContent = song.artistName;
+      lyricsModal.classList.remove('hidden');
+      fetchLyrics(song);
+    }
+
+    async function fetchLyrics(song) {
+      lyricsScrollArea.classList.add('hidden');
+      document.getElementById('lyricsLoading').classList.remove('hidden');
+      confirmLyricsBtn.disabled = true;
+
+      try {
+        const proxied = `https://corsproxy.io/?url=${encodeURIComponent(`https://api.lyrics.ovh/v1/${encodeURIComponent(song.artistName)}/${encodeURIComponent(song.trackName)}`)}`;
+        const res = await fetch(proxied);
+        const data = await res.json();
+        lyricsLines = data.lyrics ? data.lyrics.split('\n').map(l => l.trim()).filter(l => l.length > 0) : [];
+        renderLyrics();
+      } catch(e) {
+        document.getElementById('lyricsLoading').textContent = "⚠️ Paroles introuvables.";
+      }
+    }
+
+    function renderLyrics() {
+      document.getElementById('lyricsLoading').classList.add('hidden');
+      lyricsScrollArea.classList.remove('hidden');
+      lyricsScrollArea.innerHTML = '';
+      lyricsStartIndex = -1;
+
+      lyricsLines.forEach((line, idx) => {
+        const div = document.createElement('div');
+        div.className = 'lyrics-line';
+        div.textContent = line;
+        div.onclick = () => {
+          const lines = lyricsScrollArea.querySelectorAll('.lyrics-line');
+          if (lyricsStartIndex === -1 || idx === lyricsStartIndex) {
+            lines.forEach(l => l.classList.remove('selected', 'invalid'));
+            if (lyricsStartIndex === idx) { lyricsStartIndex = -1; confirmLyricsBtn.disabled = true; return; }
+            lyricsStartIndex = idx;
+            div.classList.add('selected');
+            const words = line.split(/\s+/).filter(Boolean).length;
+            validateLyrics(words);
+          } else if (idx === lyricsStartIndex + 1) {
+            div.classList.add('selected');
+            const combined = lyricsLines[lyricsStartIndex] + " " + line;
+            const words = combined.split(/\s+/).filter(Boolean).length;
+            validateLyrics(words);
+          } else {
+            lines.forEach(l => l.classList.remove('selected', 'invalid'));
+            lyricsStartIndex = idx;
+            div.classList.add('selected');
+            const words = line.split(/\s+/).filter(Boolean).length;
+            validateLyrics(words);
+          }
+        };
+        lyricsScrollArea.appendChild(div);
+      });
+    }
+
+    function validateLyrics(words) {
+      if (words >= 3 && words <= 30) {
+        lyricsWordCountHint.innerHTML = `<span style="color:#4fd97f;">✅ ${words} mots sélectionnés.</span>`;
+        confirmLyricsBtn.disabled = false;
+      } else {
+        lyricsWordCountHint.innerHTML = `<span style="color:#ff6b6b;">⚠️ ${words} mots. Doit être entre 3 et 30 mots.</span>`;
+        confirmLyricsBtn.disabled = true;
+      }
+    }
+
+    confirmLyricsBtn.onclick = async () => {
+      const l1 = lyricsLines[lyricsStartIndex] || '';
+      const l2 = lyricsLines[lyricsStartIndex + 1] || '';
+      const snippet = lyricsStartIndex !== -1 ? (l1 + (l2 ? '\n' + l2 : '')) : '';
+
+      const songData = {
+        title: draftSong.trackName,
+        artist: draftSong.artistName,
+        artwork: draftSong.artworkUrl100,
+        lyricsSnippet: snippet
+      };
+      lyricsModal.classList.add('hidden');
+      await saveSongPick(songData, draftCard);
+    };
+
+    document.getElementById('cancelLyricsBtn').onclick = () => lyricsModal.classList.add('hidden');
+
+    function escapeHTML(str) { 
+      return String(str).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c] || c));
+    }
+  })();
   </script>
 </body>
 </html>

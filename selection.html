@@ -19,7 +19,12 @@
     }
     .search-container { background: #1c2127; border-radius: 1.8rem; padding: 1.6rem; }
     .search-box { display: flex; gap: 0.8rem; }
-    .search-box input[type="text"] { flex: 1; }
+    .search-box input[type="text"] {
+      flex: 1;
+      color: #ffffff !important;
+      -webkit-text-fill-color: #ffffff !important;
+      background-color: #0f1a24 !important;
+    }
     .results-grid { display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem; max-height: 400px; overflow-y: auto; }
     .song-card { display: flex; align-items: center; background: #1a1f25; padding: 1rem; border-radius: 1.2rem; border: 2px solid #2d353e; cursor: pointer; transition: 0.2s; }
     .song-card:hover:not(.selected) { border-color: #5e9eff; transform: translateX(5px); }
@@ -32,7 +37,7 @@
     .loading { color: #8aaec0; padding: 0.5rem 0; }
     .error-text { color: #ff6b6b; padding: 0.5rem 0; }
 
-    /* Modale */
+    /* Modale de Personnalisation */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: flex-end; justify-content: center; z-index: 1000; }
     .modal-overlay.hidden { display: none; }
     .modal-box { background: #1a1f25; border-radius: 1.6rem 1.6rem 0 0; padding: 1.6rem; width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto; }
@@ -81,7 +86,7 @@
     </div>
     <div class="search-container">
       <div class="search-box">
-        <input type="text" id="searchInput" placeholder="Artiste ou titre...">
+        <input type="text" id="searchInput" placeholder="Artiste ou titre..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         <button id="searchBtn">🔍 Chercher</button>
       </div>
       <div id="errorMsg"></div>
@@ -103,11 +108,11 @@
         </div>
       </div>
 
-      <!-- Durée (Visible mode classique) -->
+      <!-- Durée -->
       <label>⏱️ Durée de l'extrait : <span id="durationValue">10</span>s</label>
       <input type="range" id="durationSlider" min="0.5" max="15" step="0.5" value="10">
 
-      <!-- Position (Visible mode classique) -->
+      <!-- Position de départ -->
       <label>📍 Position dans l'extrait</label>
       <div class="preset-buttons">
         <button type="button" id="presetStart">⏮️ Début</button>
@@ -117,7 +122,7 @@
       <input type="range" id="positionSlider" min="0" max="30" step="0.5" value="0">
       <div class="hint-text" id="positionHint">Chargement...</div>
 
-      <!-- Vitesse (Visible mode classique) -->
+      <!-- Vitesse -->
       <label>⚡ Vitesse : <span id="speedValue">1.0x</span></label>
       <input type="range" id="speedSlider" min="0.4" max="2.5" step="0.1" value="1">
 
@@ -127,7 +132,6 @@
 
       <!-- BLOCS DES PARAMÈTRES COMPLEXES (Masqués si classicModeOnly est actif) -->
       <div id="complexControlsGroup">
-        <!-- Sans Voix (Paramètre avancé) -->
         <label class="checkbox-label" style="margin-top: 1.2rem;">
           <input type="checkbox" id="instrumentalCheck"> 🎸 Sans voix
         </label>
@@ -147,7 +151,6 @@
           <div id="instrumentalResults" style="margin-top:0.5rem;"></div>
         </div>
 
-        <!-- Inversé & Radio (Paramètres avancés) -->
         <label class="checkbox-label" style="margin-top:0.8rem;">
           <input type="checkbox" id="reverseCheck"> 🔄 Inverser l'extrait (à l'envers)
         </label>
@@ -208,7 +211,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
   
-  <!-- Fichiers audio unifiés et utilitaires -->
   <script src="js/firebase-init.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/state.js"></script>
@@ -256,7 +258,6 @@
           allowDuplicates = !!config.allowDuplicates;
           playerQuota = gameMode === 'playlist' ? (config.playlistSongsPerPlayer || 5) : (config.songsPerPlayer !== undefined ? config.songsPerPlayer : 1);
 
-          // Masquer les contrôles complexes si Mode Classique actif
           if (classicModeOnly) {
             document.getElementById('complexControlsGroup').style.display = 'none';
           }
@@ -278,7 +279,6 @@
             });
           } else {
             if (playerQuota === 0) {
-              // Si le joueur ne doit choisir aucun morceau, on le marque comme prêt tout de suite
               selectionsRef.child(clientId).set({ songs: [], done: true }).then(() => {
                 window.location.href = 'waiting.html';
               });
@@ -302,7 +302,14 @@
       const errorMsg = document.getElementById('errorMsg');
       const resultsDiv = document.getElementById('results');
 
-      // Recherche en cascade (iTunes/Deezer/Proxies)
+      // RECHERCHE DÉCLENCHÉE PAR LA TOUCHE ENTRÉE
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          searchBtn.click();
+        }
+      });
+
       async function searchMusic(term) {
         const proxiedUrl = `https://corsproxy.io/?url=${encodeURIComponent(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=15`)}`;
         try {
@@ -315,11 +322,9 @@
             previewUrl: s.previewUrl
           })).filter(s => s.previewUrl);
         } catch(e) {
-          // Repli Deezer
           try {
             const resDz = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(`https://api.deezer.com/search?q=${encodeURIComponent(term)}&output=jsonp`)}`);
             const text = await resDz.text();
-            // Nettoyage JSONP Deezer basique
             const cleanText = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
             const dataDz = JSON.parse(cleanText);
             return dataDz.data.map(s => ({
@@ -345,8 +350,8 @@
         displayResults(results);
       });
 
-      function displayResults(results) {
-        resultsDiv.innerHTML = '';
+      function displayResults(results) { 
+        resultsDiv.innerHTML = ''; 
         if (results.length === 0) { resultsDiv.innerHTML = '<div class="text-center">Aucun morceau trouvé.</div>'; return; }
         results.forEach(song => {
           const card = document.createElement('div');
@@ -457,7 +462,6 @@
         };
       });
 
-      // Bouton Preview unifié : écouter avec les exacts mêmes effets qu'en jeu
       document.getElementById('previewBtn').onclick = () => {
         const songData = {
           previewUrl: (instrumentalCheck.checked && selectedVariant === 4 && pickedInstrumentalSource) ? pickedInstrumentalSource.previewUrl : draftSong.previewUrl,
@@ -517,7 +521,6 @@
         }
       }
 
-      // PAROLES (min 1 ligne, max 30 mots)
       const lyricsModal = document.getElementById('lyricsModal');
       const lyricsScrollArea = document.getElementById('lyricsScrollArea');
       const lyricsWordCountHint = document.getElementById('lyricsWordCountHint');
@@ -568,17 +571,14 @@
               if (lyricsStartIndex === idx) { lyricsStartIndex = -1; confirmLyricsBtn.disabled = true; return; }
               lyricsStartIndex = idx;
               div.classList.add('selected');
-              // Une seule ligne est valide
               const words = line.split(/\s+/).filter(Boolean).length;
               validateLyrics(words);
             } else if (idx === lyricsStartIndex + 1) {
-              // Deuxième ligne consécutive
               div.classList.add('selected');
               const combined = lyricsLines[lyricsStartIndex] + " " + line;
               const words = combined.split(/\s+/).filter(Boolean).length;
               validateLyrics(words);
             } else {
-              // Nouveau départ
               lines.forEach(l => l.classList.remove('selected', 'invalid'));
               lyricsStartIndex = idx;
               div.classList.add('selected');

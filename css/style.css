@@ -56,18 +56,15 @@ button, .btn-like {
   margin: 0.5rem 0;
   border: 1px solid #3e5a77; /* bordure plus claire */
 }
-
 button:hover:not(:disabled) {
   background: #3e5a77;
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(0,0,0,0.4);
 }
-
 button.primary {
   background: #3b6eff; /* bleu vif pour actions principales */
   border: 1px solid #6e9eff;
 }
-
 button.primary:hover {
   background: #5584ff;
 }
@@ -78,8 +75,8 @@ input[type="text"], input[type="number"], select {
   border: 1px solid #3e5a77;
   border-radius: 60px;
   padding: 0.85rem 1.2rem;
-  color: white;
-  -webkit-text-fill-color: white; /* Safari iOS ignore parfois color: sur les champs texte */
+  color: white !important;
+  -webkit-text-fill-color: white !important; /* Force la visibilité sur Safari iOS */
   -webkit-appearance: none;
   appearance: none;
   opacity: 1;
@@ -87,8 +84,7 @@ input[type="text"], input[type="number"], select {
   margin: 0.5rem 0;
 }
 
-/* Bug connu Safari iOS : l'autofill force un fond clair + texte sombre,
-   rendant le texte tapé invisible. On neutralise ce comportement. */
+/* Bug connu Safari iOS : l'autofill force un fond clair + texte sombre, rendering le texte tapé invisible. On neutralise ce comportement. */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
@@ -204,14 +200,13 @@ label {
 .song-card {
   background: #1a2530;
   border: 2px solid #3e5a77;
-  border-radius: 1.2rem;
+  border-radius: 1.25rem;
   padding: 1rem;
   display: flex;
   align-items: center;
   cursor: pointer;
   transition: 0.2s;
 }
-
 .song-card:hover {
   border-color: #3b6eff;
   background: #253544;
@@ -255,52 +250,31 @@ label {
   color: white;
 }
 
-/* === Amélioration visuelle et animation du Buzzer === */
+/* === Nouveau Style Epuré et Lumineux du Buzzer === */
 .buzzer-btn {
   background: radial-gradient(circle at 30% 30%, #ff4d4d, #b30000);
   width: 200px;
   height: 200px;
   border-radius: 50%;
   margin: 2rem auto;
-  font-size: 1.8rem;
+  font-size: 2rem;
   font-weight: bold;
   color: white;
-  border: 5px solid #ff8080;
+  border: none;
   cursor: pointer;
   display: block;
-  box-shadow: 0 10px 25px rgba(255, 77, 77, 0.4);
+  box-shadow: 0 10px 30px rgba(179, 0, 0, 0.5);
   transition: transform 0.1s, box-shadow 0.2s;
 }
-
-/* Animation de pulsation uniquement quand le bouton n'est pas désactivé */
-.buzzer-btn:not(:disabled) {
-  animation: buzzerPulse 1.8s infinite;
-}
-
-/* Réaction physique au clic tactile ou souris */
 .buzzer-btn:not(:disabled):active {
   transform: scale(0.95);
-  box-shadow: 0 5px 15px rgba(255, 77, 77, 0.6);
+  box-shadow: 0 5px 15px rgba(179, 0, 0, 0.7);
 }
-
 .buzzer-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
-  border-color: #555;
   background: radial-gradient(circle at 30% 30%, #5a5a5a, #2b2b2b);
   box-shadow: none;
-}
-
-@keyframes buzzerPulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(255, 77, 77, 0.7);
-  }
-  70% {
-    box-shadow: 0 0 0 20px rgba(255, 77, 77, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(255, 77, 77, 0);
-  }
 }
 
 /* Liens */
@@ -308,7 +282,6 @@ a {
   color: #9fc5ff;
   text-decoration: none;
 }
-
 a:hover {
   text-decoration: underline;
 }

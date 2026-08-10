@@ -63,14 +63,14 @@
   <div id="app">
     <h1>⚙️ Configuration</h1>
     <form id="config-form">
-      <!-- Mode de jeu -->
+      <!-- Mode de jeu (descriptions retirées) -->
       <div class="config-group">
         <div class="config-title">🎮 Mode de jeu</div>
         <div class="radio-group">
           <label class="radio-label"><input type="radio" name="gameMode" value="classic" checked> 🎵 Normal</label>
-          <label class="radio-label"><input type="radio" name="gameMode" value="instrumental"> 🎸 Instrumental (deviner sans les voix)</label>
-          <label class="radio-label"><input type="radio" name="gameMode" value="playlist"> 🎧 Playlist (deviner à qui appartient la chanson)</label>
-          <label class="radio-label"><input type="radio" name="gameMode" value="lyrics"> 🎤 Paroles (deviner d'où viennent les paroles)</label>
+          <label class="radio-label"><input type="radio" name="gameMode" value="instrumental"> 🎸 Instrumental</label>
+          <label class="radio-label"><input type="radio" name="gameMode" value="playlist"> 🎧 Playlist</label>
+          <label class="radio-label"><input type="radio" name="gameMode" value="lyrics"> 🎤 Paroles</label>
         </div>
         <div id="playlistModeNote" class="hint-text hidden" style="color:#f5a623; margin-top:0.5rem;">
           ⚠️ Minimum 3 joueurs (hors hôte). Chaque joueur construit sa propre playlist — l'hôte n'en choisit pas.
@@ -92,29 +92,38 @@
         </div>
       </div>
 
-      <!-- Options communes -->
+      <!-- Options communes Déroulantes -->
       <div class="config-group">
-        <div class="config-title">🎚️ Paramètres</div>
-        <div style="margin-bottom:1rem;">
-          <label>Nombre d'essais max par joueur (0 = illimité)</label>
-          <input type="number" id="maxAttempts" min="0" max="10" value="3">
+        <div class="config-title" id="toggleParams" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+          <span>🎚️ Paramètres</span>
+          <span id="paramsArrow">⬇️</span>
         </div>
-        <label class="checkbox-label">
-          <input type="checkbox" id="blurCheck"> 🎨 Flouter la cover progressivement
-        </label>
-        <label class="checkbox-label" style="margin-top:0.8rem;">
-          <input type="checkbox" id="lockOthersCheck" checked> 🔒 Verrouiller les autres joueurs pendant qu'un joueur répond
-        </label>
-        <label class="checkbox-label" style="margin-top:0.8rem;">
-          <input type="checkbox" id="multipleCorrectCheck"> 🏁 Accepter plusieurs bonnes réponses par manche
-        </label>
-        <label class="checkbox-label" style="margin-top:0.8rem;">
-          <input type="checkbox" id="allowDuplicatesCheck"> 🎭 Accepter les doublons
-        </label>
-        <p class="hint-text" id="duplicatesHint" style="margin-top:0.3rem; color:#8aaec0;"></p>
-        <label class="checkbox-label" style="margin-top:0.8rem;">
-          <input type="checkbox" id="advancedSettingsCheck"> 🛠️ Paramètres avancés pour les joueurs (pitch, filtre de fréquences)
-        </label>
+        <div id="paramsContent" class="hidden" style="margin-top: 1rem;">
+          <label class="checkbox-label" style="border: 1px solid #3b6eff; background: #0c141d;">
+            <input type="checkbox" id="classicModeCheck"> 🚫 Mode Classique (Désactiver effets complexes en sélection)
+          </label>
+          
+          <div style="margin: 1.2rem 0 1rem 0;">
+            <label>Nombre d'essais max par joueur (0 = illimité)</label>
+            <input type="number" id="maxAttempts" min="0" max="10" value="3">
+          </div>
+          <label class="checkbox-label">
+            <input type="checkbox" id="blurCheck"> 🎨 Flouter la cover progressivement
+          </label>
+          <label class="checkbox-label" style="margin-top:0.8rem;">
+            <input type="checkbox" id="lockOthersCheck" checked> 🔒 Verrouiller les autres joueurs pendant qu'un joueur répond
+          </label>
+          <label class="checkbox-label" style="margin-top:0.8rem;">
+            <input type="checkbox" id="multipleCorrectCheck"> 🏁 Accepter plusieurs bonnes réponses par manche
+          </label>
+          <label class="checkbox-label" style="margin-top:0.8rem;">
+            <input type="checkbox" id="allowDuplicatesCheck"> 🎭 Accepter les doublons
+          </label>
+          <p class="hint-text" id="duplicatesHint" style="margin-top:0.3rem; color:#8aaec0;"></p>
+          <label class="checkbox-label" style="margin-top:0.8rem;">
+            <input type="checkbox" id="advancedSettingsCheck"> 🛠️ Paramètres avancés pour les joueurs (pitch, filtre de fréquences)
+          </label>
+        </div>
       </div>
 
       <!-- Nombre de joueurs (hors hôte) -->
@@ -123,11 +132,18 @@
         <input type="number" id="playerCount" min="1" max="8" value="2">
       </div>
 
-      <!-- Nombre total de chansons (ajouté) -->
+      <!-- Nombre de chansons à choisir par joueur -->
+      <div class="config-group" id="songsPerPlayerGroup">
+        <div class="config-title">🎵 Chansons à choisir par chaque joueur</div>
+        <input type="number" id="songsPerPlayer" min="0" max="5" value="1">
+        <p style="color:#8aaec0; margin-top:0.5rem; font-size:0.85rem;">Si 0, les joueurs ne choisissent rien, l'hôte choisit tout.</p>
+      </div>
+
+      <!-- Nombre total de chansons -->
       <div class="config-group" id="totalSongsGroup">
-        <div class="config-title">🎵 Nombre total de chansons</div>
-        <input type="number" id="totalSongs" min="2" max="20" value="5">
-        <p style="color:#8aaec0; margin-top:0.5rem;">Chaque joueur choisira 1 chanson, l'hôte choisira le reste.</p>
+        <div class="config-title">🎵 Nombre total de chansons de la partie</div>
+        <input type="number" id="totalSongs" min="1" max="30" value="5">
+        <p id="songsSplitHint" style="color:#8aaec0; margin-top:0.5rem; font-size:0.85rem;"></p>
       </div>
 
       <!-- Bouton de création -->
@@ -149,29 +165,67 @@
       const form = document.getElementById('config-form');
       const errorDiv = document.getElementById('configError');
       const isEditMode = new URLSearchParams(window.location.search).get('edit') === '1';
-      const submitBtn = form.querySelector('button[type="submit"], button:not([type])') || document.querySelector('#config-form button');
+      const submitBtn = document.getElementById('config-form').querySelector('button[type="submit"]');
+
+      // Expand/Collapse Paramètres
+      const toggleParams = document.getElementById('toggleParams');
+      const paramsContent = document.getElementById('paramsContent');
+      const paramsArrow = document.getElementById('paramsArrow');
+      toggleParams.addEventListener('click', () => {
+        const isHidden = paramsContent.classList.contains('hidden');
+        paramsContent.classList.toggle('hidden', !isHidden);
+        paramsArrow.textContent = isHidden ? '🔼' : '⬇️';
+      });
 
       // Affiche/masque les champs selon le mode choisi
       const totalSongsGroup = document.getElementById('totalSongsGroup');
+      const songsPerPlayerGroup = document.getElementById('songsPerPlayerGroup');
       const playlistModeNote = document.getElementById('playlistModeNote');
       const playlistSongsPerPlayerGroup = document.getElementById('playlistSongsPerPlayerGroup');
+      
       function updateModeUI() {
         const mode = document.querySelector('input[name="gameMode"]:checked')?.value;
         if (mode === 'playlist') {
           totalSongsGroup.classList.add('hidden');
+          songsPerPlayerGroup.classList.add('hidden');
           playlistModeNote.classList.remove('hidden');
           playlistSongsPerPlayerGroup.classList.remove('hidden');
         } else {
           totalSongsGroup.classList.remove('hidden');
+          songsPerPlayerGroup.classList.remove('hidden');
           playlistModeNote.classList.add('hidden');
           playlistSongsPerPlayerGroup.classList.add('hidden');
         }
         document.getElementById('lyricsModeGroup').classList.toggle('hidden', mode !== 'lyrics');
+        updateSongsSplitHint();
       }
       document.querySelectorAll('input[name="gameMode"]').forEach(r => r.addEventListener('change', updateModeUI));
+
+      // Calcul dynamique de la répartition hôte / joueurs
+      const totalSongsInput = document.getElementById('totalSongs');
+      const songsPerPlayerInput = document.getElementById('songsPerPlayer');
+      const playerCountInput = document.getElementById('playerCount');
+      const songsSplitHint = document.getElementById('songsSplitHint');
+
+      function updateSongsSplitHint() {
+        const total = parseInt(totalSongsInput.value, 10) || 0;
+        const perPlayer = parseInt(songsPerPlayerInput.value, 10) || 0;
+        const players = parseInt(playerCountInput.value, 10) || 0;
+        const playersTotal = players * perPlayer;
+        const hostTotal = total - playersTotal;
+
+        if (hostTotal < 0) {
+          songsSplitHint.innerHTML = `<span style="color:#ff9999;">⚠️ Impossible : les joueurs choisissent ${playersTotal} chansons au total. Augmentez le nombre total ou baissez les choix des joueurs.</span>`;
+        } else {
+          songsSplitHint.innerHTML = `Les joueurs choisiront <b>${playersTotal}</b> chanson(s) au total, l'hôte choisira le reste (<b>${hostTotal}</b>).`;
+        }
+      }
+      totalSongsInput.addEventListener('input', updateSongsSplitHint);
+      songsPerPlayerInput.addEventListener('input', updateSongsSplitHint);
+      playerCountInput.addEventListener('input', updateSongsSplitHint);
       updateModeUI();
 
-      // Texte d'explication intelligent : change selon l'état de la case
+      // Texte doublons
       const allowDuplicatesCheck = document.getElementById('allowDuplicatesCheck');
       const duplicatesHint = document.getElementById('duplicatesHint');
       function updateDuplicatesHint() {
@@ -182,15 +236,14 @@
       allowDuplicatesCheck.addEventListener('change', updateDuplicatesHint);
       updateDuplicatesHint();
 
-      // En mode édition (icône ⚙️ depuis la sélection), on pré-remplit le
-      // formulaire avec les réglages actuels de la room au lieu d'un
-      // formulaire vierge.
+      // Mode édition
       if (isEditMode && AppState.roomCode) {
         db.ref('rooms/' + AppState.roomCode + '/config').once('value', (snap) => {
           const cfg = snap.val();
           if (!cfg) return;
           const modeRadio = document.querySelector(`input[name="gameMode"][value="${cfg.mode}"]`);
           if (modeRadio) modeRadio.checked = true;
+          document.getElementById('classicModeCheck').checked = !!cfg.classicModeOnly;
           document.getElementById('maxAttempts').value = cfg.maxAttempts;
           document.getElementById('blurCheck').checked = !!cfg.blurEnabled;
           document.getElementById('lockOthersCheck').checked = !!cfg.lockOthersOnBuzz;
@@ -199,6 +252,7 @@
           document.getElementById('advancedSettingsCheck').checked = !!cfg.advancedSettings;
           document.getElementById('playerCount').value = cfg.expectedPlayerCount;
           document.getElementById('totalSongs').value = cfg.totalSongs;
+          document.getElementById('songsPerPlayer').value = cfg.songsPerPlayer !== undefined ? cfg.songsPerPlayer : 1;
           document.getElementById('playlistSongsPerPlayer').value = cfg.playlistSongsPerPlayer || 5;
           const speedRadio = document.querySelector(`input[name="lyricsSpeed"][value="${cfg.lyricsSpeed || 'slow'}"]`);
           if (speedRadio) speedRadio.checked = true;
@@ -218,6 +272,7 @@
           errorDiv.textContent = 'Veuillez choisir un mode.';
           return;
         }
+        const classicModeOnly = document.getElementById('classicModeCheck').checked;
         const maxAttempts = parseInt(document.getElementById('maxAttempts').value, 10) || 0;
         const blurEnabled = document.getElementById('blurCheck').checked;
         const lockOthersOnBuzz = document.getElementById('lockOthersCheck').checked;
@@ -227,38 +282,31 @@
         const allowDuplicates = document.getElementById('allowDuplicatesCheck').checked;
         const advancedSettings = document.getElementById('advancedSettingsCheck').checked;
         const playerCount = parseInt(document.getElementById('playerCount').value, 10);
+        const songsPerPlayer = parseInt(document.getElementById('songsPerPlayer').value, 10);
 
         if (isNaN(playerCount) || playerCount < 1) {
           errorDiv.textContent = 'Le nombre de joueurs doit être au moins 1.';
-          return;
-        }
-        if (mode === 'playlist' && playerCount < 3) {
-          errorDiv.textContent = 'Le mode Playlist demande au moins 3 joueurs (hors hôte).';
           return;
         }
 
         let totalSongs, hostSongsCount, playlistSongsPerPlayer = 5;
         if (mode === 'playlist') {
           playlistSongsPerPlayer = parseInt(document.getElementById('playlistSongsPerPlayer').value, 10) || 5;
-          if (playlistSongsPerPlayer < 2 || playlistSongsPerPlayer > 5) {
-            errorDiv.textContent = 'Le nombre de chansons par joueur doit être entre 2 et 5.';
-            return;
-          }
-          // Pas de quota "hôte" en mode Playlist : chaque joueur construit
-          // sa propre playlist, l'hôte n'en choisit aucune.
           totalSongs = playerCount * playlistSongsPerPlayer;
           hostSongsCount = 0;
         } else {
           totalSongs = parseInt(document.getElementById('totalSongs').value, 10);
-          if (isNaN(totalSongs) || totalSongs < playerCount) {
-            errorDiv.textContent = 'Le nombre de chansons doit être au moins égal au nombre de joueurs.';
+          const playersTotal = playerCount * songsPerPlayer;
+          if (totalSongs < playersTotal) {
+            errorDiv.textContent = `Erreur : les joueurs choisissent un total de ${playersTotal} chansons. Le total global de la partie doit être plus élevé.`;
             return;
           }
-          hostSongsCount = totalSongs - playerCount;
+          hostSongsCount = totalSongs - playersTotal;
         }
 
         const newConfig = {
           mode: mode,
+          classicModeOnly: classicModeOnly,
           maxAttempts: maxAttempts,
           blurEnabled: blurEnabled,
           lockOthersOnBuzz: lockOthersOnBuzz,
@@ -266,6 +314,7 @@
           allowDuplicates: allowDuplicates,
           advancedSettings: advancedSettings,
           expectedPlayerCount: playerCount,
+          songsPerPlayer: songsPerPlayer,
           totalSongs: totalSongs,
           hostSongsCount: hostSongsCount,
           playlistSongsPerPlayer: playlistSongsPerPlayer,
@@ -273,29 +322,23 @@
           lyricsSkipWords: lyricsSkipWords
         };
 
-        // ===== Mode édition : on met juste à jour la room existante =====
         if (isEditMode && AppState.roomCode) {
           try {
             await db.ref('rooms/' + AppState.roomCode + '/config').set(newConfig);
-            const returnTo = new URLSearchParams(window.location.search).get('return') || 'selection.html';
-            window.location.href = returnTo;
+            window.location.href = new URLSearchParams(window.location.search).get('return') || 'selection.html';
           } catch (error) {
             errorDiv.textContent = 'Erreur: ' + error.message;
           }
           return;
         }
 
-        // ===== Mode normal : création d'une toute nouvelle room =====
         const roomCode = generateRoomCode();
-        console.log('Création partie code:', roomCode);
-
         AppState.roomCode = roomCode;
         AppState.isHost = true;
         AppState.clientId = 'host';
 
         try {
-          const roomRef = db.ref('rooms/' + roomCode);
-          await roomRef.set({
+          await db.ref('rooms/' + roomCode).set({
             config: newConfig,
             players: {},
             selections: {},
@@ -308,16 +351,13 @@
               buzzerLocked: false,
               reopenAt: 0,
               roundStartTime: 0,
-              roundActive: false,
-              lockOthersOnBuzz: lockOthersOnBuzz
+              roundActive: false
             },
             status: 'lobby',
             createdAt: Date.now()
           });
-          console.log('Room créée');
           window.location.href = 'host-lobby.html';
         } catch (error) {
-          console.error('Erreur création:', error);
           errorDiv.textContent = 'Erreur: ' + error.message;
         }
       });

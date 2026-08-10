@@ -6,152 +6,217 @@
   <title>Configuration · Blind Test</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    .config-group {
-      background: #1e2329;
-      border-radius: 1.5rem;
-      padding: 1.2rem;
-      margin-bottom: 1.5rem;
-      border: 1px solid #2a3139;
-    }
-    .config-title {
-      font-size: 1.1rem;
-      font-weight: 600;
-      margin-bottom: 1rem;
-      color: #d4e2f2;
-    }
-    .radio-group {
-      display: flex;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-    .radio-label {
-      background: #0f1419;
-      padding: 0.5rem 1.2rem;
-      border-radius: 60px;
-      border: 1px solid #2f3b48;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      cursor: pointer;
-    }
-    .checkbox-label {
-      background: #0f1419;
-      padding: 0.7rem 1.2rem;
-      border-radius: 60px;
-      border: 1px solid #2f3b48;
-      display: flex;
-      align-items: center;
-      gap: 0.8rem;
-      cursor: pointer;
-    }
-    input[type="number"] {
-      width: 100%;
-      background: #0f1317;
-      border: 1px solid #2f3b48;
-      border-radius: 60px;
-      padding: 0.8rem 1.2rem;
-      color: white;
-    }
-    .error-message {
-      color: #ff9999;
-      margin-top: 0.5rem;
-      text-align: center;
-    }
+    .setup-container { max-width: 650px; margin: 0 auto; }
+    .setup-header { text-align: center; margin-bottom: 2rem; }
+    .setup-header p { color: #8aaec0; margin-top: 0.5rem; font-size: 0.95rem; }
+    .mode-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    @media (max-width: 480px) { .mode-grid { grid-template-columns: 1fr; } }
+    .mode-card { cursor: pointer; position: relative; }
+    .mode-card input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
+    .card-design { background: #141a22; border: 2px solid #2b3542; border-radius: 1.25rem; padding: 1.2rem; display: flex; flex-direction: column; align-items: center; text-align: center; transition: all 0.25s ease; height: 100%; }
+    .card-design .icon { font-size: 2rem; margin-bottom: 0.6rem; }
+    .card-design h3 { font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 0.4rem; }
+    .card-design p { font-size: 0.8rem; color: #8aaec0; line-height: 1.35; }
+    .mode-card input[type="radio"]:checked + .card-design { border-color: #3b6eff; background: #172435; box-shadow: 0 0 20px rgba(59, 110, 255, 0.25); transform: translateY(-2px); }
+    .control-row { display: flex; justify-content: space-between; align-items: center; background: #141a22; border: 1px solid #2b3542; padding: 1rem 1.2rem; border-radius: 1rem; margin-bottom: 1rem; gap: 1rem; }
+    .control-row label { margin-bottom: 0; font-size: 0.95rem; font-weight: 600; color: #cfe0ea; }
+    .control-row input[type="number"] { width: 80px; margin: 0; padding: 0.5rem; text-align: center; background: #0d1218; border: 1px solid #2b3542; border-radius: 10px; color: #fff; font-size: 1rem; }
+    .accordion-header { background: #141a22; border: 1px solid #2b3542; border-radius: 1rem; padding: 1.2rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; transition: background 0.2s; margin-bottom: 1rem; }
+    .accordion-header:hover { background: #1a222c; }
+    .accordion-header h3 { font-size: 1.05rem; font-weight: 700; color: #e0f0ff; }
+    .toggle-list { display: flex; flex-direction: column; gap: 0.8rem; padding: 1.2rem; background: #0e1319; border: 1px solid #2b3542; border-top: none; border-radius: 0 0 1rem 1rem; margin-top: -1.5rem; margin-bottom: 1.5rem; }
+    .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; }
+    .toggle-info { padding-right: 1rem; }
+    .toggle-info h4 { font-size: 0.92rem; font-weight: 600; color: #fff; }
+    .toggle-info p { font-size: 0.78rem; color: #8aaec0; margin-top: 0.15rem; }
+    .switch { position: relative; display: inline-block; width: 48px; height: 24px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #2b3542; transition: .25s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .25s; border-radius: 50%; }
+    input:checked + .slider { background-color: #3b6eff; }
+    input:checked + .slider:before { transform: translateX(24px); }
+    .hint-alert { background: #251e15; border-left: 4px solid #f5a623; padding: 0.8rem 1.2rem; border-radius: 0.75rem; font-size: 0.85rem; color: #fdd594; margin-top: 1rem; }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
-  <div id="app">
-    <h1>⚙️ Configuration</h1>
+  <div id="app" class="setup-container">
+    <div class="setup-header">
+      <h1>⚙️ Configuration</h1>
+      <p>Configurez les règles de votre partie</p>
+    </div>
+
     <form id="config-form">
-      <!-- Mode de jeu (descriptions retirées) -->
-      <div class="config-group">
-        <div class="config-title">🎮 Mode de jeu</div>
-        <div class="radio-group">
-          <label class="radio-label"><input type="radio" name="gameMode" value="classic" checked> 🎵 Normal</label>
-          <label class="radio-label"><input type="radio" name="gameMode" value="instrumental"> 🎸 Instrumental</label>
-          <label class="radio-label"><input type="radio" name="gameMode" value="playlist"> 🎧 Playlist</label>
-          <label class="radio-label"><input type="radio" name="gameMode" value="lyrics"> 🎤 Paroles</label>
+      <div class="config-group" style="border:none; background:transparent; padding:0; margin-bottom:1.5rem;">
+        <div class="config-title" style="margin-bottom:1rem;">🕹️ Type d'expérience</div>
+        <div class="mode-grid">
+          <label class="mode-card">
+            <input type="radio" name="gameMode" value="classic" checked>
+            <div class="card-design">
+              <span class="icon">🎵</span>
+              <h3>Standard</h3>
+              <p>Chanson originale, rapidité de buzzer classique</p>
+            </div>
+          </label>
+          <label class="mode-card">
+            <input type="radio" name="gameMode" value="instrumental">
+            <div class="card-design">
+              <span class="icon">🎸</span>
+              <h3>Instrumental</h3>
+              <p>Effet DSP appliqué pour atténuer les voix</p>
+            </div>
+          </label>
+          <label class="mode-card">
+            <input type="radio" name="gameMode" value="playlist">
+            <div class="card-design">
+              <span class="icon">🎧</span>
+              <h3>Playlist</h3>
+              <p>Devinez à qui appartient chaque chanson</p>
+            </div>
+          </label>
+          <label class="mode-card">
+            <input type="radio" name="gameMode" value="lyrics">
+            <div class="card-design">
+              <span class="icon">🎤</span>
+              <h3>Paroles</h3>
+              <p>Révélation progressive et audio du texte</p>
+            </div>
+          </label>
         </div>
-        <div id="playlistModeNote" class="hint-text hidden" style="color:#f5a623; margin-top:0.5rem;">
-          ⚠️ Minimum 3 joueurs (hors hôte). Chaque joueur construit sa propre playlist — l'hôte n'en choisit pas.
+
+        <div id="playlistModeNote" class="hint-alert hidden">
+          ⚠️ <b>Mode Playlist :</b> Demande au moins 3 joueurs. Chaque participant soumet sa mini-sélection, l'hôte est observateur.
         </div>
-        <div id="playlistSongsPerPlayerGroup" class="hidden" style="margin-top:0.8rem;">
-          <label>🎵 Chansons par joueur (mode Playlist)</label>
+
+        <div id="playlistSongsPerPlayerGroup" class="control-row hidden" style="margin-top:0.8rem;">
+          <label>Chansons par joueur (mode Playlist)</label>
           <input type="number" id="playlistSongsPerPlayer" min="2" max="5" value="5">
         </div>
-        <div id="lyricsModeGroup" class="hidden" style="margin-top:0.8rem;">
-          <label>⏱️ Vitesse d'apparition des paroles</label>
-          <div class="radio-group">
+
+        <div id="lyricsModeGroup" class="hidden" style="margin-top:0.8rem; background: #141a22; border: 1px solid #2b3542; border-radius: 1rem; padding: 1.2rem;">
+          <label style="display:block; margin-bottom:0.8rem;">⏱️ Vitesse d'apparition des paroles</label>
+          <div class="radio-group" style="margin-bottom:1rem;">
             <label class="radio-label"><input type="radio" name="lyricsSpeed" value="slow" checked> 🐢 Lent</label>
             <label class="radio-label"><input type="radio" name="lyricsSpeed" value="medium"> 🚶 Moyen</label>
             <label class="radio-label"><input type="radio" name="lyricsSpeed" value="fast"> ⚡ Rapide</label>
           </div>
-          <label class="checkbox-label" style="margin-top:0.8rem;">
-            <input type="checkbox" id="lyricsSkipWordsCheck"> 🕳️ Certains mots restent cachés (plus difficile)
-          </label>
-        </div>
-      </div>
-
-      <!-- Options communes Déroulantes -->
-      <div class="config-group">
-        <div class="config-title" id="toggleParams" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
-          <span>🎚️ Paramètres</span>
-          <span id="paramsArrow">⬇️</span>
-        </div>
-        <div id="paramsContent" class="hidden" style="margin-top: 1rem;">
-          <label class="checkbox-label" style="border: 1px solid #3b6eff; background: #0c141d;">
-            <input type="checkbox" id="classicModeCheck"> 🚫 Mode Classique (Désactiver effets complexes en sélection)
-          </label>
-          
-          <div style="margin: 1.2rem 0 1rem 0;">
-            <label>Nombre d'essais max par joueur (0 = illimité)</label>
-            <input type="number" id="maxAttempts" min="0" max="10" value="3">
+          <div class="toggle-row" style="border-top:1px solid #2b3542; padding-top:0.8rem; margin:0;">
+            <div class="toggle-info">
+              <h4>Mots masqués</h4>
+              <p>Certaines lettres restent cachées pour plus de difficulté</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="lyricsSkipWordsCheck">
+              <span class="slider"></span>
+            </label>
           </div>
-          <label class="checkbox-label">
-            <input type="checkbox" id="blurCheck"> 🎨 Flouter la cover progressivement
+        </div>
+      </div>
+
+      <div class="accordion-header" id="toggleParams">
+        <h3>🎚️ Options de difficulté & Paramètres</h3>
+        <span id="paramsArrow" style="font-size: 1.2rem; color: #8aaec0;">⬇️</span>
+      </div>
+
+      <div id="paramsContent" class="hidden toggle-list">
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <h4>Mode Classique Simple</h4>
+            <p>Désactive les filtres audio complexes lors de la sélection des morceaux</p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="classicModeCheck">
+            <span class="slider"></span>
           </label>
-          <label class="checkbox-label" style="margin-top:0.8rem;">
-            <input type="checkbox" id="lockOthersCheck" checked> 🔒 Verrouiller les autres joueurs pendant qu'un joueur répond
+        </div>
+
+        <div class="toggle-row" style="border-top: 1px solid #2b3542; padding-top: 0.8rem; margin-top: 0.4rem;">
+          <div class="toggle-info">
+            <h4>Tentatives maximales</h4>
+            <p>Nombre d'essais max autorisés par joueur (0 = illimité)</p>
+          </div>
+          <input type="number" id="maxAttempts" min="0" max="10" value="3">
+        </div>
+
+        <div class="toggle-row" style="border-top: 1px solid #2b3542; padding-top: 0.8rem;">
+          <div class="toggle-info">
+            <h4>Révélation d'image</h4>
+            <p>Flouter la couverture d'album et la révéler progressivement</p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="blurCheck">
+            <span class="slider"></span>
           </label>
-          <label class="checkbox-label" style="margin-top:0.8rem;">
-            <input type="checkbox" id="multipleCorrectCheck"> 🏁 Accepter plusieurs bonnes réponses par manche
+        </div>
+
+        <div class="toggle-row" style="border-top: 1px solid #2b3542; padding-top: 0.8rem;">
+          <div class="toggle-info">
+            <h4>Blocage des adversaires</h4>
+            <p>Verrouiller les autres participants pendant qu'un joueur répond</p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="lockOthersCheck" checked>
+            <span class="slider"></span>
           </label>
-          <label class="checkbox-label" style="margin-top:0.8rem;">
-            <input type="checkbox" id="allowDuplicatesCheck"> 🎭 Accepter les doublons
+        </div>
+
+        <div class="toggle-row" style="border-top: 1px solid #2b3542; padding-top: 0.8rem;">
+          <div class="toggle-info">
+            <h4>Multi-vainqueurs</h4>
+            <p>Accepter plusieurs bonnes réponses d'affilée par manche</p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="multipleCorrectCheck">
+            <span class="slider"></span>
           </label>
-          <p class="hint-text" id="duplicatesHint" style="margin-top:0.3rem; color:#8aaec0;"></p>
-          <label class="checkbox-label" style="margin-top:0.8rem;">
-            <input type="checkbox" id="advancedSettingsCheck"> 🛠️ Paramètres avancés pour les joueurs (pitch, filtre de fréquences)
+        </div>
+
+        <div class="toggle-row" style="border-top: 1px solid #2b3542; padding-top: 0.8rem;">
+          <div class="toggle-info">
+            <h4>Autoriser les doublons</h4>
+            <p id="duplicatesHint" style="font-size:0.78rem; color:#8aaec0; margin:0;"></p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="allowDuplicatesCheck">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row" style="border-top: 1px solid #2b3542; padding-top: 0.8rem;">
+          <div class="toggle-info">
+            <h4>Modifications avancées</h4>
+            <p>Donner accès au pitch et aux filtres lors de la sélection</p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="advancedSettingsCheck">
+            <span class="slider"></span>
           </label>
         </div>
       </div>
 
-      <!-- Nombre de joueurs (hors hôte) -->
-      <div class="config-group">
-        <div class="config-title">👥 Joueurs (hors hôte)</div>
+      <div class="control-row">
+        <label>👥 Nombre de joueurs attendus</label>
         <input type="number" id="playerCount" min="1" max="8" value="2">
       </div>
 
-      <!-- Nombre de chansons à choisir par joueur -->
-      <div class="config-group" id="songsPerPlayerGroup">
-        <div class="config-title">🎵 Chansons à choisir par chaque joueur</div>
+      <div class="control-row" id="songsPerPlayerGroup">
+        <label>🎵 Chansons à choisir par joueur</label>
         <input type="number" id="songsPerPlayer" min="0" max="5" value="1">
-        <p style="color:#8aaec0; margin-top:0.5rem; font-size:0.85rem;">Si 0, les joueurs ne choisissent rien, l'hôte choisit tout.</p>
       </div>
 
-      <!-- Nombre total de chansons -->
-      <div class="config-group" id="totalSongsGroup">
-        <div class="config-title">🎵 Nombre total de chansons de la partie</div>
-        <input type="number" id="totalSongs" min="1" max="30" value="5">
-        <p id="songsSplitHint" style="color:#8aaec0; margin-top:0.5rem; font-size:0.85rem;"></p>
+      <div class="control-row" id="totalSongsGroup" style="flex-direction:column; align-items:stretch;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label>🏆 Nombre total de chansons de la partie</label>
+          <input type="number" id="totalSongs" min="1" max="30" value="5">
+        </div>
+        <p id="songsSplitHint" style="color:#8aaec0; margin-top:0.6rem; font-size:0.82rem; line-height:1.3;"></p>
       </div>
 
-      <!-- Bouton de création -->
-      <button type="submit" class="primary" style="width:100%; padding:1.2rem;">🚀 Créer la partie</button>
+      <button type="submit" class="primary" style="width:100%; padding:1.2rem; border-radius:60px; font-size:1.05rem;">🚀 Créer la partie</button>
       <div id="configError" class="error-message"></div>
     </form>
     <p style="text-align:center; margin-top:1.5rem;">
-      <a href="index.html" style="color:#8aaec0;">← Retour à l'accueil</a>
+      <a href="index.html" style="color:#8aaec0; font-size:0.92rem;">← Retour à l'accueil</a>
     </p>
   </div>
 
@@ -167,7 +232,6 @@
       const isEditMode = new URLSearchParams(window.location.search).get('edit') === '1';
       const submitBtn = document.getElementById('config-form').querySelector('button[type="submit"]');
 
-      // Expand/Collapse Paramètres
       const toggleParams = document.getElementById('toggleParams');
       const paramsContent = document.getElementById('paramsContent');
       const paramsArrow = document.getElementById('paramsArrow');
@@ -177,7 +241,6 @@
         paramsArrow.textContent = isHidden ? '🔼' : '⬇️';
       });
 
-      // Affiche/masque les champs selon le mode choisi
       const totalSongsGroup = document.getElementById('totalSongsGroup');
       const songsPerPlayerGroup = document.getElementById('songsPerPlayerGroup');
       const playlistModeNote = document.getElementById('playlistModeNote');
@@ -201,7 +264,6 @@
       }
       document.querySelectorAll('input[name="gameMode"]').forEach(r => r.addEventListener('change', updateModeUI));
 
-      // Calcul dynamique de la répartition hôte / joueurs
       const totalSongsInput = document.getElementById('totalSongs');
       const songsPerPlayerInput = document.getElementById('songsPerPlayer');
       const playerCountInput = document.getElementById('playerCount');
@@ -215,9 +277,9 @@
         const hostTotal = total - playersTotal;
 
         if (hostTotal < 0) {
-          songsSplitHint.innerHTML = `<span style="color:#ff9999;">⚠️ Impossible : les joueurs choisissent ${playersTotal} chansons au total. Augmentez le nombre total ou baissez les choix des joueurs.</span>`;
+          songsSplitHint.innerHTML = `<span style="color:#ff9999;">⚠️ Configuration impossible : le nombre total de chansons doit couvrir les sélections des joueurs (${playersTotal} au total).</span>`;
         } else {
-          songsSplitHint.innerHTML = `Les joueurs choisiront <b>${playersTotal}</b> chanson(s) au total, l'hôte choisira le reste (<b>${hostTotal}</b>).`;
+          songsSplitHint.innerHTML = `Les joueurs choisiront au total <b>${playersTotal}</b> chanson(s), et l'hôte complètera avec <b>${hostTotal}</b> chanson(s).`;
         }
       }
       totalSongsInput.addEventListener('input', updateSongsSplitHint);
@@ -225,18 +287,16 @@
       playerCountInput.addEventListener('input', updateSongsSplitHint);
       updateModeUI();
 
-      // Texte doublons
       const allowDuplicatesCheck = document.getElementById('allowDuplicatesCheck');
       const duplicatesHint = document.getElementById('duplicatesHint');
       function updateDuplicatesHint() {
-        duplicatesHint.textContent = allowDuplicatesCheck.checked
-          ? 'La chanson n\'apparaîtra qu\'une fois dans la partie.'
-          : 'La 2e personne à choisir une chanson déjà prise devra en changer.';
+        duplicatesHint.innerHTML = allowDuplicatesCheck.checked
+          ? '<h4>Autoriser les doublons</h4><p>Plusieurs joueurs peuvent soumettre la même musique sans être bloqués.</p>'
+          : '<h4>Autoriser les doublons</h4><p>Le second joueur à soumettre une musique déjà prise devra en choisir une autre.</p>';
       }
       allowDuplicatesCheck.addEventListener('change', updateDuplicatesHint);
       updateDuplicatesHint();
 
-      // Mode édition
       if (isEditMode && AppState.roomCode) {
         db.ref('rooms/' + AppState.roomCode + '/config').once('value', (snap) => {
           const cfg = snap.val();

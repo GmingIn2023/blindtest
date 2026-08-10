@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="dark">
-  <title>Sélection K des chansons · Blind Test</title>
+  <title>Sélection · Blind Test</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
     .selection-header {
@@ -17,165 +17,40 @@
       justify-content: space-between;
       align-items: center;
     }
-    .search-container {
-      background: #1c2127;
-      border-radius: 1.8rem;
-      padding: 1.6rem;
-    }
-    .search-box {
-      display: flex;
-      gap: 0.8rem;
-    }
-    .search-box input[type="text"] {
-      flex: 1;
-    }
-    .results-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      margin-top: 1.5rem;
-      max-height: 400px;
-      overflow-y: auto;
-    }
-    .song-card {
-      display: flex;
-      align-items: center;
-      background: #1a1f25;
-      padding: 1rem;
-      border-radius: 1.2rem;
-      border: 2px solid #2d353e;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-    .song-card:hover:not(.selected) {
-      border-color: #5e9eff;
-      transform: translateX(5px);
-    }
-    .song-card img {
-      width: 64px;
-      height: 64px;
-      border-radius: 12px;
-      margin-right: 1.2rem;
-      object-fit: cover;
-    }
-    .song-card.selected {
-      border-color: #2f7740;
-      background: #1a2420;
-      opacity: 0.6;
-      pointer-events: none;
-    }
-    .song-info {
-      flex: 1;
-    }
-    .song-title {
-      font-weight: 600;
-      margin-bottom: 0.3rem;
-    }
-    .song-artist {
-      color: #8aaec0;
-      font-size: 0.9rem;
-    }
-    .counter {
-      background: #3b6eff;
-      padding: 0.5rem 1.2rem;
-      border-radius: 60px;
-    }
+    .search-container { background: #1c2127; border-radius: 1.8rem; padding: 1.6rem; }
+    .search-box { display: flex; gap: 0.8rem; }
+    .search-box input[type="text"] { flex: 1; }
+    .results-grid { display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem; max-height: 400px; overflow-y: auto; }
+    .song-card { display: flex; align-items: center; background: #1a1f25; padding: 1rem; border-radius: 1.2rem; border: 2px solid #2d353e; cursor: pointer; transition: 0.2s; }
+    .song-card:hover:not(.selected) { border-color: #5e9eff; transform: translateX(5px); }
+    .song-card img { width: 64px; height: 64px; border-radius: 12px; margin-right: 1.2rem; object-fit: cover; }
+    .song-card.selected { border-color: #2f7740; background: #1a2420; opacity: 0.6; pointer-events: none; }
+    .song-info { flex: 1; }
+    .song-title { font-weight: 600; margin-bottom: 0.3rem; }
+    .song-artist { color: #8aaec0; font-size: 0.9rem; }
+    .counter { background: #3b6eff; padding: 0.5rem 1.2rem; border-radius: 60px; }
     .loading { color: #8aaec0; padding: 0.5rem 0; }
     .error-text { color: #ff6b6b; padding: 0.5rem 0; }
 
-    /* ===== Modale de personnalisation d'extrait ===== */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.7);
-      display: flex;
-      align-items: flex-end;
-      justify-content: center;
-      z-index: 1000;
-    }
+    /* Modale */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: flex-end; justify-content: center; z-index: 1000; }
     .modal-overlay.hidden { display: none; }
-    .modal-box {
-      background: #1a1f25;
-      border-radius: 1.6rem 1.6rem 0 0;
-      padding: 1.6rem;
-      width: 100%;
-      max-width: 480px;
-      max-height: 88vh;
-      overflow-y: auto;
-    }
-    .modal-song-info {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      margin-bottom: 1.2rem;
-    }
-    .modal-song-info img {
-      width: 56px; height: 56px;
-      border-radius: 10px;
-      object-fit: cover;
-    }
-    .modal-box label {
-      display: block;
-      margin-top: 1.1rem;
-      margin-bottom: 0.4rem;
-      font-size: 0.92rem;
-      color: #cfe0ea;
-    }
+    .modal-box { background: #1a1f25; border-radius: 1.6rem 1.6rem 0 0; padding: 1.6rem; width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto; }
+    .modal-song-info { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.2rem; }
+    .modal-song-info img { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; }
+    .modal-box label { display: block; margin-top: 1.1rem; margin-bottom: 0.4rem; font-size: 0.92rem; color: #cfe0ea; }
     .modal-box input[type="range"] { width: 100%; }
-    .preset-buttons {
-      display: flex;
-      gap: 0.6rem;
-      margin-bottom: 0.4rem;
-    }
-    .preset-buttons button {
-      flex: 1;
-      padding: 0.5rem;
-      border-radius: 0.8rem;
-      border: 2px solid #2d353e;
-      background: #1a1f25;
-      color: #fff;
-    }
-    .preset-buttons button.active {
-      border-color: #5e9eff;
-      background: #223047;
-    }
-    .checkbox-label {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-      margin-top: 1rem;
-      font-size: 0.92rem;
-    }
-    .modal-actions {
-      display: flex;
-      flex-direction: column;
-      gap: 0.7rem;
-      margin-top: 1.5rem;
-    }
-    .modal-actions button {
-      padding: 0.8rem;
-      border-radius: 1rem;
-      border: none;
-      font-weight: 600;
-    }
+    .preset-buttons { display: flex; gap: 0.6rem; margin-bottom: 0.4rem; }
+    .preset-buttons button { flex: 1; padding: 0.5rem; border-radius: 0.8rem; border: 2px solid #2d353e; background: #1a1f25; color: #fff; }
+    .preset-buttons button.active { border-color: #5e9eff; background: #223047; }
+    .checkbox-label { display: flex; align-items: center; gap: 0.6rem; margin-top: 1rem; font-size: 0.92rem; }
+    .modal-actions { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 1.5rem; }
+    .modal-actions button { padding: 0.8rem; border-radius: 1rem; border: none; font-weight: 600; }
     #previewBtn { background: #2d353e; color: #fff; }
     #confirmSelectBtn { background: #3b6eff; color: #fff; }
     #cancelSelectBtn { background: transparent; color: #8aaec0; }
     .hint-text { font-size: 0.8rem; color: #8aaec0; margin-top: 0.3rem; }
-    .experimental-tag { color: #f5a623; font-size: 0.78rem; }
-    .song-added-popup {
-      position: fixed;
-      top: 16px;
-      left: 50%;
-      z-index: 1200;
-      background: #17301f;
-      border: 1px solid #4fd97f;
-      border-radius: 1rem;
-      padding: 0.7rem 1.2rem;
-      text-align: center;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
-      animation: sapInOut 1.3s ease forwards;
-    }
+    .song-added-popup { position: fixed; top: 16px; left: 50%; z-index: 1200; background: #17301f; border: 1px solid #4fd97f; border-radius: 1rem; padding: 0.7rem 1.2rem; text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,0.4); animation: sapInOut 1.3s ease forwards; }
     .song-added-popup.hidden { display: none; }
     .sap-title { font-weight: 700; }
     .sap-options { font-size: 0.8rem; color: #9fe0b5; margin-top: 0.2rem; }
@@ -185,34 +60,11 @@
       65%  { opacity: 1; transform: translate(-50%, 0); }
       100% { opacity: 0; transform: translate(-50%, -14px); }
     }
-    .lyrics-scroll-area {
-      max-height: 45vh;
-      overflow-y: auto;
-      background: #101418;
-      border: 1px solid #2d353e;
-      border-radius: 1rem;
-      padding: 1rem;
-      margin: 0.6rem 0;
-      -webkit-overflow-scrolling: touch;
-    }
+    .lyrics-scroll-area { max-height: 45vh; overflow-y: auto; background: #101418; border: 1px solid #2d353e; border-radius: 1rem; padding: 1rem; margin: 0.6rem 0; }
     .lyrics-scroll-area.hidden { display: none; }
-    .lyrics-line {
-      padding: 0.35rem 0.5rem;
-      border-radius: 0.5rem;
-      cursor: pointer;
-      color: #cfd8e3;
-      line-height: 1.5;
-    }
-    .lyrics-line:active { background: #1c2530; }
-    .lyrics-line.selected {
-      background: #223047;
-      color: #fff;
-      border-left: 3px solid #5e9eff;
-    }
-    .lyrics-line.invalid {
-      background: #3a1f1f;
-      border-left: 3px solid #ff6b6b;
-    }
+    .lyrics-line { padding: 0.35rem 0.5rem; border-radius: 0.5rem; cursor: pointer; color: #cfd8e3; line-height: 1.5; }
+    .lyrics-line.selected { background: #223047; color: #fff; border-left: 3px solid #5e9eff; }
+    .lyrics-line.invalid { background: #3a1f1f; border-left: 3px solid #ff6b6b; }
   </style>
 </head>
 <body>
@@ -229,7 +81,7 @@
     </div>
     <div class="search-container">
       <div class="search-box">
-        <input type="text" id="searchInput" placeholder="Artiste ou titre..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <input type="text" id="searchInput" placeholder="Artiste ou titre...">
         <button id="searchBtn">🔍 Chercher</button>
       </div>
       <div id="errorMsg"></div>
@@ -240,7 +92,7 @@
     </p>
   </div>
 
-  <!-- Modale de personnalisation de l'extrait -->
+  <!-- Modale d'extrait -->
   <div id="customizeModal" class="modal-overlay hidden">
     <div class="modal-box">
       <div class="modal-song-info">
@@ -251,66 +103,71 @@
         </div>
       </div>
 
+      <!-- Durée (Visible mode classique) -->
       <label>⏱️ Durée de l'extrait : <span id="durationValue">10</span>s</label>
       <input type="range" id="durationSlider" min="0.5" max="15" step="0.5" value="10">
 
-      <label>📍 & Position dans l'extrait</label>
+      <!-- Position (Visible mode classique) -->
+      <label>📍 Position dans l'extrait</label>
       <div class="preset-buttons">
         <button type="button" id="presetStart">⏮️ Début</button>
         <button type="button" id="presetMiddle">⏺️ Milieu</button>
         <button type="button" id="presetEnd">⏭️ Fin</button>
       </div>
-      <input type="range" id="positionSlider" min="0" max="0" step="0.5" value="0">
-      <div class="hint-text" id="positionHint">Chargement de l'aperçu...</div>
+      <input type="range" id="positionSlider" min="0" max="30" step="0.5" value="0">
+      <div class="hint-text" id="positionHint">Chargement...</div>
 
-      <div id="reverseControlGroup">
-        <label class="checkbox-label">
+      <!-- Vitesse (Visible mode classique) -->
+      <label>⚡ Vitesse : <span id="speedValue">1.0x</span></label>
+      <input type="range" id="speedSlider" min="0.4" max="2.5" step="0.1" value="1">
+
+      <!-- Ajustement Volume Général de l'extrait -->
+      <label>🔊 Volume de cet extrait : <span id="volumeValue">100%</span></label>
+      <input type="range" id="volumeSlider" min="70" max="150" step="5" value="100">
+
+      <!-- BLOCS DES PARAMÈTRES COMPLEXES (Masqués si classicModeOnly est actif) -->
+      <div id="complexControlsGroup">
+        <!-- Sans Voix (Paramètre avancé) -->
+        <label class="checkbox-label" style="margin-top: 1.2rem;">
+          <input type="checkbox" id="instrumentalCheck"> 🎸 Sans voix
+        </label>
+        <div id="instrumentalVariants" class="preset-buttons hidden" style="margin-top:0.4rem; flex-wrap:wrap;">
+          <button type="button" class="variant-btn" data-variant="1">🎚️ Stéréo</button>
+          <button type="button" class="variant-btn" data-variant="2">🎼 Fréquences</button>
+          <button type="button" class="variant-btn" data-variant="3">💪 Renforcé</button>
+          <button type="button" class="variant-btn" data-variant="4">🔍 Vraie version instru</button>
+        </div>
+        <div class="hint-text" id="variantHint"></div>
+        <div id="variantIntensityGroup" class="hidden" style="margin-top:0.4rem;">
+          <label>🎛️ Précision d'atténuation : <span id="variantIntensityValue">40</span>%</label>
+          <input type="range" id="variantIntensitySlider" min="10" max="100" step="5" value="40">
+        </div>
+        <div id="instrumentalSearchGroup" class="hidden" style="margin-top:0.6rem;">
+          <button type="button" id="searchInstrumentalBtn" style="width:100%;">🔍 Chercher une version instrumentale officielle</button>
+          <div id="instrumentalResults" style="margin-top:0.5rem;"></div>
+        </div>
+
+        <!-- Inversé & Radio (Paramètres avancés) -->
+        <label class="checkbox-label" style="margin-top:0.8rem;">
           <input type="checkbox" id="reverseCheck"> 🔄 Inverser l'extrait (à l'envers)
         </label>
-      </div>
-      <label class="checkbox-label">
-        <input type="checkbox" id="instrumentalCheck">
-        🎸 Sans voix
-      </label>
-      <div id="instrumentalVariants" class="preset-buttons hidden" style="margin-top:0.4rem; flex-wrap:wrap;">
-        <button type="button" class="variant-btn" data-variant="1">🎚️ Stéréo</button>
-        <button type="button" class="variant-btn" data-variant="2">🎼 Fréquences</button>
-        <button type="button" class="variant-btn" data-variant="3">💪 Renforcé</button>
-        <button type="button" class="variant-btn" data-variant="4">🔍 Vraie version instru</button>
-      </div>
-      <div class="hint-text" id="variantHint"></div>
-      <div id="variantIntensityGroup" class="hidden" style="margin-top:0.4rem;">
-        <label>🎛️ Intensité : <span id="variantIntensityValue">60</span>%</label>
-        <input type="range" id="variantIntensitySlider" min="10" max="100" step="5" value="60">
-      </div>
-      <div id="instrumentalSearchGroup" class="hidden" style="margin-top:0.6rem;">
-        <button type="button" id="searchInstrumentalBtn" style="width:100%;">🔍 Chercher une version instrumentale</button>
-        <div id="instrumentalResults" style="margin-top:0.5rem;"></div>
-      </div>
-
-      <div id="speedControlGroup">
-        <label>⚡ Vitesse : <span id="speedValue">1.0x</span></label>
-        <input type="range" id="speedSlider" min="0.4" max="2.5" step="0.1" value="1">
-      </div>
-
-      <div id="radioControlGroup">
-        <label class="checkbox-label">
-          <input type="checkbox" id="radioModeCheck">
-          📻 Mode Radio / Téléphone
+        <label class="checkbox-label" style="margin-top:0.8rem;">
+          <input type="checkbox" id="radioModeCheck"> 📻 Mode Radio / Téléphone
         </label>
-      </div>
 
-      <div id="advancedSettingsSection" class="hidden" style="margin-top:0.8rem; border-top:1px solid #2d353e; padding-top:0.6rem;">
-        <button type="button" id="advancedToggleBtn" style="background:none; border:none; color:#8aaec0; padding:0; display:flex; align-items:center; gap:0.4rem; cursor:pointer;">
-          <span id="advancedToggleArrow">🔽</span> Paramètres avancés
-        </button>
-        <div id="advancedSettingsContent" class="hidden">
-          <label>🎼 Pitch (tonalité) : <span id="pitchValue">0</span> demi-tons <span class="experimental-tag">(expérimental)</span></label>
-          <input type="range" id="pitchSlider" min="-12" max="12" step="1" value="0">
+        <!-- Expérimental (Pitch, Filtre Fréquence) -->
+        <div id="advancedSettingsSection" class="hidden" style="margin-top:0.8rem; border-top:1px solid #2d353e; padding-top:0.6rem;">
+          <button type="button" id="advancedToggleBtn" style="background:none; border:none; color:#8aaec0; display:flex; align-items:center; gap:0.4rem; cursor:pointer;">
+            <span id="advancedToggleArrow">🔽</span> Tonalité & Filtres (Expérimental)
+          </button>
+          <div id="advancedSettingsContent" class="hidden">
+            <label>🎼 Pitch : <span id="pitchValue">0</span> demi-tons</label>
+            <input type="range" id="pitchSlider" min="-12" max="12" step="1" value="0">
 
-          <label>🎚️ Filtre fréquences <span class="experimental-tag">(expérimental)</span></label>
-          <input type="range" id="filterSlider" min="-100" max="100" step="5" value="0">
-          <div class="hint-text" id="filterHint">Neutre</div>
+            <label>🎚️ Filtre fréquences</label>
+            <input type="range" id="filterSlider" min="-100" max="100" step="5" value="0">
+            <div class="hint-text" id="filterHint">Neutre</div>
+          </div>
         </div>
       </div>
 
@@ -323,7 +180,7 @@
     </div>
   </div>
 
-  <!-- Modale de sélection des paroles (mode Paroles) -->
+  <!-- Modale Paroles (min 1 ligne, max 30 mots) -->
   <div id="lyricsModal" class="modal-overlay hidden">
     <div class="modal-box">
       <div class="modal-song-info">
@@ -333,19 +190,15 @@
           <div id="lyricsModalArtist" class="song-artist"></div>
         </div>
       </div>
-
-      <p class="hint-text" id="lyricsInstructions">
-        Fais défiler les paroles et touche une ligne pour commencer ta sélection,
-        puis touche la ligne juste en dessous pour finir (2 lignes consécutives, 3 à 20 mots au total).
+      <p class="hint-text">
+        Touchez 1 ligne (ou 2 lignes consécutives) pour sélectionner votre extrait (de 3 à 30 mots au total).
       </p>
-
       <div id="lyricsLoading" class="loading">🔎 Recherche des paroles...</div>
       <div id="lyricsScrollArea" class="lyrics-scroll-area hidden"></div>
       <div id="lyricsWordCountHint" class="hint-text"></div>
-
       <div class="modal-actions">
         <button type="button" id="confirmLyricsBtn" disabled>✅ Choisir cette chanson</button>
-        <button type="button" id="retryKaraokeLyricsBtn" class="hidden">🔎 Essayer une autre recherche</button>
+        <button type="button" id="retryKaraokeLyricsBtn" class="hidden">🔎 Réessayer</button>
         <button type="button" id="cancelLyricsBtn">Annuler</button>
       </div>
       <div id="lyricsModalError" class="error-text"></div>
@@ -354,9 +207,13 @@
 
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  
+  <!-- Fichiers audio unifiés et utilitaires -->
   <script src="js/firebase-init.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/state.js"></script>
+  <script src="js/audio-effects.js"></script>
+  
   <script>
     (function() {
       const roomCode = AppState.roomCode;
@@ -364,38 +221,19 @@
       const clientId = AppState.clientId;
       const playerName = AppState.playerName || 'Joueur';
 
-      if (!roomCode) {
-        window.location.href = 'index.html';
-        return;
-      }
+      if (!roomCode) { window.location.href = 'index.html'; return; }
 
       const roomRef = db.ref('rooms/' + roomCode);
       const selectionsRef = roomRef.child('selections');
       const configRef = roomRef.child('config');
 
-      // "Retour à la lobby" : si l'hôte, on remet la room à zéro (mêmes
-      // réglages, même code) et tout le monde est renvoyé au même endroit.
       const backToLobbyLink = document.getElementById('backToLobbyLink');
       if (backToLobbyLink) {
         backToLobbyLink.addEventListener('click', async (e) => {
           e.preventDefault();
           if (isHost) {
-            if (!confirm('Retourner à la lobby ? La sélection en cours sera annulée pour tout le monde.')) return;
-            await roomRef.update({
-              status: 'lobby',
-              selections: {},
-              gameState: {
-                currentSongIndex: 0,
-                songs: [],
-                scores: {},
-                playerAttempts: {},
-                buzzer: null,
-                buzzerLocked: false,
-                reopenAt: 0,
-                roundStartTime: 0,
-                roundActive: false
-              }
-            });
+            if (!confirm('Annuler la sélection pour tout le monde ?')) return;
+            await roomRef.update({ status: 'lobby', selections: {}, gameState: { songs: [], scores: {} } });
             window.location.href = 'host-lobby.html';
           } else {
             window.location.href = 'waiting.html';
@@ -406,17 +244,56 @@
       let hostQuota = 0;
       let hostSelected = [];
       let playerSelectedList = [];
+      let classicModeOnly = false;
+      let playerQuota = 1;
+      let allowDuplicates = false;
 
-      // Si l'hôte retourne à la lobby pendant que d'autres sont encore sur
-      // cette page, les joueurs suivent automatiquement (l'hôte navigue
-      // déjà lui-même explicitement après son clic, pas besoin ici).
-      if (!isHost) {
-        roomRef.child('status').on('value', (snap) => {
-          if (snap.val() === 'lobby') {
-            window.location.href = 'waiting.html';
+      configRef.once('value', (snap) => {
+        const config = snap.val();
+        if (config) {
+          gameMode = config.mode || 'classic';
+          classicModeOnly = !!config.classicModeOnly;
+          allowDuplicates = !!config.allowDuplicates;
+          playerQuota = gameMode === 'playlist' ? (config.playlistSongsPerPlayer || 5) : (config.songsPerPlayer !== undefined ? config.songsPerPlayer : 1);
+
+          // Masquer les contrôles complexes si Mode Classique actif
+          if (classicModeOnly) {
+            document.getElementById('complexControlsGroup').style.display = 'none';
           }
-        });
-      }
+
+          if (isHost) {
+            if (gameMode === 'playlist') {
+              roleMsg.textContent = 'Mode Playlist : en attente des joueurs...';
+              selectionsRef.child('host').set({ songs: [], done: true }).then(() => {
+                window.location.href = 'waiting.html';
+              });
+              return;
+            }
+            hostQuota = config.hostSongsCount || 0;
+            selectionsRef.child('host').once('value', (selSnap) => {
+              const existing = selSnap.val();
+              if (existing && Array.isArray(existing.songs)) hostSelected = existing.songs;
+              counterSpan.textContent = `${hostSelected.length} / ${hostQuota}`;
+              if (hostSelected.length >= hostQuota && hostQuota > 0) window.location.href = 'waiting.html';
+            });
+          } else {
+            if (playerQuota === 0) {
+              // Si le joueur ne doit choisir aucun morceau, on le marque comme prêt tout de suite
+              selectionsRef.child(clientId).set({ songs: [], done: true }).then(() => {
+                window.location.href = 'waiting.html';
+              });
+              return;
+            }
+            roleMsg.textContent = `Choisis ${playerQuota} chanson(s) pour la partie`;
+            selectionsRef.child(clientId).once('value', (selSnap) => {
+              const existing = selSnap.val();
+              if (existing && Array.isArray(existing.songs)) playerSelectedList = existing.songs;
+              counterSpan.textContent = `${playerSelectedList.length} / ${playerQuota}`;
+              if (playerSelectedList.length >= playerQuota) window.location.href = 'waiting.html';
+            });
+          }
+        }
+      });
 
       const roleMsg = document.getElementById('role-message');
       const counterSpan = document.getElementById('counter');
@@ -425,312 +302,56 @@
       const errorMsg = document.getElementById('errorMsg');
       const resultsDiv = document.getElementById('results');
 
-      let gameMode = 'classic';
-      let playerQuota = 1; // 1 chanson en mode normal, 5 en mode Playlist (mini-playlist)
-      let advancedSettingsEnabled = false;
-      let allowDuplicates = false;
-
-      configRef.once('value', (snap) => {
-        const config = snap.val();
-        if (config) {
-          gameMode = config.mode || 'classic';
-          advancedSettingsEnabled = !!config.advancedSettings;
-          allowDuplicates = !!config.allowDuplicates;
-          playerQuota = gameMode === 'playlist' ? (config.playlistSongsPerPlayer || 5) : 1;
-
-          // En mode Instrumental, on simplifie l'écran principal : vitesse,
-          // inversion et radio passent sous "Paramètres avancés" (toujours
-          // visible dans ce mode), pour laisser la place aux réglages
-          // "sans voix" qui sont le vrai sujet de ce mode.
-          if (gameMode === 'instrumental') {
-            const advancedContent = document.getElementById('advancedSettingsContent');
-            const advancedSection = document.getElementById('advancedSettingsSection');
-            const reverseGroup = document.getElementById('reverseControlGroup');
-            const speedGroup = document.getElementById('speedControlGroup');
-            const radioGroup = document.getElementById('radioControlGroup');
-            advancedContent.insertBefore(radioGroup, advancedContent.firstChild);
-            advancedContent.insertBefore(speedGroup, advancedContent.firstChild);
-            advancedContent.insertBefore(reverseGroup, advancedContent.firstChild);
-            advancedSection.classList.remove('hidden');
-          }
-
-          if (isHost) {
-            if (gameMode === 'playlist') {
-              // En mode Playlist, l'hôte ne choisit aucune chanson : ce sont
-              // les joueurs qui construisent chacun leur mini-playlist.
-              roleMsg.textContent = '🎧 Mode Playlist : en attente des playlists des joueurs...';
-              selectionsRef.child('host').set({ songs: [], done: true }).then(() => {
-                window.location.href = 'waiting.html';
-              });
-              return;
-            }
-            hostQuota = config.hostSongsCount || 0;
-            // On restaure ce qui a déjà été choisi (si on revient sur cette
-            // page après un rechargement), au lieu de repartir de zéro.
-            selectionsRef.child('host').once('value', (selSnap) => {
-              const existing = selSnap.val();
-              if (existing && Array.isArray(existing.songs)) {
-                hostSelected = existing.songs;
-              }
-              counterSpan.textContent = `${hostSelected.length} / ${hostQuota}`;
-              if (hostSelected.length >= hostQuota && hostQuota > 0) {
-                window.location.href = 'waiting.html';
-              }
-            });
-          } else {
-            if (gameMode === 'playlist') {
-              roleMsg.textContent = `🎧 Construis ta playlist : choisis ${playerQuota} chansons que tu aimes`;
-            }
-            selectionsRef.child(clientId).once('value', (selSnap) => {
-              const existing = selSnap.val();
-              if (existing && Array.isArray(existing.songs)) {
-                playerSelectedList = existing.songs;
-              }
-              counterSpan.textContent = `${playerSelectedList.length} / ${playerQuota}`;
-              if (playerSelectedList.length >= playerQuota) {
-                window.location.href = 'waiting.html';
-              }
-            });
-          }
-        }
-      });
-
-      if (isHost) {
-        roleMsg.textContent = '🎤 Hôte : choisis tes chansons';
-        const gear = document.getElementById('settingsGear');
-        if (gear) gear.classList.remove('hidden');
-      } else {
-        roleMsg.textContent = '🎵 Joueur : choisis TA chanson (1 seule)';
-      }
-
-      // ============================================================
-      // RECHERCHE — plusieurs fournisseurs différents en cascade.
-      // Deezer est un domaine totalement différent d'Apple : si le
-      // blocage vient du réseau/quota côté itunes.apple.com, Deezer
-      // n'est pas affecté et prend le relais.
-      // ============================================================
-
-      function normalizeItunes(list) {
-        return (list || [])
-          .map(s => ({
+      // Recherche en cascade (iTunes/Deezer/Proxies)
+      async function searchMusic(term) {
+        const proxiedUrl = `https://corsproxy.io/?url=${encodeURIComponent(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=15`)}`;
+        try {
+          const res = await fetch(proxiedUrl);
+          const data = await res.json();
+          return data.results.map(s => ({
             trackName: s.trackName,
             artistName: s.artistName,
             artworkUrl100: s.artworkUrl100,
             previewUrl: s.previewUrl
-          }))
-          .filter(s => s.previewUrl);
-      }
-
-      function normalizeDeezer(list) {
-        return (list || [])
-          .map(s => ({
-            trackName: s.title,
-            artistName: s.artist ? s.artist.name : '',
-            artworkUrl100: s.album ? s.album.cover_medium : '',
-            previewUrl: s.preview
-          }))
-          .filter(s => s.previewUrl);
-      }
-
-      // ===== Annulation des recherches précédentes =====
-      // Avant, une recherche encore "en vol" pouvait afficher ses résultats
-      // APRÈS qu'une recherche plus récente ait démarré → mélange de résultats
-      // ("Bell Run"), et l'accumulation de requêtes non annulées finissait
-      // par faire échouer les recherches suivantes. On coupe tout net à
-      // chaque nouvelle recherche.
-      let searchGeneration = 0;
-      let activeTeardowns = [];
-
-      function cancelPendingSearches() {
-        activeTeardowns.forEach(fn => { try { fn(); } catch (e) {} });
-        activeTeardowns = [];
-      }
-
-      function jsonpRequest(url) {
-        return new Promise((resolve) => {
-          const callbackName = 'jsonpCb_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
-          const script = document.createElement('script');
-          let settled = false;
-
-          const cleanup = () => {
-            delete window[callbackName];
-            if (script.parentNode) script.parentNode.removeChild(script);
-            clearTimeout(timeoutId);
-          };
-          activeTeardowns.push(() => { if (!settled) { settled = true; cleanup(); resolve(null); } });
-
-          const timeoutId = setTimeout(() => {
-            if (settled) return;
-            settled = true; cleanup();
-            resolve(null);
-          }, 6000);
-
-          window[callbackName] = (data) => {
-            if (settled) return;
-            settled = true; cleanup();
-            resolve(data);
-          };
-          script.onerror = () => {
-            if (settled) return;
-            settled = true; cleanup();
-            resolve(null);
-          };
-          script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + callbackName;
-          document.body.appendChild(script);
-        });
-      }
-
-      async function searchDeezer(term, debugLog) {
-        const t0 = Date.now();
-        const data = await jsonpRequest(`https://api.deezer.com/search?q=${encodeURIComponent(term)}&output=jsonp`);
-        const ms = Date.now() - t0;
-        if (!data) { debugLog.push(`Deezer: échec/timeout (${ms}ms)`); return { ok: false, results: [] }; }
-        if (!data.data) { debugLog.push(`Deezer: réponse invalide (${ms}ms)`); return { ok: false, results: [] }; }
-        const results = normalizeDeezer(data.data);
-        debugLog.push(`Deezer: ${results.length} résultat(s) (${ms}ms)`);
-        return { ok: true, results };
-      }
-
-      async function searchItunesJSONP(term, debugLog) {
-        const t0 = Date.now();
-        const data = await jsonpRequest(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=15`);
-        const ms = Date.now() - t0;
-        if (!data) { debugLog.push(`iTunes: échec/timeout (${ms}ms)`); return { ok: false, results: [] }; }
-        if (!data.results) { debugLog.push(`iTunes: réponse invalide (${ms}ms)`); return { ok: false, results: [] }; }
-        const results = normalizeItunes(data.results);
-        debugLog.push(`iTunes: ${results.length} résultat(s) (${ms}ms)`);
-        return { ok: true, results };
-      }
-
-      async function searchViaProxy(term, proxyPrefix, label, debugLog) {
-        const t0 = Date.now();
-        try {
-          const target = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=15`;
-          const url = proxyPrefix + encodeURIComponent(target);
-          const controller = new AbortController();
-          activeTeardowns.push(() => controller.abort());
-          const t = setTimeout(() => controller.abort(), 6000);
-          const res = await fetch(url, { signal: controller.signal });
-          clearTimeout(t);
-          const ms = Date.now() - t0;
-          if (!res.ok) { debugLog.push(`${label}: HTTP ${res.status} (${ms}ms)`); return { ok: false, results: [] }; }
-          const data = await res.json();
-          const results = normalizeItunes(data.results);
-          debugLog.push(`${label}: ${results.length} résultat(s) (${ms}ms)`);
-          return { ok: true, results };
-        } catch (e) {
-          const ms = Date.now() - t0;
-          debugLog.push(`${label}: ${e.name === 'AbortError' ? 'timeout/annulé' : 'erreur réseau'} (${ms}ms)`);
-          return { ok: false, results: [] };
+          })).filter(s => s.previewUrl);
+        } catch(e) {
+          // Repli Deezer
+          try {
+            const resDz = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(`https://api.deezer.com/search?q=${encodeURIComponent(term)}&output=jsonp`)}`);
+            const text = await resDz.text();
+            // Nettoyage JSONP Deezer basique
+            const cleanText = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
+            const dataDz = JSON.parse(cleanText);
+            return dataDz.data.map(s => ({
+              trackName: s.title,
+              artistName: s.artist?.name,
+              artworkUrl100: s.album?.cover_medium,
+              previewUrl: s.preview
+            })).filter(s => s.previewUrl);
+          } catch(err) {
+            return [];
+          }
         }
-      }
-
-      // Lance plusieurs recherches en même temps et retourne la première
-      // qui répond avec des résultats, au lieu d'attendre l'échec d'un
-      // service avant de tenter le suivant (beaucoup plus rapide + fiable
-      // puisqu'il suffit qu'un seul des deux fonctionne).
-      function firstSuccessful(promiseFactories, timeoutMs) {
-        return new Promise((resolve) => {
-          let remaining = promiseFactories.length;
-          let done = false;
-          const globalTimeout = setTimeout(() => {
-            if (done) return;
-            done = true;
-            resolve({ ok: false, results: [] });
-          }, timeoutMs);
-
-          promiseFactories.forEach((factory) => {
-            factory().then((r) => {
-              remaining--;
-              if (done) return;
-              if (r.ok && r.results.length > 0) {
-                done = true;
-                clearTimeout(globalTimeout);
-                resolve(r);
-              } else if (remaining === 0) {
-                done = true;
-                clearTimeout(globalTimeout);
-                resolve({ ok: false, results: [] });
-              }
-            });
-          });
-        });
-      }
-
-      async function searchItunes(term, debugLog) {
-        // iTunes et Deezer en course simultanée
-        const race = await firstSuccessful([
-          () => searchItunesJSONP(term, debugLog),
-          () => searchDeezer(term, debugLog)
-        ], 6000);
-        if (race.ok) return race;
-
-        // Dernier recours si les deux ont échoué : proxies (plus lents,
-        // mais mieux que rien)
-        let r = await searchViaProxy(term, 'https://api.allorigins.win/raw?url=', 'Proxy1', debugLog);
-        if (r.ok) return r;
-
-        r = await searchViaProxy(term, 'https://corsproxy.io/?url=', 'Proxy2', debugLog);
-        if (r.ok) return r;
-
-        return { ok: false, results: [] };
       }
 
       searchBtn.addEventListener('click', async () => {
         const term = searchInput.value.trim();
         if (!term) return;
-
-        // On coupe net toute recherche précédente encore en vol, puis on
-        // démarre une nouvelle "génération" : tout résultat tardif d'une
-        // ancienne recherche sera ignoré, jamais mélangé à celle-ci.
-        cancelPendingSearches();
-        searchGeneration++;
-        const myGeneration = searchGeneration;
-
         searchBtn.disabled = true;
         errorMsg.innerHTML = '<div class="loading">🔎 Recherche...</div>';
-        resultsDiv.innerHTML = '';
-
-        const debugLog = [];
-        const { ok, results } = await searchItunes(term, debugLog);
-
-        if (myGeneration !== searchGeneration) return; // une recherche plus récente a pris le relais
-
+        const results = await searchMusic(term);
         searchBtn.disabled = false;
-        const debugLine = `<div style="color:#6b8ca3;font-size:0.75rem;margin-top:0.3rem;">🔧 ${debugLog.join(' · ')}</div>`;
-        if (!ok) {
-          errorMsg.innerHTML = `<div class="error-text">⚠️ Toutes les méthodes ont échoué. Copie-moi la ligne technique ci-dessous :</div>${debugLine}`;
-          return;
-        }
-        errorMsg.innerHTML = debugLine;
+        errorMsg.innerHTML = '';
         displayResults(results);
       });
 
-      searchInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') searchBtn.click();
-      });
-
-      function escapeHTML(str) {
-        return String(str).replace(/[&<>]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
-      }
-
       function displayResults(results) {
         resultsDiv.innerHTML = '';
-        if (!results || results.length === 0) {
-          resultsDiv.innerHTML = '<div style="padding:2rem; text-align:center;">Aucun résultat</div>';
-          return;
-        }
+        if (results.length === 0) { resultsDiv.innerHTML = '<div class="text-center">Aucun morceau trouvé.</div>'; return; }
         results.forEach(song => {
-          if (gameMode !== 'lyrics' && !song.previewUrl) return; // pas d'extrait dispo, inutile pour le jeu (sauf en mode Paroles)
           const card = document.createElement('div');
           card.className = 'song-card';
-          card.innerHTML = `
-            <img src="${song.artworkUrl100 || 'https://via.placeholder.com/64'}" alt="cover">
-            <div class="song-info">
-              <div class="song-title">${escapeHTML(song.trackName || 'Sans titre')}</div>
-              <div class="song-artist">${escapeHTML(song.artistName || 'Inconnu')}</div>
-            </div>
-          `;
+          card.innerHTML = `<img src="${song.artworkUrl100}" alt="cover"><div class="song-info"><div class="song-title">${escapeHTML(song.trackName)}</div><div class="song-artist">${escapeHTML(song.artistName)}</div></div>`;
           card.addEventListener('click', () => {
             if (gameMode === 'lyrics') openLyricsPickerModal(song, card);
             else openCustomizeModal(song, card);
@@ -739,856 +360,266 @@
         });
       }
 
-      // ============================================================
-      // MODALE DE PERSONNALISATION DE L'EXTRAIT
-      // ============================================================
-
+      // MODALE DE PERSONNALISATION
       const modal = document.getElementById('customizeModal');
-      const modalArtwork = document.getElementById('modalArtwork');
-      const modalTitle = document.getElementById('modalTitle');
-      const modalArtist = document.getElementById('modalArtist');
       const durationSlider = document.getElementById('durationSlider');
       const durationValue = document.getElementById('durationValue');
       const positionSlider = document.getElementById('positionSlider');
       const positionHint = document.getElementById('positionHint');
+      const speedSlider = document.getElementById('speedSlider');
+      const speedValue = document.getElementById('speedValue');
+      const volumeSlider = document.getElementById('volumeSlider');
+      const volumeValue = document.getElementById('volumeValue');
       const reverseCheck = document.getElementById('reverseCheck');
       const instrumentalCheck = document.getElementById('instrumentalCheck');
       const instrumentalVariants = document.getElementById('instrumentalVariants');
-      const variantHint = document.getElementById('variantHint');
-      const variantBtns = document.querySelectorAll('.variant-btn');
       const variantIntensityGroup = document.getElementById('variantIntensityGroup');
       const variantIntensitySlider = document.getElementById('variantIntensitySlider');
       const variantIntensityValue = document.getElementById('variantIntensityValue');
       const instrumentalSearchGroup = document.getElementById('instrumentalSearchGroup');
       const searchInstrumentalBtn = document.getElementById('searchInstrumentalBtn');
       const instrumentalResults = document.getElementById('instrumentalResults');
-      let selectedVariant = 1;
-      let pickedInstrumentalSource = null; // { previewUrl, trackName, artistName } si variante 4 choisie
-      const variantDescriptions = {
-        1: 'Coupe ce qui est centré dans le mix (souvent la voix, parfois aussi basse/grosse caisse).',
-        2: 'Creuse largement la zone où vit la voix humaine, intensité réglable.',
-        3: 'Combine les deux techniques précédentes, intensité réglable.',
-        4: 'Cherche une vraie version instrumentale/karaoké déjà enregistrée, au lieu d\'un traitement approximatif.'
-      };
-      function setVariant(v) {
-        selectedVariant = v;
-        variantBtns.forEach(b => b.classList.toggle('active', parseInt(b.dataset.variant, 10) === v));
-        variantHint.textContent = variantDescriptions[v];
-        variantIntensityGroup.classList.toggle('hidden', v !== 2 && v !== 3);
-        instrumentalSearchGroup.classList.toggle('hidden', v !== 4);
-      }
-      variantIntensitySlider.addEventListener('input', () => {
-        variantIntensityValue.textContent = variantIntensitySlider.value;
-      });
-      variantBtns.forEach(b => b.addEventListener('click', () => setVariant(parseInt(b.dataset.variant, 10))));
-      instrumentalCheck.addEventListener('change', () => {
-        instrumentalVariants.classList.toggle('hidden', !instrumentalCheck.checked);
-        variantHint.classList.toggle('hidden', !instrumentalCheck.checked);
-        variantIntensityGroup.classList.toggle('hidden', !instrumentalCheck.checked || (selectedVariant !== 2 && selectedVariant !== 3));
-        instrumentalSearchGroup.classList.toggle('hidden', !instrumentalCheck.checked || selectedVariant !== 4);
-      });
-
-      searchInstrumentalBtn.addEventListener('click', async () => {
-        if (!draftSong) return;
-        instrumentalResults.innerHTML = '<div class="loading">🔎 Recherche d\'une version instrumentale...</div>';
-        const baseTerm = `${draftSong.trackName} ${draftSong.artistName}`;
-        const debugLog = [];
-        let { ok, results } = await searchItunes(`${baseTerm} instrumental`, debugLog);
-        if (!ok || results.length === 0) {
-          instrumentalResults.innerHTML = '<div class="loading">🔎 Toujours rien, on tente "karaoké"...</div>';
-          const debugLog2 = [];
-          ({ ok, results } = await searchItunes(`${baseTerm} karaoké`, debugLog2));
-        }
-        if (!ok || results.length === 0) {
-          instrumentalResults.innerHTML = '<div class="error-text">Nope, désolé mais va falloir faire sans cette fois 🤷‍♂️, peut-être une autre fois ?</div>';
-          return;
-        }
-        instrumentalResults.innerHTML = '';
-        results.slice(0, 5).forEach((r) => {
-          const card = document.createElement('div');
-          card.className = 'song-card';
-          card.style.padding = '0.6rem';
-          card.innerHTML = `
-            <img src="${r.artworkUrl100 || 'https://via.placeholder.com/48'}" alt="cover" style="width:40px;height:40px;">
-            <div class="song-info">
-              <div class="song-title" style="font-size:0.85rem;">${r.trackName}</div>
-              <div class="song-artist" style="font-size:0.78rem;">${r.artistName}</div>
-            </div>
-          `;
-          card.addEventListener('click', () => {
-            pickedInstrumentalSource = { previewUrl: r.previewUrl, trackName: r.trackName, artistName: r.artistName };
-            instrumentalResults.querySelectorAll('.song-card').forEach(c => c.classList.remove('selected'));
-            card.classList.add('selected');
-          });
-          instrumentalResults.appendChild(card);
-        });
-      });
-      const speedSlider = document.getElementById('speedSlider');
-      const speedValue = document.getElementById('speedValue');
+      const radioModeCheck = document.getElementById('radioModeCheck');
+      const advancedSettingsContent = document.getElementById('advancedSettingsContent');
+      const advancedToggleBtn = document.getElementById('advancedToggleBtn');
+      const advancedToggleArrow = document.getElementById('advancedToggleArrow');
       const pitchSlider = document.getElementById('pitchSlider');
       const pitchValue = document.getElementById('pitchValue');
       const filterSlider = document.getElementById('filterSlider');
       const filterHint = document.getElementById('filterHint');
-      const radioModeCheck = document.getElementById('radioModeCheck');
-      const advancedSettingsSection = document.getElementById('advancedSettingsSection');
-      const advancedToggleBtn = document.getElementById('advancedToggleBtn');
-      const advancedToggleArrow = document.getElementById('advancedToggleArrow');
-      const advancedSettingsContent = document.getElementById('advancedSettingsContent');
-      advancedToggleBtn.addEventListener('click', () => {
-        const isOpen = !advancedSettingsContent.classList.contains('hidden');
-        advancedSettingsContent.classList.toggle('hidden', isOpen);
-        advancedToggleArrow.textContent = isOpen ? '🔽' : '🔼';
-      });
-      const previewBtn = document.getElementById('previewBtn');
-      const confirmBtn = document.getElementById('confirmSelectBtn');
-      const cancelBtn = document.getElementById('cancelSelectBtn');
-      const modalError = document.getElementById('modalError');
-      const presetStart = document.getElementById('presetStart');
-      const presetMiddle = document.getElementById('presetMiddle');
-      const presetEnd = document.getElementById('presetEnd');
 
       let draftSong = null;
       let draftCard = null;
-      let previewTotalDuration = 30; // durée du clip iTunes, mise à jour via loadedmetadata
-      let previewAudioEl = null;
-      let audioCtx = null;
-      let stopPreviewTimer = null;
+      let selectedVariant = 1;
+      let pickedInstrumentalSource = null;
 
-      function clampPositionMax() {
-        const dur = parseFloat(durationSlider.value);
-        const maxStart = Math.max(0, previewTotalDuration - dur);
-        positionSlider.max = maxStart;
-        if (parseFloat(positionSlider.value) > maxStart) positionSlider.value = maxStart;
-      }
+      advancedToggleBtn.addEventListener('click', () => {
+        const isHidden = advancedSettingsContent.classList.contains('hidden');
+        advancedSettingsContent.classList.toggle('hidden', !isHidden);
+        advancedToggleArrow.textContent = isHidden ? '🔼' : '🔽';
+      });
 
-      function updateFilterHint() {
-        const v = parseFloat(filterSlider.value);
-        if (v > 15) filterHint.textContent = `🔺 Passe-haut (basses coupées) — ${v}`;
-        else if (v < -15) filterHint.textContent = `🔻 Passe-bas (aigus coupés) — ${v}`;
-        else filterHint.textContent = 'Neutre';
-      }
-
-      function openCustomizeModal(song, cardEl) {
+      function openCustomizeModal(song, card) {
         draftSong = song;
-        draftCard = cardEl || null;
-        modalError.textContent = '';
-        modalArtwork.src = song.artworkUrl100 || 'https://via.placeholder.com/64';
-        modalTitle.textContent = song.trackName || 'Sans titre';
-        modalArtist.textContent = song.artistName || 'Inconnu';
+        draftCard = card;
+        document.getElementById('modalArtwork').src = song.artworkUrl100;
+        document.getElementById('modalTitle').textContent = song.trackName;
+        document.getElementById('modalArtist').textContent = song.artistName;
+        
         durationSlider.value = 10;
         durationValue.textContent = '10';
-        reverseCheck.checked = false;
-        variantIntensitySlider.value = 60;
-        variantIntensityValue.textContent = '60';
-        pickedInstrumentalSource = null;
-        instrumentalResults.innerHTML = '';
-        setVariant(1);
-        if (gameMode === 'instrumental') {
-          instrumentalCheck.checked = true;
-          instrumentalCheck.disabled = true;
-          instrumentalVariants.classList.remove('hidden');
-          variantHint.classList.remove('hidden');
-        } else {
-          instrumentalCheck.checked = false;
-          instrumentalCheck.disabled = false;
-          instrumentalVariants.classList.add('hidden');
-          variantHint.classList.add('hidden');
-        }
-        speedSlider.value = 1;
+        positionSlider.value = 0;
+        positionHint.textContent = 'Extrait standard';
+        speedSlider.value = 1.0;
         speedValue.textContent = '1.0x';
+        volumeSlider.value = 100;
+        volumeValue.textContent = '100%';
+        reverseCheck.checked = false;
+        instrumentalCheck.checked = false;
+        radioModeCheck.checked = false;
         pitchSlider.value = 0;
         pitchValue.textContent = '0';
         filterSlider.value = 0;
-        updateFilterHint();
-        radioModeCheck.checked = false;
-        advancedSettingsSection.classList.toggle('hidden', !advancedSettingsEnabled && gameMode !== 'instrumental');
-        advancedSettingsContent.classList.add('hidden');
-        advancedToggleArrow.textContent = '🔽';
-        positionSlider.value = 0;
-        positionHint.textContent = "Chargement de l'aperçu...";
-        previewTotalDuration = 30;
+        filterHint.textContent = 'Neutre';
 
-        // On charge juste les métadonnées (durée réelle du clip), pas tout le fichier
-        if (previewAudioEl) { previewAudioEl.pause(); }
-        previewAudioEl = new Audio();
-        previewMediaSource = null; // nouvel élément <audio> = nouveau nœud possible
-        previewAudioEl.preload = 'metadata';
-        previewAudioEl.src = song.previewUrl;
-        previewAudioEl.addEventListener('loadedmetadata', () => {
-          if (previewAudioEl.duration && isFinite(previewAudioEl.duration)) {
-            previewTotalDuration = previewAudioEl.duration;
-          }
-          clampPositionMax();
-          positionHint.textContent = `Extrait iTunes de ${previewTotalDuration.toFixed(0)}s disponible`;
-        }, { once: true });
+        instrumentalVariants.classList.add('hidden');
+        variantIntensityGroup.classList.add('hidden');
+        instrumentalSearchGroup.classList.add('hidden');
 
         modal.classList.remove('hidden');
       }
 
-      function closeModal() {
-        modal.classList.add('hidden');
-        stopPreview();
-        draftSong = null;
-        draftCard = null;
-      }
+      document.getElementById('cancelSelectBtn').onclick = () => { stopAudio(); modal.classList.add('hidden'); };
 
-      function showSongAddedPopup(songData) {
-        const popup = document.getElementById('songAddedPopup');
-        const nameEl = document.getElementById('sapSongName');
-        const optsEl = document.getElementById('sapOptions');
-        nameEl.textContent = songData.title;
+      durationSlider.oninput = () => durationValue.textContent = durationSlider.value;
+      speedSlider.oninput = () => speedValue.textContent = parseFloat(speedSlider.value).toFixed(1) + 'x';
+      volumeSlider.oninput = () => volumeValue.textContent = volumeSlider.value + '%';
+      pitchSlider.oninput = () => pitchValue.textContent = pitchSlider.value;
+      filterSlider.oninput = () => {
+        const v = parseInt(filterSlider.value, 10);
+        filterHint.textContent = v > 15 ? `🔺 Coupe-bas (${v})` : v < -15 ? `🔻 Coupe-haut (${v})` : 'Neutre';
+      };
 
-        const opts = [];
-        if (songData.reverse) opts.push('🔄 Inversée');
-        if (songData.instrumental) opts.push('🎸 Sans voix');
-        if (songData.speed && songData.speed !== 1) opts.push(`⚡ ${songData.speed.toFixed(1)}x`);
-        if (songData.pitch) opts.push(`🎼 ${songData.pitch > 0 ? '+' : ''}${songData.pitch}`);
-        if (Math.abs(songData.filterValue || 0) > 15) opts.push('🎚️ Filtre');
-        if (songData.radioMode) opts.push('📻 Radio');
-        optsEl.textContent = opts.join(' · ');
+      instrumentalCheck.onchange = () => {
+        const active = instrumentalCheck.checked;
+        instrumentalVariants.classList.toggle('hidden', !active);
+        variantIntensityGroup.classList.toggle('hidden', !active || (selectedVariant !== 2 && selectedVariant !== 3));
+        instrumentalSearchGroup.classList.toggle('hidden', !active || selectedVariant !== 4);
+      };
 
-        // Redémarre l'animation à chaque déclenchement
-        popup.classList.remove('hidden');
-        popup.style.animation = 'none';
-        void popup.offsetWidth;
-        popup.style.animation = '';
-        setTimeout(() => popup.classList.add('hidden'), 1300);
-      }
-
-      durationSlider.addEventListener('input', () => {
-        durationValue.textContent = durationSlider.value;
-        clampPositionMax();
+      document.querySelectorAll('.variant-btn').forEach(btn => {
+        btn.onclick = () => {
+          document.querySelectorAll('.variant-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          selectedVariant = parseInt(btn.dataset.variant, 10);
+          variantIntensityGroup.classList.toggle('hidden', selectedVariant !== 2 && selectedVariant !== 3);
+          instrumentalSearchGroup.classList.toggle('hidden', selectedVariant !== 4);
+        };
       });
 
-      speedSlider.addEventListener('input', () => {
-        speedValue.textContent = parseFloat(speedSlider.value).toFixed(1) + 'x';
-      });
-      pitchSlider.addEventListener('input', () => {
-        pitchValue.textContent = pitchSlider.value;
-      });
-      filterSlider.addEventListener('input', updateFilterHint);
-
-      presetStart.addEventListener('click', () => { positionSlider.value = 0; });
-      presetMiddle.addEventListener('click', () => {
-        const dur = parseFloat(durationSlider.value);
-        positionSlider.value = Math.max(0, (previewTotalDuration - dur) / 2);
-      });
-      presetEnd.addEventListener('click', () => {
-        const dur = parseFloat(durationSlider.value);
-        positionSlider.value = Math.max(0, previewTotalDuration - dur);
-      });
-
-      cancelBtn.addEventListener('click', closeModal);
-
-      // ---- Lecture / prévisualisation ----
-
-      function stopPreview() {
-        if (stopPreviewTimer) { clearTimeout(stopPreviewTimer); stopPreviewTimer = null; }
-        if (previewAudioEl) { try { previewAudioEl.pause(); } catch(e){} }
-        if (window._reversePreviewSource) {
-          try { window._reversePreviewSource.stop(); } catch(e){}
-          window._reversePreviewSource = null;
-        }
-      }
-
-      function getAudioContext() {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        return audioCtx;
-      }
-      async function ensureAudioContextRunning(ctx) {
-        if (ctx.state === 'suspended') {
-          try { await ctx.resume(); } catch (e) { console.log('Impossible de relancer l\'audio', e); }
-        }
-      }
-      // Déblocage définitif dès la toute première interaction sur la page.
-      let audioUnlocked = false;
-      function unlockAudioOnce() {
-        if (audioUnlocked) return;
-        audioUnlocked = true;
-        try {
-          const ctx = getAudioContext();
-          if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-          const buffer = ctx.createBuffer(1, 1, 22050);
-          const src = ctx.createBufferSource();
-          src.buffer = buffer;
-          src.connect(ctx.destination);
-          src.start(0);
-        } catch (e) { console.log('Déblocage audio impossible', e); }
-      }
-      document.addEventListener('touchstart', unlockAudioOnce, { once: true });
-      document.addEventListener('click', unlockAudioOnce, { once: true });
-
-      function reverseBuffer(ctx, buffer) {
-        const out = ctx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
-        for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
-          const src = buffer.getChannelData(ch);
-          const dst = out.getChannelData(ch);
-          for (let i = 0; i < src.length; i++) dst[i] = src[src.length - 1 - i];
-        }
-        return out;
-      }
-
-      function phaseCancelInstrumental(ctx, buffer) {
-        if (buffer.numberOfChannels < 2) return buffer; // mono : technique inapplicable
-        const out = ctx.createBuffer(2, buffer.length, buffer.sampleRate);
-        const left = buffer.getChannelData(0);
-        const right = buffer.getChannelData(1);
-        const outL = out.getChannelData(0);
-        const outR = out.getChannelData(1);
-        for (let i = 0; i < left.length; i++) {
-          const diff = (left[i] - right[i]) / 2;
-          outL[i] = diff;
-          outR[i] = diff;
-        }
-        return out;
-      }
-
-      // Variante 2 : creuse largement toute la zone où vit la voix humaine
-      // (voix parlée/chantée ~250Hz-4000Hz), avec des bandes larges et peu
-      // de Q qui se chevauchent, plutôt que des coupures étroites peu
-      // audibles. Intensité réglable de léger à très marqué.
-      function applyVocalNotch(ctx, node, intensity) {
-        const pct = (intensity !== undefined ? intensity : 60) / 100;
-        const gain = -8 - pct * 24; // -8dB (léger) à -32dB (très marqué)
-        const bands = [
-          { freq: 300,  q: 0.7 },
-          { freq: 900,  q: 0.7 },
-          { freq: 2200, q: 0.7 },
-          { freq: 4000, q: 0.7 }
-        ];
-        let current = node;
-        bands.forEach((b) => {
-          const f = ctx.createBiquadFilter();
-          f.type = 'peaking';
-          f.frequency.value = b.freq;
-          f.Q.value = b.q;
-          f.gain.value = gain;
-          current.connect(f);
-          current = f;
-        });
-        return current;
-      }
-
-      let cachedBuffer = null;
-      let cachedBufferUrl = null;
-
-      async function loadBufferForSong(url) {
-        if (cachedBufferUrl === url && cachedBuffer) return cachedBuffer;
-        const ctx = getAudioContext();
-        await ensureAudioContextRunning(ctx);
-        const res = await fetch(url);
-        const arrayBuffer = await res.arrayBuffer();
-        const buffer = await ctx.decodeAudioData(arrayBuffer);
-        cachedBuffer = buffer;
-        cachedBufferUrl = url;
-        return buffer;
-      }
-
-      // Construit la chaîne d'effets Web Audio (vitesse/pitch/filtre/radio)
-      // et retourne le dernier nœud à connecter à la sortie.
-      function buildAudioGraph(ctx, source, settings) {
-        source.playbackRate.value = settings.speed || 1;
-        source.detune.value = (settings.pitch || 0) * 100; // demi-tons -> cents
-
-        let node = source;
-        let gainBoost = 1;
-        const variant = settings.instrumentalVariant || 1;
-        if (settings.instrumental && (variant === 2 || variant === 3)) {
-          node = applyVocalNotch(ctx, node, settings.instrumentalIntensity);
-          gainBoost *= 1.8;
-        }
-
-        const fv = settings.filterValue || 0;
-        if (fv > 15) {
-          const hp = ctx.createBiquadFilter();
-          hp.type = 'highpass';
-          hp.frequency.value = 100 + (fv / 100) * 4000;
-          node.connect(hp);
-          node = hp;
-          gainBoost *= 1.6;
-        } else if (fv < -15) {
-          const lp = ctx.createBiquadFilter();
-          lp.type = 'lowpass';
-          lp.frequency.value = 8000 + (fv / 100) * 7800;
-          node.connect(lp);
-          node = lp;
-          gainBoost *= 1.6;
-        }
-
-        if (settings.radioMode) {
-          const hp2 = ctx.createBiquadFilter();
-          hp2.type = 'highpass';
-          hp2.frequency.value = 300;
-          const lp2 = ctx.createBiquadFilter();
-          lp2.type = 'lowpass';
-          lp2.frequency.value = 3400;
-          const shaper = ctx.createWaveShaper();
-          const curve = new Float32Array(256);
-          for (let i = 0; i < 256; i++) {
-            const x = (i / 255) * 2 - 1;
-            curve[i] = Math.tanh(x * 3);
-          }
-          shaper.curve = curve;
-          node.connect(hp2);
-          hp2.connect(lp2);
-          lp2.connect(shaper);
-          node = shaper;
-          gainBoost *= 2.2;
-        }
-
-        if (gainBoost !== 1) {
-          const gainNode = ctx.createGain();
-          gainNode.gain.value = Math.min(gainBoost, 4);
-          node.connect(gainNode);
-          node = gainNode;
-        }
-        return node;
-      }
-
-      function buildAudioGraphForElement(ctx, node, settings) {
-        let gainBoost = 1;
-        const fv = settings.filterValue || 0;
-        if (fv > 15) {
-          const hp = ctx.createBiquadFilter();
-          hp.type = 'highpass';
-          hp.frequency.value = 100 + (fv / 100) * 4000;
-          node.connect(hp);
-          node = hp;
-          gainBoost *= 1.6;
-        } else if (fv < -15) {
-          const lp = ctx.createBiquadFilter();
-          lp.type = 'lowpass';
-          lp.frequency.value = 8000 + (fv / 100) * 7800;
-          node.connect(lp);
-          node = lp;
-          gainBoost *= 1.6;
-        }
-        if (settings.radioMode) {
-          const hp2 = ctx.createBiquadFilter();
-          hp2.type = 'highpass';
-          hp2.frequency.value = 300;
-          const lp2 = ctx.createBiquadFilter();
-          lp2.type = 'lowpass';
-          lp2.frequency.value = 3400;
-          const shaper = ctx.createWaveShaper();
-          const curve = new Float32Array(256);
-          for (let i = 0; i < 256; i++) {
-            const x = (i / 255) * 2 - 1;
-            curve[i] = Math.tanh(x * 3);
-          }
-          shaper.curve = curve;
-          node.connect(hp2);
-          hp2.connect(lp2);
-          lp2.connect(shaper);
-          node = shaper;
-          gainBoost *= 2.2;
-        }
-        if (gainBoost !== 1) {
-          const gainNode = ctx.createGain();
-          gainNode.gain.value = Math.min(gainBoost, 4);
-          node.connect(gainNode);
-          node = gainNode;
-        }
-        return node;
-      }
-
-      let previewMediaSource = null; // un seul par élément <audio>, remis à null à chaque nouvelle chanson
-
-      function readModalSettings() {
-        return {
-          speed: parseFloat(speedSlider.value) || 1,
-          pitch: parseInt(pitchSlider.value, 10) || 0,
-          filterValue: parseFloat(filterSlider.value) || 0,
-          radioMode: radioModeCheck.checked,
+      // Bouton Preview unifié : écouter avec les exacts mêmes effets qu'en jeu
+      document.getElementById('previewBtn').onclick = () => {
+        const songData = {
+          previewUrl: (instrumentalCheck.checked && selectedVariant === 4 && pickedInstrumentalSource) ? pickedInstrumentalSource.previewUrl : draftSong.previewUrl,
+          clipStart: parseFloat(positionSlider.value) || 0,
+          clipDuration: parseFloat(durationSlider.value) || 10,
+          reverse: reverseCheck.checked,
           instrumental: instrumentalCheck.checked,
           instrumentalVariant: selectedVariant,
-          instrumentalIntensity: parseInt(variantIntensitySlider.value, 10) || 60
+          instrumentalIntensity: parseInt(variantIntensitySlider.value, 10),
+          speed: parseFloat(speedSlider.value),
+          pitch: parseInt(pitchSlider.value, 10),
+          filterValue: parseInt(filterSlider.value, 10),
+          radioMode: radioModeCheck.checked,
+          customVolume: parseInt(volumeSlider.value, 10)
         };
-      }
+        playAudioClip(songData);
+      };
 
-      async function playPreview() {
-        stopPreview();
-        modalError.textContent = '';
-        const start = parseFloat(positionSlider.value) || 0;
-        const dur = parseFloat(durationSlider.value) || 10;
-        const wantsReverse = reverseCheck.checked;
-        const wantsInstrumental = instrumentalCheck.checked;
-        const settings = readModalSettings();
-        const isRealInstrumentalVariant = wantsInstrumental && settings.instrumentalVariant === 4;
-
-        if (isRealInstrumentalVariant && !pickedInstrumentalSource) {
-          modalError.textContent = "Choisis d'abord une version instrumentale dans les résultats ci-dessus.";
-          return;
-        }
-        // Variante 4 (vraie version instru) : c'est juste une source audio
-        // différente, aucun traitement DSP nécessaire — pas besoin du buffer.
-        const sourceUrl = isRealInstrumentalVariant ? pickedInstrumentalSource.previewUrl : draftSong.previewUrl;
-        // Reverse/pitch (et les variantes 1/3 qui font de l'annulation de
-        // phase) ont vraiment besoin des octets bruts. Vitesse/filtre/radio
-        // n'en ont pas besoin : chemin plus fiable (audio direct +
-        // MediaElementSource), sans dépendre du CORS.
-        const needsBuffer = wantsReverse || (wantsInstrumental && !isRealInstrumentalVariant) || settings.pitch !== 0;
-        const needsGraph = Math.abs(settings.filterValue) > 15 || settings.radioMode;
-
-        if (!needsBuffer) {
-          try {
-            if (isRealInstrumentalVariant) {
-              // Nouvel élément dédié : la source réelle diffère de celle
-              // déjà chargée dans previewAudioEl (chanson originale).
-              stopPreview();
-              const altAudio = new Audio(sourceUrl);
-              currentAudio = altAudio;
-              altAudio.playbackRate = settings.speed !== 1 ? settings.speed : 1;
-              if (needsGraph) {
-                const ctx = getAudioContext();
-                await ensureAudioContextRunning(ctx);
-                const src = ctx.createMediaElementSource(altAudio);
-                const outNode = buildAudioGraphForElement(ctx, src, settings);
-                outNode.connect(ctx.destination);
-              }
-              await altAudio.play();
-              stopPreviewTimer = setTimeout(() => altAudio.pause(), dur * 1000);
-              return;
-            }
-
-            previewAudioEl.playbackRate = settings.speed !== 1 ? settings.speed : 1;
-
-            if (needsGraph) {
-              const ctx = getAudioContext();
-              await ensureAudioContextRunning(ctx);
-              if (!previewMediaSource) {
-                previewMediaSource = ctx.createMediaElementSource(previewAudioEl);
-              } else {
-                previewMediaSource.disconnect();
-              }
-              const outNode = buildAudioGraphForElement(ctx, previewMediaSource, settings);
-              outNode.connect(ctx.destination);
-            } else if (previewMediaSource) {
-              // Pas de filtre cette fois, mais l'élément est déjà câblé dans
-              // le graphe Web Audio depuis un essai précédent : on le
-              // reconnecte directement à la sortie, sans filtre.
-              previewMediaSource.disconnect();
-              previewMediaSource.connect(getAudioContext().destination);
-            }
-            previewAudioEl.currentTime = start;
-            await previewAudioEl.play();
-            stopPreviewTimer = setTimeout(() => previewAudioEl.pause(), dur * 1000);
-          } catch (e) {
-            modalError.textContent = "Impossible de lire l'extrait (appuie une fois sur l'écran puis réessaie).";
-          }
-          return;
-        }
-
-        // Reverse / instrumental (variantes 1/3) / pitch : besoin du buffer
-        // brut. Dépend du CORS du CDN — on tente, et on prévient si ça échoue.
-        try {
-          const ctx = getAudioContext();
-          await ensureAudioContextRunning(ctx);
-          let buffer = await loadBufferForSong(draftSong.previewUrl);
-          if (wantsInstrumental && (settings.instrumentalVariant === 1 || settings.instrumentalVariant === 3)) {
-            buffer = phaseCancelInstrumental(ctx, buffer);
-          }
-          if (wantsReverse) buffer = reverseBuffer(ctx, buffer);
-
-          const source = ctx.createBufferSource();
-          source.buffer = buffer;
-          const outNode = buildAudioGraph(ctx, source, settings);
-          outNode.connect(ctx.destination);
-          const playFrom = wantsReverse
-            ? Math.max(0, buffer.duration - start - dur)
-            : start;
-          source.start(0, playFrom, dur);
-          window._reversePreviewSource = source;
-        } catch (e) {
-          modalError.textContent = "⚠️ Effets indisponibles pour ce morceau sur ce réseau. La lecture normale fonctionne toujours.";
-        }
-      }
-
-      previewBtn.addEventListener('click', playPreview);
-
-      function normalizeKey(str) {
-        if (!str) return '';
-        return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      }
-
-      async function isSongAlreadyTaken(song) {
-        const selSnap = await selectionsRef.once('value');
-        const selections = selSnap.val() || {};
-        const key = normalizeKey(song.trackName) + '|' + normalizeKey(song.artistName);
-        return Object.values(selections).some((entry) =>
-          entry && Array.isArray(entry.songs) &&
-          entry.songs.some((s) => (normalizeKey(s.title) + '|' + normalizeKey(s.artist)) === key)
-        );
-      }
-
-      // Sauvegarde une chanson choisie (utilisé par le mode audio classique
-      // ET le mode Paroles) : gère le quota hôte/joueur, la sauvegarde
-      // Firebase immédiate, et la redirection une fois le quota atteint.
-      async function saveSongPick(songData, cardToRemove) {
-        if (isHost) {
-          if (hostSelected.length >= hostQuota) {
-            alert('Tu as déjà choisi toutes tes chansons');
-            return;
-          }
-          hostSelected.push(songData);
-          counterSpan.textContent = `${hostSelected.length} / ${hostQuota}`;
-          const isDone = hostSelected.length >= hostQuota;
-          try {
-            await selectionsRef.child('host').set({ songs: hostSelected, done: isDone });
-            errorMsg.innerHTML = `<div style="color:#7fff9f;font-size:0.8rem;">✅ Sauvegardé (${hostSelected.length}/${hostQuota})</div>`;
-          } catch (err) {
-            hostSelected.pop();
-            counterSpan.textContent = `${hostSelected.length} / ${hostQuota}`;
-            errorMsg.innerHTML = `<div class="error-text">❌ ÉCHEC de sauvegarde Firebase : ${err && err.message ? err.message : err}</div>`;
-            return;
-          }
-          if (isDone) {
-            setTimeout(() => { window.location.href = 'waiting.html'; }, 500);
-          } else if (cardToRemove && cardToRemove.parentNode) {
-            cardToRemove.remove();
-          }
-        } else {
-          if (playerSelectedList.length >= playerQuota) {
-            alert('Tu as déjà choisi toutes tes chansons');
-            return;
-          }
-          songData.ownerId = clientId;
-          songData.ownerName = playerName;
-          playerSelectedList.push(songData);
-          const isDone = playerSelectedList.length >= playerQuota;
-          counterSpan.textContent = `${playerSelectedList.length} / ${playerQuota}`;
-          try {
-            await selectionsRef.child(clientId).set({ songs: playerSelectedList, done: isDone });
-          } catch (err) {
-            playerSelectedList.pop();
-            counterSpan.textContent = `${playerSelectedList.length} / ${playerQuota}`;
-            errorMsg.innerHTML = `<div class="error-text">❌ ÉCHEC de sauvegarde Firebase : ${err && err.message ? err.message : err}</div>`;
-            return;
-          }
-          if (isDone) {
-            setTimeout(() => { window.location.href = 'waiting.html'; }, 500);
-          } else if (cardToRemove && cardToRemove.parentNode) {
-            cardToRemove.remove();
-          }
-        }
-      }
-
-      confirmBtn.addEventListener('click', async () => {
-        if (!draftSong) return;
-
-        if (!allowDuplicates) {
-          const taken = await isSongAlreadyTaken(draftSong);
-          if (taken) {
-            modalError.textContent = '⚠️ Chanson déjà sélectionnée par quelqu\'un d\'autre, choisis-en une autre.';
-            return; // la modale reste ouverte, rien n'est sauvegardé
-          }
-        }
-
-        const modalSettings = readModalSettings();
-        const isInstrumentalOn = gameMode === 'instrumental' ? true : instrumentalCheck.checked;
-        if (isInstrumentalOn && modalSettings.instrumentalVariant === 4 && !pickedInstrumentalSource) {
-          modalError.textContent = '⚠️ Choisis d\'abord une version instrumentale dans les résultats, ou change de variante.';
-          return;
-        }
-
-        const cardToRemove = draftCard;
+      document.getElementById('confirmSelectBtn').onclick = async () => {
+        stopAudio();
+        const isInstrumentalOn = instrumentalCheck.checked;
         const songData = {
-          title: draftSong.trackName || 'Titre',
-          artist: draftSong.artistName || 'Artiste',
-          artwork: draftSong.artworkUrl100 || 'https://via.placeholder.com/100',
-          previewUrl: (isInstrumentalOn && modalSettings.instrumentalVariant === 4 && pickedInstrumentalSource)
-            ? pickedInstrumentalSource.previewUrl
-            : (draftSong.previewUrl || null),
+          title: draftSong.trackName,
+          artist: draftSong.artistName,
+          artwork: draftSong.artworkUrl100,
+          previewUrl: (isInstrumentalOn && selectedVariant === 4 && pickedInstrumentalSource) ? pickedInstrumentalSource.previewUrl : draftSong.previewUrl,
           clipStart: parseFloat(positionSlider.value) || 0,
           clipDuration: parseFloat(durationSlider.value) || 10,
           reverse: reverseCheck.checked,
           instrumental: isInstrumentalOn,
-          instrumentalVariant: modalSettings.instrumentalVariant,
-          instrumentalIntensity: modalSettings.instrumentalIntensity,
-          speed: modalSettings.speed,
-          pitch: modalSettings.pitch,
-          filterValue: modalSettings.filterValue,
-          radioMode: modalSettings.radioMode
+          instrumentalVariant: selectedVariant,
+          instrumentalIntensity: parseInt(variantIntensitySlider.value, 10),
+          speed: parseFloat(speedSlider.value),
+          pitch: parseInt(pitchSlider.value, 10),
+          filterValue: parseInt(filterSlider.value, 10),
+          radioMode: radioModeCheck.checked,
+          customVolume: parseInt(volumeSlider.value, 10)
         };
 
-        closeModal();
-        searchInput.value = '';
-        showSongAddedPopup(songData);
-        await saveSongPick(songData, cardToRemove);
-      });
+        modal.classList.add('hidden');
+        await saveSongPick(songData, draftCard);
+      };
 
-      // ==================== MODE PAROLES ====================
-      let lyricsDraftSong = null;
-      let lyricsDraftCard = null;
-      let lyricsSelectedStart = -1;
-      let lyricsLines = [];
+      async function saveSongPick(songData, card) {
+        if (isHost) {
+          hostSelected.push(songData);
+          await selectionsRef.child('host').set({ songs: hostSelected, done: hostSelected.length >= hostQuota });
+          if (hostSelected.length >= hostQuota) window.location.href = 'waiting.html';
+          else if (card) card.remove();
+        } else {
+          songData.ownerId = clientId;
+          songData.ownerName = playerName;
+          playerSelectedList.push(songData);
+          await selectionsRef.child(clientId).set({ songs: playerSelectedList, done: playerSelectedList.length >= playerQuota });
+          if (playerSelectedList.length >= playerQuota) window.location.href = 'waiting.html';
+          else if (card) card.remove();
+        }
+      }
 
+      // PAROLES (min 1 ligne, max 30 mots)
       const lyricsModal = document.getElementById('lyricsModal');
-      const lyricsModalArtwork = document.getElementById('lyricsModalArtwork');
-      const lyricsModalTitle = document.getElementById('lyricsModalTitle');
-      const lyricsModalArtist = document.getElementById('lyricsModalArtist');
-      const lyricsLoading = document.getElementById('lyricsLoading');
       const lyricsScrollArea = document.getElementById('lyricsScrollArea');
       const lyricsWordCountHint = document.getElementById('lyricsWordCountHint');
       const confirmLyricsBtn = document.getElementById('confirmLyricsBtn');
-      const retryKaraokeLyricsBtn = document.getElementById('retryKaraokeLyricsBtn');
-      const cancelLyricsBtn = document.getElementById('cancelLyricsBtn');
-      const lyricsModalError = document.getElementById('lyricsModalError');
+      let lyricsLines = [];
+      let lyricsStartIndex = -1;
 
-      // api.lyrics.ovh ne supporte pas le CORS : on tente en direct (ça
-      // marche parfois quand même) puis on passe par les mêmes proxys que
-      // pour la recherche de chansons.
-      async function fetchLyricsRaw(artist, title) {
-        const target = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`;
-        try {
-          const controller = new AbortController();
-          const t = setTimeout(() => controller.abort(), 6000);
-          const res = await fetch(target, { signal: controller.signal });
-          clearTimeout(t);
-          if (res.ok) {
-            const data = await res.json();
-            if (data.lyrics) return data.lyrics;
-          }
-        } catch (e) { /* tant pis, on tente les proxys */ }
-
-        for (const proxyPrefix of ['https://api.allorigins.win/raw?url=', 'https://corsproxy.io/?url=']) {
-          try {
-            const controller = new AbortController();
-            const t = setTimeout(() => controller.abort(), 8000);
-            const res = await fetch(proxyPrefix + encodeURIComponent(target), { signal: controller.signal });
-            clearTimeout(t);
-            if (res.ok) {
-              const data = await res.json();
-              if (data.lyrics) return data.lyrics;
-            }
-          } catch (e) { /* on tente le suivant */ }
-        }
-        return null;
+      function openLyricsPickerModal(song, card) {
+        draftSong = song;
+        draftCard = card;
+        document.getElementById('lyricsModalArtwork').src = song.artworkUrl100;
+        document.getElementById('lyricsModalTitle').textContent = song.trackName;
+        document.getElementById('lyricsModalArtist').textContent = song.artistName;
+        lyricsModal.classList.remove('hidden');
+        fetchLyrics(song);
       }
 
-      function countWords(str) {
-        return str.trim().split(/\s+/).filter(Boolean).length;
-      }
-
-      function renderLyricsLines() {
-        lyricsSelectedStart = -1;
+      async function fetchLyrics(song) {
+        lyricsScrollArea.classList.add('hidden');
+        document.getElementById('lyricsLoading').classList.remove('hidden');
         confirmLyricsBtn.disabled = true;
-        lyricsWordCountHint.textContent = '';
+
+        try {
+          const proxied = `https://corsproxy.io/?url=${encodeURIComponent(`https://api.lyrics.ovh/v1/${encodeURIComponent(song.artistName)}/${encodeURIComponent(song.trackName)}`)}`;
+          const res = await fetch(proxied);
+          const data = await res.json();
+          lyricsLines = data.lyrics ? data.lyrics.split('\n').map(l => l.trim()).filter(l => l.length > 0) : [];
+          renderLyrics();
+        } catch(e) {
+          document.getElementById('lyricsLoading').textContent = "⚠️ Paroles introuvables.";
+        }
+      }
+
+      function renderLyrics() {
+        document.getElementById('lyricsLoading').classList.add('hidden');
+        lyricsScrollArea.classList.remove('hidden');
         lyricsScrollArea.innerHTML = '';
+        lyricsStartIndex = -1;
+
         lyricsLines.forEach((line, idx) => {
           const div = document.createElement('div');
           div.className = 'lyrics-line';
           div.textContent = line;
-          div.dataset.idx = idx;
-          div.addEventListener('click', () => handleLyricsLineClick(idx));
+          div.onclick = () => {
+            const lines = lyricsScrollArea.querySelectorAll('.lyrics-line');
+            if (lyricsStartIndex === -1 || idx === lyricsStartIndex) {
+              lines.forEach(l => l.classList.remove('selected', 'invalid'));
+              if (lyricsStartIndex === idx) { lyricsStartIndex = -1; confirmLyricsBtn.disabled = true; return; }
+              lyricsStartIndex = idx;
+              div.classList.add('selected');
+              // Une seule ligne est valide
+              const words = line.split(/\s+/).filter(Boolean).length;
+              validateLyrics(words);
+            } else if (idx === lyricsStartIndex + 1) {
+              // Deuxième ligne consécutive
+              div.classList.add('selected');
+              const combined = lyricsLines[lyricsStartIndex] + " " + line;
+              const words = combined.split(/\s+/).filter(Boolean).length;
+              validateLyrics(words);
+            } else {
+              // Nouveau départ
+              lines.forEach(l => l.classList.remove('selected', 'invalid'));
+              lyricsStartIndex = idx;
+              div.classList.add('selected');
+              const words = line.split(/\s+/).filter(Boolean).length;
+              validateLyrics(words);
+            }
+          };
           lyricsScrollArea.appendChild(div);
         });
       }
 
-      function handleLyricsLineClick(idx) {
-        const rows = lyricsScrollArea.querySelectorAll('.lyrics-line');
-        if (lyricsSelectedStart === -1 || idx !== lyricsSelectedStart + 1) {
-          // Première ligne, ou on redémarre la sélection ailleurs
-          rows.forEach(r => r.classList.remove('selected', 'invalid'));
-          if (idx === lyricsSelectedStart) {
-            // Reclique sur la même ligne : annule
-            lyricsSelectedStart = -1;
-            confirmLyricsBtn.disabled = true;
-            lyricsWordCountHint.textContent = '';
-            return;
-          }
-          lyricsSelectedStart = idx;
-          rows[idx].classList.add('selected');
-          confirmLyricsBtn.disabled = true;
-          lyricsWordCountHint.textContent = "Touche la ligne juste en dessous pour compléter ta sélection.";
-          return;
-        }
-        // Ligne juste en dessous : complète la paire
-        rows[idx].classList.add('selected');
-        const combined = lyricsLines[lyricsSelectedStart] + ' ' + lyricsLines[idx];
-        const wc = countWords(combined);
-        if (wc < 3 || wc > 20) {
-          rows[lyricsSelectedStart].classList.add('invalid');
-          rows[idx].classList.add('invalid');
-          lyricsWordCountHint.textContent = `⚠️ ${wc} mots — il en faut entre 3 et 20. Choisis d'autres lignes.`;
-          confirmLyricsBtn.disabled = true;
-        } else {
-          rows[lyricsSelectedStart].classList.remove('invalid');
-          rows[idx].classList.remove('invalid');
-          lyricsWordCountHint.textContent = `✅ ${wc} mots sélectionnés`;
+      function validateLyrics(words) {
+        if (words >= 3 && words <= 30) {
+          lyricsWordCountHint.innerHTML = `<span style="color:#4fd97f;">✅ ${words} mots sélectionnés.</span>`;
           confirmLyricsBtn.disabled = false;
+        } else {
+          lyricsWordCountHint.innerHTML = `<span style="color:#ff6b6b;">⚠️ ${words} mots. Doit être entre 3 et 30 mots.</span>`;
+          confirmLyricsBtn.disabled = true;
         }
       }
 
-      async function loadAndRenderLyrics(song, searchTitle) {
-        lyricsLoading.classList.remove('hidden');
-        lyricsScrollArea.classList.add('hidden');
-        lyricsModalError.textContent = '';
-        retryKaraokeLyricsBtn.classList.add('hidden');
-        const raw = await fetchLyricsRaw(song.artistName, searchTitle || song.trackName);
-        lyricsLoading.classList.add('hidden');
-        if (!raw) {
-          lyricsModalError.textContent = 'Nope, désolé mais va falloir faire sans cette fois 🤷‍♂️, peut-être une autre chanson ?';
-          retryKaraokeLyricsBtn.classList.remove('hidden');
-          return;
-        }
-        lyricsLines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-        renderLyricsLines();
-        lyricsScrollArea.classList.remove('hidden');
-      }
+      confirmLyricsBtn.onclick = async () => {
+        const l1 = lyricsLines[lyricsStartIndex] || '';
+        const l2 = lyricsLines[lyricsStartIndex + 1] || '';
+        const snippet = lyricsStartIndex !== -1 ? (l1 + (l2 ? '\n' + l2 : '')) : '';
 
-      function openLyricsPickerModal(song, cardEl) {
-        lyricsDraftSong = song;
-        lyricsDraftCard = cardEl || null;
-        lyricsModalArtwork.src = song.artworkUrl100 || 'https://via.placeholder.com/64';
-        lyricsModalTitle.textContent = song.trackName || 'Sans titre';
-        lyricsModalArtist.textContent = song.artistName || 'Inconnu';
-        lyricsModal.classList.remove('hidden');
-        loadAndRenderLyrics(song);
-      }
-
-      cancelLyricsBtn.addEventListener('click', () => {
-        lyricsModal.classList.add('hidden');
-        lyricsDraftSong = null;
-        lyricsDraftCard = null;
-      });
-
-      retryKaraokeLyricsBtn.addEventListener('click', () => {
-        if (lyricsDraftSong) loadAndRenderLyrics(lyricsDraftSong, lyricsDraftSong.trackName + ' karaoké');
-      });
-
-      confirmLyricsBtn.addEventListener('click', async () => {
-        if (!lyricsDraftSong || lyricsSelectedStart === -1) return;
-        const line1 = lyricsLines[lyricsSelectedStart];
-        const line2 = lyricsLines[lyricsSelectedStart + 1];
-        if (line1 === undefined || line2 === undefined) return;
-        const wc = countWords(line1 + ' ' + line2);
-        if (wc < 3 || wc > 20) return;
-
-        if (!allowDuplicates) {
-          const taken = await isSongAlreadyTaken(lyricsDraftSong);
-          if (taken) {
-            lyricsModalError.textContent = '⚠️ Chanson déjà sélectionnée par quelqu\'un d\'autre, choisis-en une autre.';
-            return;
-          }
-        }
-
-        const cardToRemove = lyricsDraftCard;
         const songData = {
-          title: lyricsDraftSong.trackName || 'Titre',
-          artist: lyricsDraftSong.artistName || 'Artiste',
-          artwork: lyricsDraftSong.artworkUrl100 || 'https://via.placeholder.com/100',
-          lyricsSnippet: line1 + '\n' + line2,
-          lyricsWordCount: wc
+          title: draftSong.trackName,
+          artist: draftSong.artistName,
+          artwork: draftSong.artworkUrl100,
+          lyricsSnippet: snippet
         };
-
         lyricsModal.classList.add('hidden');
-        lyricsDraftSong = null;
-        lyricsDraftCard = null;
-        searchInput.value = '';
-        showSongAddedPopup(songData);
-        await saveSongPick(songData, cardToRemove);
-      });
+        await saveSongPick(songData, draftCard);
+      };
+
+      document.getElementById('cancelLyricsBtn').onclick = () => lyricsModal.classList.add('hidden');
+
+      function escapeHTML(str) {
+        return String(str).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c] || c));
+      }
     })();
   </script>
 </body>

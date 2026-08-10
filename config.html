@@ -6,37 +6,223 @@
   <title>Configuration · Blind Test</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    .setup-container { max-width: 650px; margin: 0 auto; }
-    .setup-header { text-align: center; margin-bottom: 2rem; }
-    .setup-header p { color: #8aaec0; margin-top: 0.5rem; font-size: 0.95rem; }
-    .mode-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-    @media (max-width: 480px) { .mode-grid { grid-template-columns: 1fr; } }
-    .mode-card { cursor: pointer; position: relative; }
-    .mode-card input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
-    .card-design { background: #141a22; border: 2px solid #2b3542; border-radius: 1.25rem; padding: 1.2rem; display: flex; flex-direction: column; align-items: center; text-align: center; transition: all 0.25s ease; height: 100%; }
-    .card-design .icon { font-size: 2rem; margin-bottom: 0.6rem; }
-    .card-design h3 { font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 0.4rem; }
-    .card-design p { font-size: 0.8rem; color: #8aaec0; line-height: 1.35; }
-    .mode-card input[type="radio"]:checked + .card-design { border-color: #3b6eff; background: #172435; box-shadow: 0 0 20px rgba(59, 110, 255, 0.25); transform: translateY(-2px); }
-    .control-row { display: flex; justify-content: space-between; align-items: center; background: #141a22; border: 1px solid #2b3542; padding: 1rem 1.2rem; border-radius: 1rem; margin-bottom: 1rem; gap: 1rem; }
-    .control-row label { margin-bottom: 0; font-size: 0.95rem; font-weight: 600; color: #cfe0ea; }
-    .control-row input[type="number"] { width: 80px; margin: 0; padding: 0.5rem; text-align: center; background: #0d1218; border: 1px solid #2b3542; border-radius: 10px; color: #fff; font-size: 1rem; }
-    .accordion-header { background: #141a22; border: 1px solid #2b3542; border-radius: 1rem; padding: 1.2rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; transition: background 0.2s; margin-bottom: 1rem; }
-    .accordion-header:hover { background: #1a222c; }
-    .accordion-header h3 { font-size: 1.05rem; font-weight: 700; color: #e0f0ff; }
-    .toggle-list { display: flex; flex-direction: column; gap: 0.8rem; padding: 1.2rem; background: #0e1319; border: 1px solid #2b3542; border-top: none; border-radius: 0 0 1rem 1rem; margin-top: -1.5rem; margin-bottom: 1.5rem; }
-    .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; }
-    .toggle-info { padding-right: 1rem; }
-    .toggle-info h4 { font-size: 0.92rem; font-weight: 600; color: #fff; }
-    .toggle-info p { font-size: 0.78rem; color: #8aaec0; margin-top: 0.15rem; }
-    .switch { position: relative; display: inline-block; width: 48px; height: 24px; flex-shrink: 0; }
-    .switch input { opacity: 0; width: 0; height: 0; }
-    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #2b3542; transition: .25s; border-radius: 24px; }
-    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .25s; border-radius: 50%; }
-    input:checked + .slider { background-color: #3b6eff; }
-    input:checked + .slider:before { transform: translateX(24px); }
-    .hint-alert { background: #251e15; border-left: 4px solid #f5a623; padding: 0.8rem 1.2rem; border-radius: 0.75rem; font-size: 0.85rem; color: #fdd594; margin-top: 1rem; }
-    .hidden { display: none !important; }
+    .setup-container {
+      max-width: 650px;
+      margin: 0 auto;
+    }
+    .setup-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .setup-header p {
+      color: #8aaec0;
+      margin-top: 0.5rem;
+      font-size: 0.95rem;
+    }
+    /* Compact Mode Grid (Smaller Squares) */
+    .mode-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.6rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (max-width: 580px) {
+      .mode-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    .mode-card {
+      cursor: pointer;
+      position: relative;
+    }
+    .mode-card input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .card-design {
+      background: #141a22;
+      border: 2px solid #2b3542;
+      border-radius: 0.8rem;
+      padding: 0.8rem 0.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      transition: all 0.25s ease;
+      height: 100%;
+    }
+    .card-design .icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.3rem;
+    }
+    .card-design h3 {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 0.2rem;
+    }
+    .card-design p {
+      font-size: 0.72rem;
+      color: #8aaec0;
+      line-height: 1.25;
+    }
+    .mode-card input[type="radio"]:checked + .card-design {
+      border-color: #3b6eff;
+      background: #172435;
+      box-shadow: 0 0 15px rgba(59, 110, 255, 0.25);
+      transform: translateY(-2px);
+    }
+    /* Compact Control Rows */
+    .control-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #141a22;
+      border: 1px solid #2b3542;
+      padding: 1rem 1.2rem;
+      border-radius: 1rem;
+      margin-bottom: 1rem;
+      gap: 1rem;
+    }
+    .control-row label {
+      margin-bottom: 0;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #cfe0ea;
+    }
+    .control-row input[type="number"] {
+      width: 80px;
+      margin: 0;
+      padding: 0.5rem;
+      text-align: center;
+      background: #0d1218;
+      border: 1px solid #2b3542;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 1rem;
+    }
+    /* Accordion Customization */
+    .accordion-header {
+      background: #141a22;
+      border: 1px solid #2b3542;
+      border-radius: 1rem;
+      padding: 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.2s;
+      margin-bottom: 1rem;
+    }
+    .accordion-header:hover {
+      background: #1a222c;
+    }
+    .accordion-header h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #e0f0ff;
+    }
+    .toggle-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+      padding: 1.2rem;
+      background: #0e1319;
+      border: 1px solid #2b3542;
+      border-top: none;
+      border-radius: 0 0 1rem 1rem;
+      margin-top: -1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    /* Thematic Groups Inside Accordion */
+    .subtheme-group {
+      background: #11161d;
+      border: 1px solid #222c36;
+      border-radius: 0.8rem;
+      padding: 0.8rem 1rem;
+      margin-bottom: 0.2rem;
+    }
+    .subtheme-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #3b6eff;
+      text-transform: uppercase;
+      letter-spacing: 0.05rem;
+      margin-bottom: 0.8rem;
+      border-bottom: 1px solid #222c36;
+      padding-bottom: 0.3rem;
+    }
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      transition: opacity 0.25s ease;
+    }
+    .toggle-info {
+      padding-right: 1rem;
+    }
+    .toggle-info h4 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #fff;
+    }
+    .toggle-info p {
+      font-size: 0.75rem;
+      color: #8aaec0;
+      margin-top: 0.15rem;
+    }
+    /* Switch Styles */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #2b3542;
+      transition: .25s;
+      border-radius: 24px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px; width: 18px;
+      left: 3px; bottom: 3px;
+      background-color: white;
+      transition: .25s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: #3b6eff;
+    }
+    input:checked + .slider:before {
+      transform: translateX(24px);
+    }
+    .hint-alert {
+      background: #251e15;
+      border-left: 4px solid #f5a623;
+      padding: 0.8rem 1.2rem;
+      border-radius: 0.75rem;
+      font-size: 0.85rem;
+      color: #fdd594;
+      margin-top: 1rem;
+    }
+    .hidden {
+      display: none !important;
+    }
   </style>
 </head>
 <body>
@@ -47,23 +233,24 @@
     </div>
 
     <form id="config-form">
+      <!-- Game Mode Cards -->
       <div class="config-group" style="border:none; background:transparent; padding:0; margin-bottom:1.5rem;">
-        <div class="config-title" style="margin-bottom:1rem;">🕹️ Type d'expérience</div>
+        <div class="config-title" style="margin-bottom:1rem;">🎮 Mode de jeu</div>
         <div class="mode-grid">
           <label class="mode-card">
             <input type="radio" name="gameMode" value="classic" checked>
             <div class="card-design">
               <span class="icon">🎵</span>
               <h3>Standard</h3>
-              <p>Chanson originale, rapidité de buzzer classique</p>
+              <p>Chanson originale standard</p>
             </div>
           </label>
           <label class="mode-card">
             <input type="radio" name="gameMode" value="instrumental">
             <div class="card-design">
               <span class="icon">🎸</span>
-              <h3>Instrumental</h3>
-              <p>Effet DSP appliqué pour atténuer les voix</p>
+              <h3>Instru</h3>
+              <p>Voix atténuées par filtres</p>
             </div>
           </label>
           <label class="mode-card">
@@ -71,7 +258,7 @@
             <div class="card-design">
               <span class="icon">🎧</span>
               <h3>Playlist</h3>
-              <p>Devinez à qui appartient chaque chanson</p>
+              <p>Devinez l'hôte du morceau</p>
             </div>
           </label>
           <label class="mode-card">
@@ -79,11 +266,12 @@
             <div class="card-design">
               <span class="icon">🎤</span>
               <h3>Paroles</h3>
-              <p>Révélation progressive et audio du texte</p>
+              <p>Lecture du snippet textuel</p>
             </div>
           </label>
         </div>
 
+        <!-- Playlist Mode Rules Info -->
         <div id="playlistModeNote" class="hint-alert hidden">
           ⚠️ <b>Mode Playlist :</b> Demande au moins 3 joueurs. Chaque participant soumet sa mini-sélection, l'hôte est observateur.
         </div>
@@ -93,6 +281,7 @@
           <input type="number" id="playlistSongsPerPlayer" min="2" max="5" value="5">
         </div>
 
+        <!-- Lyrics Controls -->
         <div id="lyricsModeGroup" class="hidden" style="margin-top:0.8rem; background: #141a22; border: 1px solid #2b3542; border-radius: 1rem; padding: 1.2rem;">
           <label style="display:block; margin-bottom:0.8rem;">⏱️ Vitesse d'apparition des paroles</label>
           <div class="radio-group" style="margin-bottom:1rem;">
@@ -113,85 +302,96 @@
         </div>
       </div>
 
+      <!-- Accordéon Paramètres -->
       <div class="accordion-header" id="toggleParams">
         <h3>🎚️ Options de difficulté & Paramètres</h3>
         <span id="paramsArrow" style="font-size: 1.2rem; color: #8aaec0;">⬇️</span>
       </div>
 
+      <!-- Organisé par Thèmes -->
       <div id="paramsContent" class="hidden toggle-list">
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <h4>Mode Classique Simple</h4>
-            <p>Désactive les filtres audio complexes lors de la sélection des morceaux</p>
+        
+        <!-- Thème 1 : Déroulement du jeu -->
+        <div class="subtheme-group">
+          <div class="subtheme-title">🏆 Déroulement du jeu</div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <h4>Tentatives maximales</h4>
+              <p>Nombre d'essais max autorisés par joueur (0 = illimité)</p>
+            </div>
+            <input type="number" id="maxAttempts" min="0" max="10" value="3" style="width: 80px; text-align: center; background: #0d1218; border: 1px solid #2b3542; border-radius: 10px; color:#fff;">
           </div>
-          <label class="switch">
-            <input type="checkbox" id="classicModeCheck">
-            <span class="slider"></span>
-          </label>
+          <div class="toggle-row" style="border-top: 1px solid #222c36; padding-top: 0.6rem; margin-top: 0.4rem;">
+            <div class="toggle-info">
+              <h4>Blocage des adversaires</h4>
+              <p>Verrouiller les autres participants pendant qu'un joueur répond</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="lockOthersCheck" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="toggle-row" style="border-top: 1px solid #222c36; padding-top: 0.6rem; margin-top: 0.4rem;">
+            <div class="toggle-info">
+              <h4>Multi-vainqueurs</h4>
+              <p>Accepter plusieurs bonnes réponses d'affilée par manche</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="multipleCorrectCheck">
+              <span class="slider"></span>
+            </label>
+          </div>
         </div>
 
-        <div class="toggle-row" style="border-top: 1px solid #2b3542; padding-top: 0.8rem; margin-top: 0.4rem;">
-          <div class="toggle-info">
-            <h4>Tentatives maximales</h4>
-            <p>Nombre d'essais max autorisés par joueur (0 = illimité)</p>
+        <!-- Thème 2 : Visuel & Contenu -->
+        <div class="subtheme-group">
+          <div class="subtheme-title">🎨 Visuel & Contenu</div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <h4>Révélation d'image</h4>
+              <p>Flouter la couverture d'album et la révéler progressivement</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="blurCheck">
+              <span class="slider"></span>
+            </label>
           </div>
-          <input type="number" id="maxAttempts" min="0" max="10" value="3">
+          <div class="toggle-row" style="border-top: 1px solid #222c36; padding-top: 0.6rem; margin-top: 0.4rem;">
+            <div class="toggle-info">
+              <div id="duplicatesHint"></div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="allowDuplicatesCheck">
+              <span class="slider"></span>
+            </label>
+          </div>
         </div>
 
-        <div class="toggle-row" style="border-top: 1px solid #2b3542; padding-top: 0.8rem;">
-          <div class="toggle-info">
-            <h4>Révélation d'image</h4>
-            <p>Flouter la couverture d'album et la révéler progressivement</p>
+        <!-- Thème 3 : Options de Sélection -->
+        <div class="subtheme-group">
+          <div class="subtheme-title">🛠️ Options de Sélection</div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <h4>Mode Classique Simple</h4>
+              <p>Désactive les filtres audio complexes lors de la sélection des morceaux</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="classicModeCheck">
+              <span class="slider"></span>
+            </label>
           </div>
-          <label class="switch">
-            <input type="checkbox" id="blurCheck">
-            <span class="slider"></span>
-          </label>
+          <div class="toggle-row" style="border-top: 1px solid #222c36; padding-top: 0.6rem; margin-top: 0.4rem;">
+            <div class="toggle-info">
+              <h4>Modifications avancées</h4>
+              <p>Donner accès au pitch et aux filtres lors de la sélection (Incompatible Mode Classique)</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="advancedSettingsCheck">
+              <span class="slider"></span>
+            </label>
+          </div>
         </div>
 
-        <div class="toggle-row" style="border-top: 1px solid #2b3542; padding-top: 0.8rem;">
-          <div class="toggle-info">
-            <h4>Blocage des adversaires</h4>
-            <p>Verrouiller les autres participants pendant qu'un joueur répond</p>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="lockOthersCheck" checked>
-            <span class="slider"></span>
-          </label>
-        </div>
-
-        <div class="toggle-row" style="border-top: 1px solid #2b3542; padding-top: 0.8rem;">
-          <div class="toggle-info">
-            <h4>Multi-vainqueurs</h4>
-            <p>Accepter plusieurs bonnes réponses d'affilée par manche</p>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="multipleCorrectCheck">
-            <span class="slider"></span>
-          </label>
-        </div>
-
-        <div class="toggle-row" style="border-top: 1px solid #2b3542; padding-top: 0.8rem;">
-          <div class="toggle-info">
-            <h4>Autoriser les doublons</h4>
-            <p id="duplicatesHint" style="font-size:0.78rem; color:#8aaec0; margin:0;"></p>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="allowDuplicatesCheck">
-            <span class="slider"></span>
-          </label>
-        </div>
-
-        <div class="toggle-row" style="border-top: 1px solid #2b3542; padding-top: 0.8rem;">
-          <div class="toggle-info">
-            <h4>Modifications avancées</h4>
-            <p>Donner accès au pitch et aux filtres lors de la sélection</p>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="advancedSettingsCheck">
-            <span class="slider"></span>
-          </label>
-        </div>
       </div>
 
       <div class="control-row">
@@ -297,6 +497,22 @@
       allowDuplicatesCheck.addEventListener('change', updateDuplicatesHint);
       updateDuplicatesHint();
 
+      // Mode Classique / Advanced Interdependence Logic
+      const classicModeCheck = document.getElementById('classicModeCheck');
+      const advancedSettingsCheck = document.getElementById('advancedSettingsCheck');
+      
+      function handleClassicModeInterdependence() {
+        if (classicModeCheck.checked) {
+          advancedSettingsCheck.checked = false;
+          advancedSettingsCheck.disabled = true;
+          advancedSettingsCheck.closest('.toggle-row').style.opacity = '0.5';
+        } else {
+          advancedSettingsCheck.disabled = false;
+          advancedSettingsCheck.closest('.toggle-row').style.opacity = '1';
+        }
+      }
+      classicModeCheck.addEventListener('change', handleClassicModeInterdependence);
+
       if (isEditMode && AppState.roomCode) {
         db.ref('rooms/' + AppState.roomCode + '/config').once('value', (snap) => {
           const cfg = snap.val();
@@ -317,6 +533,8 @@
           const speedRadio = document.querySelector(`input[name="lyricsSpeed"][value="${cfg.lyricsSpeed || 'slow'}"]`);
           if (speedRadio) speedRadio.checked = true;
           document.getElementById('lyricsSkipWordsCheck').checked = !!cfg.lyricsSkipWords;
+          
+          handleClassicModeInterdependence();
           updateModeUI();
           updateDuplicatesHint();
         });

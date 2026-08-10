@@ -56,15 +56,18 @@ button, .btn-like {
   margin: 0.5rem 0;
   border: 1px solid #3e5a77; /* bordure plus claire */
 }
+
 button:hover:not(:disabled) {
   background: #3e5a77;
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(0,0,0,0.4);
 }
+
 button.primary {
   background: #3b6eff; /* bleu vif pour actions principales */
   border: 1px solid #6e9eff;
 }
+
 button.primary:hover {
   background: #5584ff;
 }
@@ -208,6 +211,7 @@ label {
   cursor: pointer;
   transition: 0.2s;
 }
+
 .song-card:hover {
   border-color: #3b6eff;
   background: #253544;
@@ -251,11 +255,60 @@ label {
   color: white;
 }
 
+/* === Amélioration visuelle et animation du Buzzer === */
+.buzzer-btn {
+  background: radial-gradient(circle at 30% 30%, #ff4d4d, #b30000);
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  margin: 2rem auto;
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: white;
+  border: 5px solid #ff8080;
+  cursor: pointer;
+  display: block;
+  box-shadow: 0 10px 25px rgba(255, 77, 77, 0.4);
+  transition: transform 0.1s, box-shadow 0.2s;
+}
+
+/* Animation de pulsation uniquement quand le bouton n'est pas désactivé */
+.buzzer-btn:not(:disabled) {
+  animation: buzzerPulse 1.8s infinite;
+}
+
+/* Réaction physique au clic tactile ou souris */
+.buzzer-btn:not(:disabled):active {
+  transform: scale(0.95);
+  box-shadow: 0 5px 15px rgba(255, 77, 77, 0.6);
+}
+
+.buzzer-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: #555;
+  background: radial-gradient(circle at 30% 30%, #5a5a5a, #2b2b2b);
+  box-shadow: none;
+}
+
+@keyframes buzzerPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 77, 77, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 20px rgba(255, 77, 77, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 77, 77, 0);
+  }
+}
+
 /* Liens */
 a {
   color: #9fc5ff;
   text-decoration: none;
 }
+
 a:hover {
   text-decoration: underline;
 }

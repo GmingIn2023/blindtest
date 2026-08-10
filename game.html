@@ -3,183 +3,206 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Blind Test · Jeu</title>
+  <meta name="color-scheme" content="dark">
+  <title>Partie · Blind Test</title>
+  <link rel="stylesheet" href="css/style.css">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    body { background: #0a0c0e; color: #f0f4fa; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 1.5rem; }
-    #app { max-width: 700px; width: 100%; background: #151e26; border-radius: 2.5rem; box-shadow: 0 20px 40px rgba(0,0,0,0.8); padding: 2rem 1.8rem; }
-    h1 { font-size: 2.2rem; color: #ffffff; margin-bottom: 1.5rem; text-align: center; }
-    button { background: #2a3b4c; border: none; border-radius: 60px; padding: 0.85rem 1.4rem; color: white; font-weight: 600; cursor: pointer; font-size: 1rem; margin: 0.5rem 0; transition: all 0.2s; border: 1px solid #3e5a77; }
-    button:hover:not(:disabled) { background: #3e5a77; transform: translateY(-2px); }
-    button.primary { background: #3b6eff; border-color: #6e9eff; }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
-    .hidden { display: none !important; }
+    /* Disposition Générale */
+    .game-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #1c2127;
+      padding: 0.8rem 1.2rem;
+      border-radius: 1.2rem;
+      margin-bottom: 1.2rem;
+    }
+    .game-round-info { font-weight: 700; color: #5e9eff; font-size: 1.1rem; }
+    .game-score-pill { background: #2b3544; padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.9rem; }
 
-    /* Vue Hôte */
-    .game-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap; }
-    .play-btn { background: linear-gradient(135deg, #5e9eff 0%, #2a5bbf 100%); width: 80px; height: 80px; border-radius: 50%; font-size: 2rem; border: none; color: white; cursor: pointer; }
-    .reveal-btn { background: linear-gradient(135deg, #2e3b4e, #1e2835); border: 2px solid #3e4c5a; padding: 0.9rem 2rem; border-radius: 60px; }
-    .timer-big { font-size: 2.5rem; font-weight: bold; color: #ffaa33; text-align: center; font-family: monospace; background: #0f1a24; padding: 0.5rem; border-radius: 1rem; margin: 1rem 0; }
-    .notification { background: #1e3f5a; border-radius: 60px; padding: 0.5rem 1rem; margin: 0.5rem 0; text-align: center; }
-    .scoreboard { background: #0f1419; border-radius: 1.5rem; padding: 1rem; margin: 1rem 0; }
-    .scoreboard-row { transition: transform 0.5s ease; will-change: transform; }
-    .scoreboard-row.score-pulse { animation: scorePulse 0.7s ease; }
-    @keyframes scorePulse { 0% { background-color: rgba(79,217,127,0.35); } 100% { background-color: transparent; } }
-
-    /* Vue Joueur */
-    .buzzer-btn {
-      background: radial-gradient(circle at 30% 30%, #ff4d4d, #b30000);
-      width: 200px;
-      height: 200px;
+    /* Zone Host / Écran Principal */
+    .host-screen { text-align: center; margin-bottom: 1.5rem; }
+    .vinyl-container {
+      width: 140px;
+      height: 140px;
+      margin: 1rem auto;
+      position: relative;
       border-radius: 50%;
-      margin: 2rem auto;
-      font-size: 2rem;
-      font-weight: bold;
-      color: white;
-      border: 5px solid #ff9999;
-      cursor: pointer;
-      display: block;
-      box-shadow: 0 10px 25px rgba(255, 77, 77, 0.4);
-      transition: transform 0.1s, box-shadow 0.2s;
+      background: #111;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 4px solid #2d353e;
     }
-    .buzzer-btn:not(:disabled) { animation: buzzerPulse 1.8s infinite; }
-    .buzzer-btn:not(:disabled):active { transform: scale(0.95); box-shadow: 0 5px 15px rgba(255, 77, 77, 0.6); }
-    @keyframes buzzerPulse {
-      0% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0.7); }
-      70% { box-shadow: 0 0 0 20px rgba(255, 77, 77, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0); }
-    }
-    .cooldown-timer { font-size: 1.2rem; color: #ffaa33; text-align: center; }
+    .vinyl-container.spinning { animation: spin 3s linear infinite; }
+    .vinyl-cover { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
 
-    /* Popups */
-    .popup { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e2a36; border: 3px solid #ffaa33; border-radius: 2rem; padding: 2rem; width: 90%; max-width: 400px; z-index: 1000; box-shadow: 0 10px 30px black; text-align: center; }
-    .popup h3 { margin-bottom: 1rem; color: #ffaa33; }
-    .popup-cover { width: 120px; height: 120px; border-radius: 1rem; margin: 1rem auto; object-fit: cover; display: block; }
-    .popup-cover.blur { filter: blur(8px); }
-    .choice-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 0.5rem; margin-top: 1rem; }
-    .choice-btn { background: #2a3a4a; border: 2px solid #5e9eff; border-radius: 1rem; padding: 0.8rem; cursor: pointer; text-align: center; }
-    .choice-btn:hover { background: #3b6eff; }
-    .answer-input { width: 100%; padding: 0.8rem; border-radius: 60px; border: 1px solid #3e5a77; background: #0f1a24; color: white; margin: 1rem 0; }
-    .popup-timer { font-size: 2rem; color: #ffaa33; margin: 0.5rem 0; }
+    /* Commandes Audio Host */
+    .audio-controls { display: flex; justify-content: center; gap: 0.8rem; margin: 1rem 0; }
+    .audio-controls button { padding: 0.8rem 1.4rem; border-radius: 1rem; border: none; font-weight: 600; cursor: pointer; }
+    #playBtn { background: #3b6eff; color: #fff; }
+    #revealBtn { background: #2f7740; color: #fff; }
+    #nextBtn { background: #e0a100; color: #fff; }
+
+    /* Écran Joueur & Saisie */
+    .player-screen { background: #1c2127; padding: 1.2rem; border-radius: 1.4rem; margin-top: 1rem; }
+    .answer-inputs { display: flex; flex-direction: column; gap: 0.8rem; margin-top: 1rem; }
+    .answer-inputs input {
+      background-color: #0f1a24 !important;
+      color: #ffffff !important;
+      -webkit-text-fill-color: #ffffff !important;
+      border: 2px solid #2d353e;
+      padding: 0.8rem 1rem;
+      border-radius: 0.8rem;
+      font-size: 1rem;
+    }
+    .answer-inputs input:focus { border-color: #5e9eff; outline: none; }
     
-    .buzz-flash { position: fixed; inset: 0; z-index: 500; background: radial-gradient(circle, rgba(255,80,80,0.35) 0%, rgba(255,80,80,0) 70%); pointer-events: none; animation: buzzPulse 0.6s ease-out; }
-    .buzz-flash.hidden { display: none; }
-    @keyframes buzzPulse { 0% { opacity: 0; transform: scale(0.8); } 30% { opacity: 1; transform: scale(1.05); } 100% { opacity: 0; transform: scale(1); } }
+    /* Buzzers & Micro */
+    .buzz-btn {
+      width: 100%;
+      padding: 1.5rem;
+      border-radius: 1.5rem;
+      background: linear-gradient(135deg, #e53e3e 0%, #9b2c2c 100%);
+      color: white;
+      font-size: 1.5rem;
+      font-weight: 800;
+      border: none;
+      box-shadow: 0 6px 0 #742a2a;
+      cursor: pointer;
+      margin: 1rem 0;
+      transition: transform 0.1s;
+    }
+    .buzz-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #742a2a; }
+    .buzz-btn:disabled { background: #4a5568; box-shadow: none; opacity: 0.5; cursor: not-allowed; }
 
-    /* Flou progressif quadrants */
-    .quadrant-cover { position: relative; width: 160px; height: 160px; margin: 1rem auto; border-radius: 16px; overflow: hidden; background: #000; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
-    .quadrant-cover.hidden { display: none; }
-    .quadrant { background-size: 320px 320px; filter: blur(18px); opacity: 0; transition: opacity 0.6s ease, filter 1.5s ease; }
-    #quad-0 { background-position: 0 0; } #quad-1 { background-position: -160px 0; } #quad-2 { background-position: 0 -160px; } #quad-3 { background-position: -160px -160px; }
+    /* Révélation de la Chanson */
+    .reveal-card {
+      background: #1e2631;
+      border: 2px solid #5e9eff;
+      border-radius: 1.2rem;
+      padding: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 1.2rem 0;
+      text-align: left;
+    }
+    .reveal-card img { width: 80px; height: 80px; border-radius: 12px; object-fit: cover; }
+    .reveal-title { font-size: 1.2rem; font-weight: 700; color: #fff; }
+    .reveal-artist { color: #8aaec0; font-size: 1rem; margin-top: 0.2rem; }
 
-    .reveal-btn.correct-ready { background: #2fae5f !important; border-color: #4fd97f !important; animation: revealPulse 1s ease-in-out infinite; }
-    @keyframes revealPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(79,217,127,0.5); } 50% { box-shadow: 0 0 0 10px rgba(79,217,127,0); } }
+    /* Tableau des scores / Feed */
+    .live-feed { background: #12161b; border-radius: 1rem; padding: 0.8rem; max-height: 180px; overflow-y: auto; margin-top: 1rem; font-size: 0.88rem; }
+    .feed-item { padding: 0.4rem 0; border-bottom: 1px solid #1c222b; display: flex; justify-content: space-between; }
+    .feed-item:last-child { border-bottom: none; }
+    .feed-correct { color: #4fd97f; }
+    .feed-wrong { color: #ff6b6b; }
 
-    /* Playlist votes */
-    .playlist-vote-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 0.7rem; margin: 1rem 0; }
-    .playlist-vote-grid.hidden { display: none; }
-    .vote-square { background: #1a1f25; border: 2px solid #2d353e; border-radius: 1rem; padding: 1rem 0.5rem; text-align: center; cursor: pointer; transition: 0.15s; }
-    .vote-square .vs-avatar { font-size: 1.8rem; display: block; }
-    .vote-square .vs-name { font-size: 0.85rem; margin-top: 0.3rem; word-break: break-word; }
-    .vote-square.selected { border-color: #3b6eff; background: #1c2a4a; }
-    .vote-square.correct { border-color: #4fd97f; background: #17301f; }
-    .vote-square.wrong { border-color: #ff6b6b; background: #351c1c; opacity: 0.7; }
-    .vote-square.disabled { pointer-events: none; opacity: 0.6; }
+    /* Modale / Écran Final */
+    .podium-container { display: flex; flex-direction: column; gap: 0.8rem; margin-top: 1.5rem; }
+    .podium-item { display: flex; justify-content: space-between; align-items: center; background: #1a202c; padding: 1rem; border-radius: 1rem; }
+    .podium-rank { font-size: 1.4rem; font-weight: 800; width: 35px; }
+    .rank-1 { border: 2px solid #ecc94b; background: #2c2411; }
+    .rank-2 { border: 2px solid #a0aec0; background: #1a202c; }
+    .rank-3 { border: 2px solid #ed8936; background: #271a12; }
 
-    .lyrics-display { background: #10161c; border: 1px solid #2d353e; border-radius: 1.2rem; padding: 1.4rem 1.2rem; margin: 1rem 0; text-align: center; font-size: 1.15rem; line-height: 1.7; min-height: 3.5rem; }
-    .lyrics-display.hidden { display: none; }
-    .lyrics-word { display: inline-block; margin: 0 0.2rem; }
-    .lyrics-word.blank { color: #3e4a57; }
+    /* Spécifique Karaoke / Lyrics */
+    .lyrics-display-box { background: #101418; border: 1px solid #2d353e; padding: 1.2rem; border-radius: 1rem; font-size: 1.2rem; font-weight: 600; text-align: center; color: #fff; margin: 1rem 0; white-space: pre-line; }
   </style>
 </head>
 <body>
   <div id="app">
-    <h1>🎧 Blind Test</h1>
-    <div id="buzzFlash" class="buzz-flash hidden"></div>
-
-    <!-- HÔTE -->
-    <div id="host-view" class="hidden">
-      <div class="game-header">
-        <span id="hostSongCounter" class="song-counter">Chanson 1 / ?</span>
-        <button id="hostPlay" class="play-btn">▶️</button>
-        <button id="hostReveal" class="reveal-btn">🔎 Révéler</button>
-        <button id="hostRestartClip" class="play-btn">⏮️</button>
-      </div>
-      <div class="timer-big" id="hostTimer">00:00.0</div>
-      <div id="quadrantCover" class="quadrant-cover hidden">
-        <div class="quadrant" id="quad-0"></div>
-        <div class="quadrant" id="quad-1"></div>
-        <div class="quadrant" id="quad-2"></div>
-        <div class="quadrant" id="quad-3"></div>
-      </div>
-      <div id="hostLyricsDisplay" class="lyrics-display hidden"></div>
-      <div id="hostNotification" class="notification"></div>
-      <div id="hostScoreboard" class="scoreboard"></div>
-      <button id="hostNext" class="primary">⏩ Chanson suivante</button>
-      <p style="text-align:center; margin-top:1.2rem;">
-        <a href="#" id="backToLobbyLink" style="color:#8aaec0;">🏠 Retour à la lobby</a>
-      </p>
+    <!-- En-tête de jeu -->
+    <div class="game-header">
+      <div class="game-round-info" id="roundDisplay">Manche 1 / ?</div>
+      <div class="game-score-pill" id="myScoreDisplay">Score : 0 pts</div>
     </div>
 
-    <!-- JOUEUR -->
-    <div id="player-view" class="hidden">
-      <div id="playerSongInfo" style="text-align:center; margin-bottom:1rem;">Chanson 1 / ?</div>
-      <div class="timer-big" id="playerTimer">00:00.0</div>
-      <div id="playerLyricsDisplay" class="lyrics-display hidden"></div>
-      <div id="playerScore" style="font-size:1.5rem; text-align:center; color:#d4ffb0; margin:0.5rem;">0 pts</div>
-      <div id="playerAttempts" style="text-align:center;">Essais restants: ∞</div>
-      <div id="cooldownDisplay" class="cooldown-timer"></div>
-      <button class="buzzer-btn" id="playerBuzzer">JE SAIS !</button>
-      <div id="playlistVoteGrid" class="playlist-vote-grid hidden"></div>
-      <div id="playerFeedback" style="text-align:center;"></div>
-      <div id="playerScoreboard" class="scoreboard"></div>
-    </div>
-
-    <!-- Popup Révélation (Hôte) -->
-    <div id="popupReveal" class="popup hidden">
-      <h3>🎉 Réponse</h3>
-      <img id="revealCover" class="popup-cover" src="" alt="cover">
-      <h2 id="revealTitle"></h2>
-      <p id="revealArtist"></p>
-      <!-- Zone des options de personnalisation -->
-      <p id="revealCustomDetails" style="font-size: 0.85rem; color: #ffaa33; margin-top: 0.5rem; font-style: italic;"></p>
-      <button id="closeReveal" class="primary" style="margin-top:1rem;">Fermer</button>
-    </div>
-
-    <!-- Popup réponse écrite -->
-    <div id="popupAnswer" class="popup hidden">
-      <h3>✏️ Tape le titre</h3>
-      <input type="text" id="answerInput" class="answer-input" placeholder="Titre">
-      <div style="display:flex; gap:1rem; align-items:center;">
-        <button id="submitAnswer" style="flex:1;">✅ Valider</button>
-        <span id="answerTimer" class="popup-timer">10</span>
+    <!-- VUE HOST (S'affiche si Host ou Écran Global) -->
+    <div id="hostArea" class="host-screen hidden">
+      <div class="vinyl-container" id="vinyl">
+        <img src="assets/vinyl-placeholder.png" id="vinylCover" class="vinyl-cover" alt="vinyl">
       </div>
+      
+      <!-- Zone d'affichage Paroles (Mode Lyrics) -->
+      <div id="lyricsDisplay" class="lyrics-display-box hidden"></div>
+
+      <!-- Contrôles Host -->
+      <div class="audio-controls">
+        <button id="playBtn">▶️ Lancer l'extrait</button>
+        <button id="revealBtn" class="hidden">👁️ Révéler</button>
+        <button id="nextBtn" class="hidden">➡️ Chanson Suivante</button>
+      </div>
+    </div>
+
+    <!-- CARTE DE RÉVÉLATION (Découverte de la musique) -->
+    <div id="revealCard" class="reveal-card hidden">
+      <img id="revealArtwork" src="" alt="cover">
+      <div>
+        <div id="revealTitle" class="reveal-title">?</div>
+        <div id="revealArtist" class="reveal-artist">?</div>
+        <div id="revealOwner" style="font-size:0.8rem; color:#5e9eff; margin-top:0.3rem;"></div>
+      </div>
+    </div>
+
+    <!-- VUE JOUEUR (Saisie des réponses / Buzzer) -->
+    <div id="playerArea" class="player-screen">
+      <!-- Mode Standard / QCM / Playlist -->
+      <div id="standardInputs" class="answer-inputs">
+        <label style="font-size:0.85rem; color:#8aaec0;">🎵 Titre de la chanson :</label>
+        <input type="text" id="inputTitle" placeholder="Ex: Bohemian Rhapsody" autocomplete="off" spellcheck="false">
+        
+        <label style="font-size:0.85rem; color:#8aaec0;">👤 Artiste / Groupe :</label>
+        <input type="text" id="inputArtist" placeholder="Ex: Queen" autocomplete="off" spellcheck="false">
+
+        <button id="submitAnswerBtn" style="background:#3b6eff; color:#fff; padding:0.9rem; border:none; border-radius:0.8rem; font-weight:700; margin-top:0.5rem; cursor:pointer;">
+          🚀 Valider mes réponses
+        </button>
+      </div>
+
+      <!-- Mode Buzzer -->
+      <div id="buzzerArea" class="hidden">
+        <button id="buzzBtn" class="buzz-btn">🔔 BUZZER !</button>
+        <div id="buzzerStatus" style="text-align:center; font-weight:600; color:#8aaec0;"></div>
+      </div>
+    </div>
+
+    <!-- FEED TEMPS RÉEL DES RÉPONSES & SCORES -->
+    <div style="margin-top: 1.5rem;">
+      <div style="font-size:0.9rem; font-weight:700; color:#8aaec0; margin-bottom:0.4rem;">📊 Activité de la manche :</div>
+      <div id="liveFeed" class="live-feed">
+        <div style="color:#5c6b73; text-align:center;">En attente des réponses...</div>
+      </div>
+    </div>
+
+    <!-- ÉCRAN DE FIN DE PARTIE (PODIUM) -->
+    <div id="finalScreen" class="hidden" style="text-align:center; margin-top:1rem;">
+      <h2>🏆 Fin de la Partie !</h2>
+      <p style="color:#8aaec0;">Voici le classement final :</p>
+      <div id="podiumList" class="podium-container"></div>
+      
+      <button id="backToLobbyBtn" style="background:#3b6eff; color:#fff; border:none; padding:1rem 2rem; border-radius:1rem; font-size:1rem; font-weight:700; margin-top:2rem; cursor:pointer;">
+        🏠 Retourner au Salon
+      </button>
     </div>
   </div>
 
+  <!-- FIREBASE & APPS SCRIPTS -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-  
+
+  <script src="js/firebase-init.js"></script>
+  <script src="js/utils.js"></script>
   <script src="js/state.js"></script>
-  <!-- Inclusion de notre moteur d'effets audio unifié -->
   <script src="js/audio-effects.js"></script>
 
   <script>
     (function() {
-      const firebaseConfig = {
-        apiKey: "AIzaSyBOEU9kg6YuXllGEGS9iod_SsBRu9NOPro",
-        authDomain: "blind-test-kahoot.firebaseapp.com",
-        databaseURL: "https://blind-test-kahoot-default-rtdb.europe-west1.firebasedatabase.app",
-        projectId: "blind-test-kahoot",
-        storageBucket: "blind-test-kahoot.firebasestorage.app",
-        messagingSenderId: "798773649205",
-        appId: "1:798773649205:web:de5dd5cbce41ea2ec5b67c"
-      };
-      firebase.initializeApp(firebaseConfig);
-      const db = firebase.database();
-
       const roomCode = AppState.roomCode;
-      const isHost = AppState.isHost === true;
+      const isHost = AppState.isHost;
       const clientId = AppState.clientId;
       const playerName = AppState.playerName || 'Joueur';
 
@@ -187,440 +210,267 @@
 
       const roomRef = db.ref('rooms/' + roomCode);
       const gameStateRef = roomRef.child('gameState');
-      const playersRef = roomRef.child('players');
+      const configRef = roomRef.child('config');
 
-      let gameSongs = [];
-      let currentSongIndex = 0;
-      let roundActive = false;
-      let roundStartTime = 0;
-      let scores = {};
-      let playerAttempts = {};
-      let buzzer = null;
-      let buzzerLocked = false;
-      let reopenAt = 0;
-      let lockOthersOnBuzz = true;
-      let multipleCorrectAllowed = false;
-      let lyricsSpeed = 'slow';
-      let lyricsSkipWords = false;
-      let votes = {};
-      let mode = 'classic';
-      let maxAttempts = 3;
-      let blurEnabled = false;
+      // Éléments DOM
+      const roundDisplay = document.getElementById('roundDisplay');
+      const myScoreDisplay = document.getElementById('myScoreDisplay');
+      const hostArea = document.getElementById('hostArea');
+      const playerArea = document.getElementById('playerArea');
+      const vinyl = document.getElementById('vinyl');
+      const vinylCover = document.getElementById('vinylCover');
+      const playBtn = document.getElementById('playBtn');
+      const revealBtn = document.getElementById('revealBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const revealCard = document.getElementById('revealCard');
+      const revealArtwork = document.getElementById('revealArtwork');
+      const revealTitle = document.getElementById('revealTitle');
+      const revealArtist = document.getElementById('revealArtist');
+      const revealOwner = document.getElementById('revealOwner');
+      const inputTitle = document.getElementById('inputTitle');
+      const inputArtist = document.getElementById('inputArtist');
+      const submitAnswerBtn = document.getElementById('submitAnswerBtn');
+      const liveFeed = document.getElementById('liveFeed');
+      const lyricsDisplay = document.getElementById('lyricsDisplay');
+      const finalScreen = document.getElementById('finalScreen');
+      const podiumList = document.getElementById('podiumList');
+      const backToLobbyBtn = document.getElementById('backToLobbyBtn');
 
-      let answerTimerInterval = null;
-      let lastRevealedWordCount = 0;
+      let currentSongsList = [];
+      let currentIndex = 0;
+      let gameConfig = {};
+      let hasSubmitted = false;
 
-      // TIMER TICKER CONTINU (Hôte & Joueurs)
-      setInterval(() => {
-        if (roundActive && roundStartTime > 0) {
-          const elapsed = Date.now() - roundStartTime;
-          if (isHost) {
-            document.getElementById('hostTimer').textContent = formatTimer(elapsed);
-            updateQuadrantCover(elapsed);
-            if (mode === 'lyrics') updateLyricsDisplay('hostLyricsDisplay', elapsed);
-          } else {
-            document.getElementById('playerTimer').textContent = formatTimer(elapsed);
-            if (mode === 'lyrics') updateLyricsDisplay('playerLyricsDisplay', elapsed);
-          }
-        } else {
-          stopAudio();
-        }
-      }, 100);
-
-      const LYRICS_MS_PER_WORD = { slow: 1200, medium: 700, fast: 400 };
-      
-      function updateLyricsDisplay(elementId, elapsedMs) {
-        const display = document.getElementById(elementId);
-        const song = gameSongs[currentSongIndex];
-        if (!song || !song.lyricsSnippet) { display.classList.add('hidden'); return; }
-        
-        display.classList.remove('hidden');
-        const words = song.lyricsSnippet.split(/\s+/).filter(Boolean);
-        const msPerWord = LYRICS_MS_PER_WORD[lyricsSpeed] || 1200;
-        const revealedCount = Math.max(0, Math.min(words.length, Math.floor(elapsedMs / msPerWord)));
-        
-        // Jouer un petit synth beep à chaque mot qui s'affiche !
-        if (revealedCount > lastRevealedWordCount) {
-          playLyricsRevealBeep();
-          lastRevealedWordCount = revealedCount;
-        }
-
-        display.innerHTML = words.map((w, i) => {
-          const hidden = i >= revealedCount || (lyricsSkipWords && i % 3 === 2);
-          return `<span class="lyrics-word${hidden ? ' blank' : ''}">${hidden ? '▪'.repeat(Math.min(w.length, 6)) : w}</span>`;
-        }).join(' ');
+      // Affichage de la zone Host si on est l'hôte
+      if (isHost) {
+        hostArea.classList.remove('hidden');
       }
 
-      function updateQuadrantCover(elapsedMs) {
-        if (!blurEnabled) return;
-        const container = document.getElementById('quadrantCover');
-        if (!container || container.classList.contains('hidden')) return;
-        const slowFactor = mode === 'lyrics' ? 1.5 : 1;
-        const t = (elapsedMs / 1000) / slowFactor;
-        const revealTimes = [2, 4, 6, 8];
-        for (let i = 0; i < 4; i++) {
-          if (t >= revealTimes[i]) document.getElementById('quad-' + i).style.opacity = '1';
+      // 1. Démarrage et écoute de la configuration & de l'état
+      configRef.once('value', (snap) => {
+        gameConfig = snap.val() || {};
+        if (gameConfig.mode === 'lyrics') {
+          document.getElementById('standardInputs').classList.add('hidden');
+          // Adapter pour le mode paroles
         }
-        if (t > 8) {
-          const blurAmount = Math.max(4, 18 - (t - 8) * 3.5);
-          for (let i = 0; i < 4; i++) document.getElementById('quad-' + i).style.filter = `blur(${blurAmount}px)`;
-        }
-      }
-
-      // ÉCOUTE FIREBASE
-      gameStateRef.on('value', (snap) => {
-        const gs = snap.val() || {};
-        gameSongs = gs.songs || [];
-        currentSongIndex = gs.currentSongIndex || 0;
-        roundActive = gs.roundActive || false;
-        roundStartTime = gs.roundStartTime || 0;
-        scores = gs.scores || {};
-        playerAttempts = gs.playerAttempts || {};
-        buzzer = gs.buzzer || null;
-        buzzerLocked = gs.buzzerLocked || false;
-        reopenAt = gs.reopenAt || 0;
-        lockOthersOnBuzz = (gs.lockOthersOnBuzz !== undefined) ? gs.lockOthersOnBuzz : true;
-        multipleCorrectAllowed = gs.multipleCorrectAllowed || false;
-        lyricsSpeed = gs.lyricsSpeed || 'slow';
-        lyricsSkipWords = gs.lyricsSkipWords || false;
-        votes = gs.votes || {};
-        mode = gs.mode || 'classic';
-        maxAttempts = (gs.maxAttempts !== undefined) ? gs.maxAttempts : 3;
-        blurEnabled = gs.blurEnabled || false;
-
-        if (isHost) updateHostUI();
-        else updatePlayerUI();
       });
 
-      // VUE HÔTE
-      let updateHostUI = function() {
-        if (gameSongs.length > 0) {
-          document.getElementById('hostSongCounter').textContent = `Chanson ${currentSongIndex+1} / ${gameSongs.length}`;
-        }
-        renderScoreboard('hostScoreboard');
+      // Synchronisation de l'état du jeu
+      gameStateRef.on('value', (snap) => {
+        const state = snap.val();
+        if (!state) return;
 
-        // VERT SI TOUS LES JOUEURS ONT VOTÉ EN MODE PLAYLIST
-        if (mode === 'playlist') {
-          playersRef.once('value', (snap) => {
-            const players = snap.val() || {};
-            const playerCount = Object.keys(players).length;
-            const voteCount = Object.keys(votes || {}).length;
-            // Quand tout le monde a voté (excepté le créateur de la chanson)
-            if (voteCount >= (playerCount - 1) && voteCount > 0) {
-              document.getElementById('hostReveal').classList.add('correct-ready');
-            } else {
-              document.getElementById('hostReveal').classList.remove('correct-ready');
-            }
-          });
-        }
-      };
+        currentSongsList = state.songs || [];
+        currentIndex = state.currentIndex || 0;
 
+        // Mettre à jour la manche
+        roundDisplay.textContent = `Manche ${currentIndex + 1} / ${currentSongsList.length}`;
+
+        // Si la partie est terminée
+        if (state.status === 'finished') {
+          showFinalPodium(state.scores || {});
+          return;
+        }
+
+        const currentSong = currentSongsList[currentIndex];
+        if (!currentSong) return;
+
+        // Mise à jour si la musique est révélée
+        if (state.revealed) {
+          showSongReveal(currentSong);
+        } else {
+          hideSongReveal();
+        }
+
+        // Mettre à jour mes scores personnels
+        if (state.scores && state.scores[clientId] !== undefined) {
+          myScoreDisplay.textContent = `Score : ${state.scores[clientId]} pts`;
+        }
+
+        // Mettre à jour le feed en direct des réponses
+        updateLiveFeed(state.answers || {}, state.players || {});
+      });
+
+      // 2. Actions Host : Lecture, Révélation, Suivant
       if (isHost) {
-        document.getElementById('host-view').classList.remove('hidden');
-        
-        document.getElementById('hostPlay').onclick = async () => {
-          if (roundActive) return;
-          const song = gameSongs[currentSongIndex];
-          if (!song) return;
-          lastRevealedWordCount = 0;
-          await gameStateRef.update({ roundStartTime: Date.now(), roundActive: true, buzzer: null, buzzerLocked: false, reopenAt: 0, votes: {} });
-          resetQuadrantCover(song);
-          if (mode !== 'lyrics') playAudioClip(song);
-        };
+        playBtn.onclick = () => {
+          const currentSong = currentSongsList[currentIndex];
+          if (!currentSong) return;
 
-        document.getElementById('hostRestartClip').onclick = () => {
-          const song = gameSongs[currentSongIndex];
-          if (!song) return;
-          lastRevealedWordCount = 0;
-          gameStateRef.update({ roundStartTime: Date.now(), roundActive: true, buzzer: null, buzzerLocked: false, reopenAt: 0 });
-          resetQuadrantCover(song);
-          if (mode !== 'lyrics') playAudioClip(song);
-        };
-
-        document.getElementById('hostReveal').onclick = () => {
-          const song = gameSongs[currentSongIndex];
-          if (!song) return;
-          stopAudio();
-          gameStateRef.update({ roundActive: false, buzzer: null, buzzerLocked: true, reopenAt: 0 });
-
-          const popup = document.getElementById('popupReveal');
-          const cover = document.getElementById('revealCover');
-          cover.src = song.artwork || 'https://via.placeholder.com/120';
-          cover.classList.remove('blur');
-          document.getElementById('revealTitle').textContent = song.title;
-          document.getElementById('revealArtist').textContent = song.artist;
-
-          // AFFICHAGE DES PERSONNALISATIONS APPLIQUÉES ET PAR QUI
-          const desc = [];
-          if (song.ownerName) desc.push(`Ajoutée par : 👤 <b>${song.ownerName}</b>`);
-          if (song.reverse) desc.push('🔄 Inversée');
-          if (song.instrumental) desc.push('🎸 Sans voix');
-          if (song.speed && song.speed !== 1) desc.push(`⚡ ${song.speed.toFixed(1)}x`);
-          if (song.pitch) desc.push(`🎼 Pitch ${song.pitch > 0 ? '+' : ''}${song.pitch}`);
-          if (song.radioMode) desc.push('📻 Radio');
+          vinyl.classList.add('spinning');
+          playAudioClip(currentSong);
           
-          document.getElementById('revealCustomDetails').innerHTML = desc.join(' · ');
-          popup.classList.remove('hidden');
+          if (gameConfig.mode === 'lyrics') {
+            lyricsDisplay.textContent = currentSong.lyricsSnippet || "Pas de paroles disponibles.";
+            lyricsDisplay.classList.remove('hidden');
+          }
+
+          playBtn.classList.add('hidden');
+          revealBtn.classList.remove('hidden');
         };
 
-        document.getElementById('closeReveal').onclick = () => document.getElementById('popupReveal').classList.add('hidden');
-
-        document.getElementById('hostNext').onclick = async () => {
+        revealBtn.onclick = () => {
           stopAudio();
-          document.getElementById('hostTimer').textContent = '00:00.0';
-          if (currentSongIndex + 1 < gameSongs.length) {
-            resetQuadrantCover(gameSongs[currentSongIndex + 1]);
-            gameStateRef.update({ currentSongIndex: currentSongIndex + 1, roundActive: false, roundStartTime: 0, buzzer: null, buzzerLocked: false, reopenAt: 0, playerAttempts: {}, votes: {} });
+          vinyl.classList.remove('spinning');
+          gameStateRef.update({ revealed: true });
+          
+          revealBtn.classList.add('hidden');
+          nextBtn.classList.remove('hidden');
+
+          // Calcul et attribution automatique des points
+          calculateScoresForCurrentRound();
+        };
+
+        nextBtn.onclick = () => {
+          const nextIndex = currentIndex + 1;
+          if (nextIndex >= currentSongsList.length) {
+            gameStateRef.update({ status: 'finished' });
           } else {
-            roomRef.update({ status: 'finished' });
-            window.location.href = 'podium.html';
+            hasSubmitted = false;
+            resetPlayerInputs();
+            gameStateRef.update({
+              currentIndex: nextIndex,
+              revealed: false,
+              answers: {}
+            });
+            nextBtn.classList.add('hidden');
+            playBtn.classList.remove('hidden');
           }
         };
       }
 
-      // VUE JOUEUR
-      let updatePlayerUI = function() {
-        if (gameSongs[currentSongIndex]) {
-          document.getElementById('playerSongInfo').textContent = `Chanson ${currentSongIndex+1} / ${gameSongs.length}`;
-        }
-        document.getElementById('playerScore').textContent = (scores[clientId] || 0) + ' pts';
-        renderScoreboard('playerScoreboard');
+      // 3. Soumission de la réponse par le Joueur
+      submitAnswerBtn.onclick = () => {
+        if (hasSubmitted) return;
 
-        const song = gameSongs[currentSongIndex];
-        const isOwnSong = song && (song.ownerId === clientId || (song.ownerIds && song.ownerIds.includes(clientId)));
-        const attempts = playerAttempts[clientId] || { attemptsLeft: maxAttempts, cooldownUntil: 0, attemptCount: 0 };
-        document.getElementById('playerAttempts').textContent = `Essais restants: ${maxAttempts === 0 ? '∞' : attempts.attemptsLeft}`;
+        const titleAns = inputTitle.value.trim();
+        const artistAns = inputArtist.value.trim();
 
-        if (mode === 'playlist') {
-          document.getElementById('playerBuzzer').classList.add('hidden');
-          const grid = document.getElementById('playlistVoteGrid');
-          grid.classList.remove('hidden');
-          renderPlaylistVoteGrid(isOwnSong);
-          return;
-        }
+        if (!titleAns && !artistAns) return;
 
-        const buzzerBtn = document.getElementById('playerBuzzer');
-        buzzerBtn.classList.remove('hidden');
-        document.getElementById('playlistVoteGrid').classList.add('hidden');
+        gameStateRef.child('answers').child(clientId).set({
+          title: titleAns,
+          artist: artistAns,
+          playerName: playerName,
+          timestamp: Date.now()
+        });
 
-        if (isOwnSong) {
-          buzzerBtn.disabled = true;
-          document.getElementById('playerFeedback').textContent = "🙈 C'est ta chanson ! Regarde les autres galérer.";
-          return;
-        }
-
-        const now = Date.now();
-        if (buzzer && buzzer.id === clientId) {
-          buzzerBtn.disabled = true;
-          document.getElementById('playerFeedback').textContent = '🎤 C\'est ton tour !';
-          return;
-        }
-
-        if (!roundActive) {
-          buzzerBtn.disabled = true;
-          document.getElementById('playerFeedback').textContent = '⏸️ En attente du lancement...';
-          return;
-        }
-
-        if (buzzerLocked) {
-          buzzerBtn.disabled = true;
-          document.getElementById('playerFeedback').textContent = 'Manche terminée.';
-          return;
-        }
-
-        if (buzzer && buzzer.id !== clientId && lockOthersOnBuzz) {
-          buzzerBtn.disabled = true;
-          document.getElementById('playerFeedback').textContent = `🔒 ${buzzer.name} répond...`;
-          return;
-        }
-
-        if (attempts.cooldownUntil && now < attempts.cooldownUntil) {
-          const sec = Math.ceil((attempts.cooldownUntil - now)/1000);
-          document.getElementById('cooldownDisplay').textContent = `⏳ Cooldown : ${sec}s`;
-          buzzerBtn.disabled = true;
-          return;
-        }
-
-        if (maxAttempts > 0 && attempts.attemptsLeft <= 0) {
-          buzzerBtn.disabled = true;
-          document.getElementById('playerFeedback').textContent = '❌ Plus d\'essais.';
-          return;
-        }
-
-        buzzerBtn.disabled = false;
-        document.getElementById('cooldownDisplay').textContent = '';
-        document.getElementById('playerFeedback').textContent = '';
+        hasSubmitted = true;
+        submitAnswerBtn.disabled = true;
+        submitAnswerBtn.textContent = '✅ Réponse envoyée !';
+        submitAnswerBtn.style.background = '#2f7740';
       };
 
-      if (!isHost) {
-        document.getElementById('player-view').classList.remove('hidden');
+      // 4. Fonctions Utilitaires & Calculs
+      function calculateScoresForCurrentRound() {
+        const currentSong = currentSongsList[currentIndex];
+        if (!currentSong) return;
 
-        document.getElementById('playerBuzzer').onclick = async () => {
-          const won = await grabBuzzer();
-          if (won) showAnswerPopup();
-        };
+        gameStateRef.once('value', (snap) => {
+          const state = snap.val();
+          const answers = state.answers || {};
+          const currentScores = state.scores || {};
 
-        function showAnswerPopup() {
-          const popup = document.getElementById('popupAnswer');
-          const input = document.getElementById('answerInput');
-          const timerSpan = document.getElementById('answerTimer');
-          popup.classList.remove('hidden');
-          input.value = '';
-          input.focus();
-          let timeLeft = 10;
-          timerSpan.textContent = timeLeft;
-          if (answerTimerInterval) clearInterval(answerTimerInterval);
-          answerTimerInterval = setInterval(() => {
-            timeLeft--;
-            timerSpan.textContent = timeLeft;
-            if (timeLeft <= 0) { submitAnswer(''); }
-          }, 1000);
-        }
+          Object.keys(answers).forEach((pId) => {
+            const ans = answers[pId];
+            let pointsEarned = 0;
 
-        document.getElementById('submitAnswer').onclick = () => {
-          const ans = document.getElementById('answerInput').value.trim();
-          submitAnswer(ans);
-        };
-
-        async function submitAnswer(answer) {
-          if (answerTimerInterval) clearInterval(answerTimerInterval);
-          document.getElementById('popupAnswer').classList.add('hidden');
-          const song = gameSongs[currentSongIndex];
-          if (!song) return;
-
-          const normAnswer = normalize(answer);
-          const normCorrect = normalize(song.title);
-          const isCorrect = normAnswer.length > 0 && (normAnswer === normCorrect || normCorrect.includes(normAnswer) || normAnswer.includes(normCorrect));
-          const elapsed = roundActive ? Date.now() - roundStartTime : 0;
-          
-          let points = 0;
-          if (isCorrect) {
-            points = computeKahootPoints(elapsed);
-          } else {
-            const existing = playerAttempts[clientId] || {};
-            points = (existing.attemptCount || 0) >= 1 ? -20 : -10;
-          }
-
-          scores[clientId] = (scores[clientId] || 0) + points;
-          let attempts = playerAttempts[clientId] || { attemptsLeft: maxAttempts, cooldownUntil: 0, attemptCount: 0 };
-          const now = Date.now();
-
-          const updates = { scores: scores, buzzer: null };
-
-          if (isCorrect) {
-            attempts.attemptsLeft = 0;
-            updates.buzzerLocked = true;
-            updates.roundActive = false;
-            updates.reopenAt = 0;
-          } else {
-            attempts.attemptsLeft = Math.max(0, attempts.attemptsLeft - 1);
-            attempts.attemptCount = (attempts.attemptCount || 0) + 1;
-            attempts.cooldownUntil = now + (3000 + (attempts.attemptCount - 1) * 2000);
-            
-            // PLUS DE COOLDOWN DE RÉOUVERTURE GLOBAL DE 3S POUR LES AUTRES !
-            updates.reopenAt = 0; 
-          }
-
-          playerAttempts[clientId] = attempts;
-          updates.playerAttempts = playerAttempts;
-
-          await gameStateRef.update(updates);
-        }
-      }
-
-      // FONCTION D'ACQUISITION DU BUZZER
-      function grabBuzzer() {
-        return new Promise((resolve) => {
-          gameStateRef.child('buzzer').transaction(
-            (current) => {
-              if (current === null || current === undefined) {
-                return { id: clientId, name: playerName, at: Date.now() };
-              }
-              return;
-            },
-            (error, committed, snapshot) => {
-              resolve(!!(committed && snapshot && snapshot.val()?.id === clientId));
+            // Verification Titre (Distance Levenshtein / Fuzzy match basique)
+            if (ans.title && isSimilar(ans.title, currentSong.title)) {
+              pointsEarned += 1;
             }
-          );
-        });
-      }
-
-      function renderPlaylistVoteGrid(isOwnSong) {
-        const grid = document.getElementById('playlistVoteGrid');
-        playersRef.once('value', (snap) => {
-          const players = snap.val() || {};
-          grid.innerHTML = '';
-          Object.entries(players).forEach(([id, p]) => {
-            if (id === clientId) return;
-            const sq = document.createElement('div');
-            sq.className = 'vote-square';
-            if (votes[clientId]?.guess === id) sq.classList.add('selected');
-            if (buzzerLocked) {
-              sq.classList.add('disabled');
-              const correctIds = gameSongs[currentSongIndex]?.ownerIds || [gameSongs[currentSongIndex]?.ownerId];
-              if (correctIds.includes(id)) sq.classList.add('correct');
-              else if (votes[clientId]?.guess === id) sq.classList.add('wrong');
+            // Verification Artiste
+            if (ans.artist && isSimilar(ans.artist, currentSong.artist)) {
+              pointsEarned += 1;
             }
-            sq.innerHTML = `<span class="vs-avatar">${p.avatar || '🎧'}</span><span class="vs-name">${p.name}</span>`;
-            sq.onclick = () => {
-              if (buzzerLocked || isOwnSong) return;
-              gameStateRef.child('votes/' + clientId).set({ guess: id, at: Date.now() });
-            };
-            grid.appendChild(sq);
+
+            currentScores[pId] = (currentScores[pId] || 0) + pointsEarned;
           });
+
+          gameStateRef.child('scores').set(currentScores);
         });
       }
 
-      function resetQuadrantCover(song) {
-        const container = document.getElementById('quadrantCover');
-        if (!blurEnabled) { container.classList.add('hidden'); return; }
-        container.classList.remove('hidden');
-        for (let i = 0; i < 4; i++) {
-          const q = document.getElementById('quad-' + i);
-          q.style.transition = 'none';
-          q.style.backgroundImage = `url('${song.artwork || ''}')`;
-          q.style.opacity = '0';
-          q.style.filter = 'blur(18px)';
-          void q.offsetWidth;
-          q.style.transition = '';
+      function isSimilar(input, target) {
+        if (!input || !target) return false;
+        const cleanInput = input.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        const cleanTarget = target.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        return cleanTarget.includes(cleanInput) || cleanInput.includes(cleanTarget);
+      }
+
+      function showSongReveal(song) {
+        revealArtwork.src = song.artwork || 'assets/vinyl-placeholder.png';
+        revealTitle.textContent = song.title;
+        revealArtist.textContent = song.artist;
+        revealOwner.textContent = song.ownerName ? `Proposé par : ${song.ownerName}` : '';
+        revealCard.classList.remove('hidden');
+        vinylCover.src = song.artwork || 'assets/vinyl-placeholder.png';
+      }
+
+      function hideSongReveal() {
+        revealCard.classList.add('hidden');
+        vinylCover.src = 'assets/vinyl-placeholder.png';
+      }
+
+      function resetPlayerInputs() {
+        inputTitle.value = '';
+        inputArtist.value = '';
+        submitAnswerBtn.disabled = false;
+        submitAnswerBtn.textContent = '🚀 Valider mes réponses';
+        submitAnswerBtn.style.background = '#3b6eff';
+      }
+
+      function updateLiveFeed(answers, players) {
+        liveFeed.innerHTML = '';
+        const entries = Object.entries(answers);
+
+        if (entries.length === 0) {
+          liveFeed.innerHTML = '<div style="color:#5c6b73; text-align:center;">En attente des réponses...</div>';
+          return;
         }
-      }
 
-      function renderScoreboard(targetId) {
-        const target = document.getElementById(targetId);
-        if (!target) return;
-        playersRef.once('value', (snap) => {
-          const players = snap.val() || {};
-          const ranked = Object.entries(players)
-            .map(([id, p]) => ({ id, name: p.name, avatar: p.avatar || '', score: scores[id] || 0 }))
-            .sort((a, b) => b.score - a.score);
-
-          target.innerHTML = '<strong>🏆 Classement</strong><br>' + ranked.map((p, idx) => {
-            const isBuzz = buzzer && buzzer.id === p.id;
-            return `<div class="scoreboard-row" style="${isBuzz ? 'background:#3a2d2d; border-radius:8px; padding:3px 8px;' : 'opacity:0.8;'}">
-              ${isBuzz ? '🔴' : (idx+1)+'.'} ${p.avatar} ${p.name}: ${p.score} pts
-            </div>`;
-          }).join('');
+        entries.forEach(([pId, ans]) => {
+          const item = document.createElement('div');
+          item.className = 'feed-item';
+          item.innerHTML = `<span><strong>${escapeHTML(ans.playerName)}</strong> a répondu.</span><span style="color:#4fd97f;">✓ Transmis</span>`;
+          liveFeed.appendChild(item);
         });
       }
 
-      function computeKahootPoints(elapsedMs) {
-        const t = elapsedMs / 1000;
-        if (t < 3) return 100;
-        let points = (t <= 5) ? (100 - 10 * (t - 3)) : (80 - 5 * (t - 5));
-        return Math.max(20, Math.round(points));
+      function showFinalPodium(scores) {
+        hostArea.classList.add('hidden');
+        playerArea.classList.add('hidden');
+        revealCard.classList.add('hidden');
+        finalScreen.classList.remove('hidden');
+
+        podiumList.innerHTML = '';
+        const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+
+        sorted.forEach(([pId, score], idx) => {
+          const item = document.createElement('div');
+          item.className = `podium-item ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}`;
+          item.innerHTML = `
+            <div style="display:flex; align-items:center; gap:0.8rem;">
+              <span class="podium-rank">#${idx + 1}</span>
+              <span style="font-weight:700;">Joueur (${pId.substring(0, 5)})</span>
+            </div>
+            <div style="font-weight:800; font-size:1.2rem; color:#5e9eff;">${score} pts</div>
+          `;
+          podiumList.appendChild(item);
+        });
       }
 
-      function formatTimer(ms) {
-        let sec = Math.floor(ms / 1000);
-        let tenth = Math.floor((ms % 1000) / 100);
-        let min = Math.floor(sec / 60);
-        sec = sec % 60;
-        return `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}.${tenth}`;
-      }
+      backToLobbyBtn.onclick = () => {
+        if (isHost) {
+          roomRef.update({ status: 'lobby' });
+          window.location.href = 'host-lobby.html';
+        } else {
+          window.location.href = 'waiting.html';
+        }
+      };
 
-      function normalize(str) {
-        return (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      function escapeHTML(str) {
+        return String(str).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c] || c));
       }
     })();
   </script>

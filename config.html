@@ -19,11 +19,11 @@
       margin-top: 0.5rem;
       font-size: 0.95rem;
     }
-    /* Compact Mode Grid (Smaller Squares) */
+    /* Compact Mode Grid (Squares 5% larger than previous compact version) */
     .mode-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 0.6rem;
+      gap: 0.7rem;
       margin-bottom: 1.5rem;
     }
     @media (max-width: 580px) {
@@ -44,8 +44,8 @@
     .card-design {
       background: #141a22;
       border: 2px solid #2b3542;
-      border-radius: 0.8rem;
-      padding: 0.8rem 0.5rem;
+      border-radius: 0.85rem;
+      padding: 0.9rem 0.65rem;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -54,17 +54,17 @@
       height: 100%;
     }
     .card-design .icon {
-      font-size: 1.5rem;
-      margin-bottom: 0.3rem;
+      font-size: 1.6rem;
+      margin-bottom: 0.35rem;
     }
     .card-design h3 {
-      font-size: 0.92rem;
+      font-size: 0.97rem;
       font-weight: 700;
       color: #fff;
-      margin-bottom: 0.2rem;
+      margin-bottom: 0.25rem;
     }
     .card-design p {
-      font-size: 0.72rem;
+      font-size: 0.76rem;
       color: #8aaec0;
       line-height: 1.25;
     }
@@ -143,17 +143,32 @@
       border: 1px solid #222c36;
       border-radius: 0.8rem;
       padding: 0.8rem 1rem;
-      margin-bottom: 0.2rem;
+      margin-bottom: 0.4rem;
+    }
+    .subtheme-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      border-bottom: 1px solid #222c36;
+      padding-bottom: 0.5rem;
+      margin-bottom: 0.6rem;
     }
     .subtheme-title {
-      font-size: 0.8rem;
+      font-size: 0.85rem;
       font-weight: 700;
       color: #3b6eff;
       text-transform: uppercase;
       letter-spacing: 0.05rem;
-      margin-bottom: 0.8rem;
-      border-bottom: 1px solid #222c36;
-      padding-bottom: 0.3rem;
+    }
+    .subtheme-arrow {
+      font-size: 0.8rem;
+      color: #888888;
+      transition: transform 0.2s ease;
+    }
+    .subtheme-content {
+      padding-top: 0.2rem;
     }
     .toggle-row {
       display: flex;
@@ -313,82 +328,97 @@
         
         <!-- Thème 1 : Déroulement du jeu -->
         <div class="subtheme-group">
-          <div class="subtheme-title">🏆 Déroulement du jeu</div>
-          <div class="toggle-row">
-            <div class="toggle-info">
-              <h4>Tentatives maximales</h4>
-              <p>Nombre d'essais max autorisés par joueur (0 = illimité)</p>
-            </div>
-            <input type="number" id="maxAttempts" min="0" max="10" value="3" style="width: 80px; text-align: center; background: #0d1218; border: 1px solid #2b3542; border-radius: 10px; color:#fff;">
+          <div class="subtheme-header" id="subHeaderGame">
+            <span class="subtheme-title">🏆 Déroulement du jeu</span>
+            <span class="subtheme-arrow" id="subArrowGame">▼</span>
           </div>
-          <div class="toggle-row" style="border-top: 1px solid #222c36; padding-top: 0.6rem; margin-top: 0.4rem;">
-            <div class="toggle-info">
-              <h4>Blocage des adversaires</h4>
-              <p>Verrouiller les autres participants pendant qu'un joueur répond</p>
+          <div class="subtheme-content hidden" id="subContentGame">
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <h4>Tentatives maximales</h4>
+                <p>Nombre d'essais max autorisés par joueur (0 = illimité)</p>
+              </div>
+              <input type="number" id="maxAttempts" min="0" max="10" value="3" style="width: 80px; text-align: center; background: #0d1218; border: 1px solid #2b3542; border-radius: 10px; color:#fff;">
             </div>
-            <label class="switch">
-              <input type="checkbox" id="lockOthersCheck" checked>
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div class="toggle-row" style="border-top: 1px solid #222c36; padding-top: 0.6rem; margin-top: 0.4rem;">
-            <div class="toggle-info">
-              <h4>Multi-vainqueurs</h4>
-              <p>Accepter plusieurs bonnes réponses d'affilée par manche</p>
+            <div class="toggle-row" style="border-top: 1px solid #222c36; padding-top: 0.6rem; margin-top: 0.4rem;">
+              <div class="toggle-info">
+                <h4>Blocage des adversaires</h4>
+                <p>Verrouiller les autres participants pendant qu'un joueur répond</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="lockOthersCheck" checked>
+                <span class="slider"></span>
+              </label>
             </div>
-            <label class="switch">
-              <input type="checkbox" id="multipleCorrectCheck">
-              <span class="slider"></span>
-            </label>
+            <div class="toggle-row" style="border-top: 1px solid #222c36; padding-top: 0.6rem; margin-top: 0.4rem;">
+              <div class="toggle-info">
+                <h4>Multi-vainqueurs</h4>
+                <p>Accepter plusieurs bonnes réponses d'affilée par manche</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="multipleCorrectCheck">
+                <span class="slider"></span>
+              </label>
+            </div>
           </div>
         </div>
 
         <!-- Thème 2 : Visuel & Contenu -->
         <div class="subtheme-group">
-          <div class="subtheme-title">🎨 Visuel & Contenu</div>
-          <div class="toggle-row">
-            <div class="toggle-info">
-              <h4>Révélation d'image</h4>
-              <p>Flouter la couverture d'album et la révéler progressivement</p>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="blurCheck">
-              <span class="slider"></span>
-            </label>
+          <div class="subtheme-header" id="subHeaderVisual">
+            <span class="subtheme-title">🎨 Visuel & Contenu</span>
+            <span class="subtheme-arrow" id="subArrowVisual">▼</span>
           </div>
-          <div class="toggle-row" style="border-top: 1px solid #222c36; padding-top: 0.6rem; margin-top: 0.4rem;">
-            <div class="toggle-info">
-              <div id="duplicatesHint"></div>
+          <div class="subtheme-content hidden" id="subContentVisual">
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <h4>Révélation d'image</h4>
+                <p>Flouter la couverture d'album et la révéler progressivement</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="blurCheck">
+                <span class="slider"></span>
+              </label>
             </div>
-            <label class="switch">
-              <input type="checkbox" id="allowDuplicatesCheck">
-              <span class="slider"></span>
-            </label>
+            <div class="toggle-row" style="border-top: 1px solid #222c36; padding-top: 0.6rem; margin-top: 0.4rem;">
+              <div class="toggle-info">
+                <div id="duplicatesHint"></div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="allowDuplicatesCheck">
+                <span class="slider"></span>
+              </label>
+            </div>
           </div>
         </div>
 
         <!-- Thème 3 : Options de Sélection -->
         <div class="subtheme-group">
-          <div class="subtheme-title">🛠️ Options de Sélection</div>
-          <div class="toggle-row">
-            <div class="toggle-info">
-              <h4>Mode Classique Simple</h4>
-              <p>Désactive les filtres audio complexes lors de la sélection des morceaux</p>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="classicModeCheck">
-              <span class="slider"></span>
-            </label>
+          <div class="subtheme-header" id="subHeaderOptions">
+            <span class="subtheme-title">🛠️ Options de Sélection</span>
+            <span class="subtheme-arrow" id="subArrowOptions">▼</span>
           </div>
-          <div class="toggle-row" style="border-top: 1px solid #222c36; padding-top: 0.6rem; margin-top: 0.4rem;">
-            <div class="toggle-info">
-              <h4>Modifications avancées</h4>
-              <p>Donner accès au pitch et aux filtres lors de la sélection (Incompatible Mode Classique)</p>
+          <div class="subtheme-content hidden" id="subContentOptions">
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <h4>Mode Classique Simple</h4>
+                <p>Désactive les filtres audio complexes lors de la sélection des morceaux</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="classicModeCheck">
+                <span class="slider"></span>
+              </label>
             </div>
-            <label class="switch">
-              <input type="checkbox" id="advancedSettingsCheck">
-              <span class="slider"></span>
-            </label>
+            <div class="toggle-row" style="border-top: 1px solid #222c36; padding-top: 0.6rem; margin-top: 0.4rem;">
+              <div class="toggle-info">
+                <h4>Modifications avancées</h4>
+                <p>Donner accès au pitch et aux filtres lors de la sélection (Incompatible Mode Classique)</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="advancedSettingsCheck">
+                <span class="slider"></span>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -440,6 +470,21 @@
         paramsContent.classList.toggle('hidden', !isHidden);
         paramsArrow.textContent = isHidden ? '🔼' : '⬇️';
       });
+
+      // Setup Sub-Accordions
+      function setupSubAccordion(headerId, contentId, arrowId) {
+        const header = document.getElementById(headerId);
+        const content = document.getElementById(contentId);
+        const arrow = document.getElementById(arrowId);
+        header.addEventListener('click', () => {
+          const isHidden = content.classList.contains('hidden');
+          content.classList.toggle('hidden', !isHidden);
+          arrow.textContent = isHidden ? '▲' : '▼';
+        });
+      }
+      setupSubAccordion('subHeaderGame', 'subContentGame', 'subArrowGame');
+      setupSubAccordion('subHeaderVisual', 'subContentVisual', 'subArrowVisual');
+      setupSubAccordion('subHeaderOptions', 'subContentOptions', 'subArrowOptions');
 
       const totalSongsGroup = document.getElementById('totalSongsGroup');
       const songsPerPlayerGroup = document.getElementById('songsPerPlayerGroup');
@@ -497,7 +542,7 @@
       allowDuplicatesCheck.addEventListener('change', updateDuplicatesHint);
       updateDuplicatesHint();
 
-      // Mode Classique / Advanced Interdependence Logic
+      // Classic Mode & Advanced Interdependence
       const classicModeCheck = document.getElementById('classicModeCheck');
       const advancedSettingsCheck = document.getElementById('advancedSettingsCheck');
       

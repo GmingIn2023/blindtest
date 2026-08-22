@@ -60,18 +60,6 @@
     #confirmSelectBtn { background: #3b6eff; color: #fff; }
     #cancelSelectBtn { background: transparent; color: #8aaec0; }
     .hint-text { font-size: 0.8rem; color: #8aaec0; margin-top: 0.3rem; }
-    .song-added-popup {
-      position: fixed; top: 16px; left: 50%; z-index: 1200; background: #17301f; border: 1px solid #4fd97f; border-radius: 1rem; padding: 0.7rem 1.2rem; text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,0.4); animation: sapInOut 1.3s ease forwards;
-    }
-    .song-added-popup.hidden { display: none; }
-    .sap-title { font-weight: 700; }
-    .sap-options { font-size: 0.8rem; color: #9fe0b5; margin-top: 0.2rem; }
-    @keyframes sapInOut {
-      0% { opacity: 0; transform: translate(-50%, -14px); }
-      20% { opacity: 1; transform: translate(-50%, 0); }
-      65% { opacity: 1; transform: translate(-50%, 0); }
-      100% { opacity: 0; transform: translate(-50%, -14px); }
-    }
     .lyrics-scroll-area { max-height: 45vh; overflow-y: auto; background: #101418; border: 1px solid #2d353e; border-radius: 1rem; padding: 1rem; margin: 0.6rem 0; }
     .lyrics-scroll-area.hidden { display: none; }
     .lyrics-line { padding: 0.35rem 0.5rem; border-radius: 0.5rem; cursor: pointer; color: #cfd8e3; line-height: 1.5; }
@@ -81,10 +69,6 @@
 </head>
 <body>
   <div id="app">
-    <div id="songAddedPopup" class="song-added-popup hidden">
-      <div class="sap-title">✅ <span id="sapSongName"></span> ajoutée !</div>
-      <div class="sap-options" id="sapOptions"></div>
-    </div>
     <h1>🎵 Sélection des chansons</h1>
     <div id="selection-header" class="selection-header">
       <span id="role-message"></span>
@@ -216,7 +200,7 @@
   <script src="js/firebase-init.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/state.js"></script>
-  <script src="js/audio-effects.js"></script>
+  <script src="js/audio-engine.js"></script>
   <script>
   (function() {
     const roomCode = AppState.roomCode;
@@ -244,6 +228,9 @@
       });
     }
 
+    let gameMode = 'classic';
+    let advancedAllowed = false;
+    let takenKeys = new Set();
     let hostQuota = 0;
     let hostSelected = [];
     let playerSelectedList = [];
@@ -251,50 +238,8 @@
     let playerQuota = 1;
     let allowDuplicates = false;
 
-    configRef.once('value', (snap) => {
-      const config = snap.val();
-      if (config) {
-        gameMode = config.mode || 'classic';
-        classicModeOnly = !!config.classicModeOnly;
-        allowDuplicates = !!config.allowDuplicates;
-        playerQuota = gameMode === 'playlist' ? (config.playlistSongsPerPlayer || 5) : (config.songsPerPlayer !== undefined ? config.songsPerPlayer : 1);
 
-        if (classicModeOnly) {
-          document.getElementById('complexControlsGroup').style.display = 'none';
-        }
-
-        if (isHost) {
-          if (gameMode === 'playlist') {
-            roleMsg.textContent = 'Mode Playlist : en attente des joueurs...';
-            selectionsRef.child('host').set({ songs: [], done: true }).then(() => {
-              window.location.href = 'waiting.html';
-            });
-            return;
-          }
-          hostQuota = config.hostSongsCount || 0;
-          selectionsRef.child('host').once('value', (selSnap) => {
-            const existing = selSnap.val();
-            if (existing && Array.isArray(existing.songs)) hostSelected = existing.songs;
-            counterSpan.textContent = `${hostSelected.length} / ${hostQuota}`;
-            if (hostSelected.length >= hostQuota && hostQuota > 0) window.location.href = 'waiting.html';
-          });
-        } else {
-          if (playerQuota === 0) {
-            selectionsRef.child(clientId).set({ songs: [], done: true }).then(() => {
-              window.location.href = 'waiting.html';
-            });
-            return;
-          }
-          roleMsg.textContent = `Choisis ${playerQuota} chanson(s) pour la partie`;
-          selectionsRef.child(clientId).once('value', (selSnap) => {
-            const existing = selSnap.val();
-            if (existing && Array.isArray(existing.songs)) playerSelectedList = existing.songs;
-            counterSpan.textContent = `${playerSelectedList.length} / ${playerQuota}`;
-            if (playerSelectedList.length >= playerQuota) window.location.href = 'waiting.html';
-          });
-        }
-      }
-    });
+    if (isHost) document.getElementById('settingsGear').classList.remove('hidden');
 
     const roleMsg = document.getElementById('role-message');
     const counterSpan = document.getElementById('counter');
@@ -358,6 +303,12 @@
         const card = document.createElement('div');
         card.className = 'song-card';
         card.innerHTML = `<img src="${song.artworkUrl100}" alt="cover"><div class="song-info"><div class="song-title">${escapeHTML(song.trackName)}</div><div class="song-artist">${escapeHTML(song.artistName)}</div></div>`;
+        const key = normalize(song.trackName + '|' + song.artistName);
+        const mine = (isHost ? hostSelected : playerSelectedList).some(so => songKey(so) === key);
+        if (!allowDuplicates && (takenKeys.has(key) || mine)) {
+          card.classList.add('selected');
+          card.querySelector('.song-artist').textContent += mine ? ' · déjà choisie par toi' : ' · déjà prise';
+        }
         card.addEventListener('click', () => {
           if (gameMode === 'lyrics') openLyricsPickerModal(song, card);
           else openCustomizeModal(song, card);
@@ -428,14 +379,39 @@
       filterSlider.value = 0;
       filterHint.textContent = 'Neutre';
 
+      variantIntensitySlider.value = 40;
+      variantIntensityValue.textContent = '40';
+      pickedInstrumentalSource = null;
+      instrumentalResults.innerHTML = '';
+      document.getElementById('modalError').textContent = '';
+      updatePositionHint();
+
       instrumentalVariants.classList.add('hidden');
       variantIntensityGroup.classList.add('hidden');
       instrumentalSearchGroup.classList.add('hidden');
+      if (gameMode === 'instrumental') {
+        instrumentalCheck.checked = true;
+        instrumentalVariants.classList.remove('hidden');
+      }
 
       modal.classList.remove('hidden');
     }
 
     document.getElementById('cancelSelectBtn').onclick = () => { stopAudio(); modal.classList.add('hidden'); };
+
+    function updatePositionHint() {
+      const v = parseFloat(positionSlider.value);
+      positionHint.textContent = v <= 0.5 ? '⏮️ Tout début de l\'extrait'
+        : v >= 25 ? '⏭️ Fin de l\'extrait'
+        : `Démarre à ${v.toFixed(1)}s`;
+    }
+    positionSlider.oninput = updatePositionHint;
+    document.getElementById('presetStart').onclick  = () => { positionSlider.value = 0;  updatePositionHint(); };
+    document.getElementById('presetMiddle').onclick = () => { positionSlider.value = 12; updatePositionHint(); };
+    document.getElementById('presetEnd').onclick    = () => {
+      positionSlider.value = Math.max(0, 29 - parseFloat(durationSlider.value)); updatePositionHint();
+    };
+    variantIntensitySlider.oninput = () => variantIntensityValue.textContent = variantIntensitySlider.value;
 
     durationSlider.oninput = () => durationValue.textContent = durationSlider.value;
     speedSlider.oninput = () => speedValue.textContent = parseFloat(speedSlider.value).toFixed(1) + 'x';
@@ -460,8 +436,33 @@
         selectedVariant = parseInt(btn.dataset.variant, 10);
         variantIntensityGroup.classList.toggle('hidden', selectedVariant !== 2 && selectedVariant !== 3);
         instrumentalSearchGroup.classList.toggle('hidden', selectedVariant !== 4);
+        document.getElementById('variantHint').textContent = {
+          1: 'Annule ce qui est au centre du stéréo (souvent la voix).',
+          2: 'Atténue les fréquences vocales.',
+          3: 'Stéréo + fréquences : plus efficace, un peu plus sourd.',
+          4: 'Cherche une vraie version instrumentale/karaoké.'
+        }[selectedVariant] || '';
       };
     });
+
+    searchInstrumentalBtn.onclick = async () => {
+      instrumentalResults.innerHTML = '<div class="loading">🔎 Recherche…</div>';
+      const res = await searchMusic(`${draftSong.artistName} ${draftSong.trackName} instrumental karaoke`);
+      if (!res.length) { instrumentalResults.innerHTML = '<div class="error-text">Aucune version trouvée.</div>'; return; }
+      instrumentalResults.innerHTML = '';
+      res.slice(0, 5).forEach(r => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = `${r.trackName} — ${r.artistName}`;
+        b.style.fontSize = '0.85rem';
+        b.onclick = () => {
+          pickedInstrumentalSource = r;
+          instrumentalResults.querySelectorAll('button').forEach(x => x.classList.remove('primary'));
+          b.classList.add('primary');
+        };
+        instrumentalResults.appendChild(b);
+      });
+    };
 
     // Bouton Preview unifié : écouter avec les exacts mêmes effets qu'en jeu
     document.getElementById('previewBtn').onclick = () => {
@@ -507,10 +508,34 @@
       await saveSongPick(songData, draftCard);
     };
 
+    function songKey(so) {
+      return normalize((so.title || '') + '|' + (so.artist || ''));
+    }
+
+    function toast(text) {
+      const t = document.createElement('div');
+      t.textContent = text;
+      t.style.cssText = 'position:fixed;left:50%;bottom:2rem;transform:translateX(-50%);background:#2f7740;' +
+        'color:#fff;padding:.9rem 1.6rem;border-radius:60px;font-weight:700;z-index:3000;box-shadow:0 8px 24px rgba(0,0,0,.6)';
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 1800);
+    }
+
     async function saveSongPick(songData, card) {
+      if (!allowDuplicates && takenKeys.has(songKey(songData))) {
+        alert('Cette chanson a déjà été choisie par quelqu\'un d\'autre. Prends-en une autre !');
+        return;
+      }
+      const mine = isHost ? hostSelected : playerSelectedList;
+      if (mine.some(so => songKey(so) === songKey(songData))) {
+        alert('Tu as déjà choisi cette chanson.');
+        return;
+      }
       if (isHost) {
         hostSelected.push(songData);
         await selectionsRef.child('host').set({ songs: hostSelected, done: hostSelected.length >= hostQuota });
+        counterSpan.textContent = `${hostSelected.length} / ${hostQuota}`;
+        toast(`✅ ${songData.title} ajoutée !`);
         if (hostSelected.length >= hostQuota) window.location.href = 'waiting.html';
         else if (card) card.remove();
       } else {
@@ -518,6 +543,8 @@
         songData.ownerName = playerName;
         playerSelectedList.push(songData);
         await selectionsRef.child(clientId).set({ songs: playerSelectedList, done: playerSelectedList.length >= playerQuota });
+        counterSpan.textContent = `${playerSelectedList.length} / ${playerQuota}`;
+        toast(`✅ ${songData.title} ajoutée !`);
         if (playerSelectedList.length >= playerQuota) window.location.href = 'waiting.html';
         else if (card) card.remove();
       }
@@ -623,6 +650,77 @@
     function escapeHTML(str) { 
       return String(str).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c] || c));
     }
+
+    // === Démarrage : lecture de la config une fois tout le DOM câblé ===
+    configRef.once('value', (snap) => {
+      const config = snap.val();
+      if (config) {
+        gameMode = config.mode || 'classic';
+        classicModeOnly = !!config.classicModeOnly;
+        allowDuplicates = !!config.allowDuplicates;
+        playerQuota = gameMode === 'playlist' ? (config.playlistSongsPerPlayer || 5) : (config.songsPerPlayer !== undefined ? config.songsPerPlayer : 1);
+
+        advancedAllowed = !!config.advancedSettings && !classicModeOnly;
+        if (classicModeOnly) {
+          document.getElementById('complexControlsGroup').style.display = 'none';
+        } else {
+          document.getElementById('advancedSettingsSection').classList.toggle('hidden', !advancedAllowed);
+        }
+        if (gameMode === 'instrumental') {
+          instrumentalCheck.checked = true;
+          instrumentalCheck.dispatchEvent(new Event('change'));
+        }
+        // Doublons : on mémorise ce qui est déjà pris par les autres
+        if (!allowDuplicates) {
+          selectionsRef.on('value', (allSnap) => {
+            const all = allSnap.val() || {};
+            takenKeys = new Set();
+            Object.entries(all).forEach(([key, sel]) => {
+              if (key === (isHost ? 'host' : clientId)) return;
+              (sel && sel.songs ? sel.songs : []).forEach(so => takenKeys.add(songKey(so)));
+            });
+          });
+        }
+
+        if (isHost) {
+          if (gameMode === 'playlist') {
+            roleMsg.textContent = 'Mode Playlist : en attente des joueurs...';
+            selectionsRef.child('host').set({ songs: [], done: true }).then(() => {
+              window.location.href = 'waiting.html';
+            });
+            return;
+          }
+          hostQuota = config.hostSongsCount || 0;
+          if (hostQuota === 0) {
+            selectionsRef.child('host').set({ songs: [], done: true }).then(() => {
+              window.location.href = 'waiting.html';
+            });
+            return;
+          }
+          roleMsg.textContent = `Choisis ${hostQuota} chanson(s) pour compléter la partie`;
+          selectionsRef.child('host').once('value', (selSnap) => {
+            const existing = selSnap.val();
+            if (existing && Array.isArray(existing.songs)) hostSelected = existing.songs;
+            counterSpan.textContent = `${hostSelected.length} / ${hostQuota}`;
+            if (hostSelected.length >= hostQuota && hostQuota > 0) window.location.href = 'waiting.html';
+          });
+        } else {
+          if (playerQuota === 0) {
+            selectionsRef.child(clientId).set({ songs: [], done: true }).then(() => {
+              window.location.href = 'waiting.html';
+            });
+            return;
+          }
+          roleMsg.textContent = `Choisis ${playerQuota} chanson(s) pour la partie`;
+          selectionsRef.child(clientId).once('value', (selSnap) => {
+            const existing = selSnap.val();
+            if (existing && Array.isArray(existing.songs)) playerSelectedList = existing.songs;
+            counterSpan.textContent = `${playerSelectedList.length} / ${playerQuota}`;
+            if (playerSelectedList.length >= playerQuota) window.location.href = 'waiting.html';
+          });
+        }
+      }
+    });
   })();
   </script>
 </body>

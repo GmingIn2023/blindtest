@@ -242,7 +242,6 @@
             <div class="card-design">
               <span class="icon">🎵</span>
               <h3>Standard</h3>
-              <p>Chanson originale standard</p>
             </div>
           </label>
           <label class="mode-card">
@@ -250,7 +249,6 @@
             <div class="card-design">
               <span class="icon">🎸</span>
               <h3>Instru</h3>
-              <p>Voix atténuées par filtres</p>
             </div>
           </label>
           <label class="mode-card">
@@ -258,7 +256,6 @@
             <div class="card-design">
               <span class="icon">🎧</span>
               <h3>Playlist</h3>
-              <p>Devinez l'hôte du morceau</p>
             </div>
           </label>
           <label class="mode-card">
@@ -266,7 +263,6 @@
             <div class="card-design">
               <span class="icon">🎤</span>
               <h3>Paroles</h3>
-              <p>Lecture du snippet textuel</p>
             </div>
           </label>
         </div>
@@ -624,12 +620,11 @@
               currentSongIndex: 0,
               songs: [],
               scores: {},
-              playerAttempts: {},
               buzzer: null,
-              buzzerLocked: false,
-              reopenAt: 0,
-              roundStartTime: 0,
-              roundActive: false
+              solved: false,
+              phase: 'idle',
+              finished: false,
+              roundStartTime: 0
             },
             status: 'lobby',
             createdAt: Date.now()

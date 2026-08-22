@@ -214,12 +214,11 @@
               currentSongIndex: 0,
               songs: [],
               scores: {},
-              playerAttempts: {},
               buzzer: null,
-              buzzerLocked: false,
-              reopenAt: 0,
-              roundStartTime: 0,
-              roundActive: false
+              solved: false,
+              phase: 'idle',
+              finished: false,
+              roundStartTime: 0
             }
           });
           window.location.href = 'host-lobby.html';

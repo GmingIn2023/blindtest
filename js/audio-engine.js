@@ -98,27 +98,37 @@
 
   function phaseCancel(ctx, buffer) {
     if (buffer.numberOfChannels < 2) return buffer;
-    const out = ctx.createBuffer(2, buffer.length, buffer.sampleRate);
     const l = buffer.getChannelData(0), r = buffer.getChannelData(1);
+    // Beaucoup d'extraits (Deezer/iTunes) sont quasi mono ou très corrélés :
+    // l'annulation de phase y détruit presque tout le signal → silence.
+    // On compare l'énergie du "diff" (L-R) à l'énergie du canal L : si le
+    // diff est trop faible en proportion, on garde l'original tel quel.
+    let baseEnergy = 0, diffEnergy = 0, n = 0;
+    for (let i = 0; i < l.length; i += 64) {
+      baseEnergy += Math.abs(l[i]);
+      diffEnergy += Math.abs(l[i] - r[i]) / 2;
+      n++;
+    }
+    baseEnergy /= n || 1; diffEnergy /= n || 1;
+    if (baseEnergy < 1e-6 || diffEnergy / baseEnergy < 0.14) return buffer;
+
+    const out = ctx.createBuffer(2, buffer.length, buffer.sampleRate);
     const ol = out.getChannelData(0), or_ = out.getChannelData(1);
-    let energy = 0;
     for (let i = 0; i < l.length; i++) {
       const d = (l[i] - r[i]) / 2;
       ol[i] = d; or_[i] = d;
-      if ((i & 255) === 0) energy += Math.abs(d);
     }
-    // Piste quasi mono : l'annulation de phase donnerait du silence → on garde l'original
-    if (energy / (l.length / 256) < 0.0008) return buffer;
     return out;
   }
 
   // ---- Chaîne d'effets temps réel ----
   function vocalNotch(ctx, node, intensity) {
-    const gain = -12 - ((intensity == null ? 40 : intensity) / 100) * 20;
+    // Bornée : même à fond, on atténue la voix sans réduire le reste au silence.
+    const gain = -8 - ((intensity == null ? 40 : intensity) / 100) * 14; // -8 à -22 dB
     let cur = node;
     [320, 1000, 2400, 3800].forEach(freq => {
       const f = ctx.createBiquadFilter();
-      f.type = 'peaking'; f.frequency.value = freq; f.Q.value = 0.7; f.gain.value = gain;
+      f.type = 'peaking'; f.frequency.value = freq; f.Q.value = 1.1; f.gain.value = gain;
       cur.connect(f); cur = f;
     });
     return cur;
@@ -134,35 +144,64 @@
     const variant = s.instrumentalVariant || 1;
     if (s.instrumental && (variant === 2 || variant === 3)) {
       node = vocalNotch(ctx, node, s.instrumentalIntensity);
-      boost *= 1.2;
+      boost *= 1.5;
     }
 
+    // Filtres bornés pour rester clairement audibles même au maximum
+    // (un vrai passe-haut/passe-bas trop agressif "coupe" la musique et donne
+    // l'impression qu'il n'y a plus de son).
     const fv = s.filterValue || 0;
     if (fv > 15) {
       const hp = ctx.createBiquadFilter();
-      hp.type = 'highpass'; hp.frequency.value = 100 + (fv / 100) * 4000;
-      node.connect(hp); node = hp; boost *= 1.3;
+      hp.type = 'highpass'; hp.frequency.value = 120 + (fv / 100) * 1600; // 120–1720 Hz
+      node.connect(hp); node = hp; boost *= 1.15;
     } else if (fv < -15) {
       const lp = ctx.createBiquadFilter();
-      lp.type = 'lowpass'; lp.frequency.value = Math.max(300, 8000 + (fv / 100) * 7800);
-      node.connect(lp); node = lp; boost *= 1.3;
+      lp.type = 'lowpass'; lp.frequency.value = Math.max(700, 8000 + (fv / 100) * 6800); // 1200–8000 Hz
+      node.connect(lp); node = lp; boost *= 1.15;
     }
 
     if (s.radioMode) {
-      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 400;
-      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3200;
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 350;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3600;
       const shaper = ctx.createWaveShaper();
       const curve = new Float32Array(256);
-      for (let i = 0; i < 256; i++) curve[i] = Math.tanh(((i / 255) * 2 - 1) * 2.5);
+      for (let i = 0; i < 256; i++) curve[i] = Math.tanh(((i / 255) * 2 - 1) * 2.2);
       shaper.curve = curve;
       node.connect(hp); hp.connect(lp); lp.connect(shaper);
-      node = shaper; boost *= 1.6;
+      node = shaper; boost *= 1.3;
     }
 
     const g = ctx.createGain();
-    g.gain.value = Math.min(boost, 3);
+    g.gain.value = Math.min(boost, 2.2);
     node.connect(g);
-    return g;
+
+    // Compresseur + gain de rattrapage : lisse les écarts de volume entre
+    // extraits (source d'origine plus faible, effets qui assourdissent…) pour
+    // que le son reste toujours audible sans jamais saturer.
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -22;
+    comp.knee.value = 24;
+    comp.ratio.value = 6;
+    comp.attack.value = 0.015;
+    comp.release.value = 0.22;
+    g.connect(comp);
+
+    const makeup = ctx.createGain();
+    makeup.gain.value = 1.7;
+    comp.connect(makeup);
+
+    // Limiteur final : garantit qu'aucune combinaison d'effets ne peut saturer
+    // (le mode radio et les volumes élevés peuvent dépasser 0 dBFS avant ce stade).
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -3;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.002;
+    limiter.release.value = 0.06;
+    makeup.connect(limiter);
+
+    return limiter;
   }
 
   // ---- API publique ----
@@ -266,6 +305,25 @@
     }
   }
 
+  /**
+   * Mesure le volume perçu (RMS) d'un extrait, pour comparer des chansons entre elles.
+   * @returns {Promise<number|null>} valeur ~0–0.4 (musique typique), null si échec
+   */
+  async function analyzeLoudness(url, clipStart, clipDuration) {
+    try {
+      const buffer = await loadBuffer(url);
+      const sr = buffer.sampleRate;
+      const start = Math.max(0, Math.floor((clipStart || 0) * sr));
+      const len = Math.min(buffer.length - start, Math.floor((clipDuration || 10) * sr));
+      if (len <= 0) return null;
+      const data = buffer.getChannelData(0);
+      const step = Math.max(1, Math.floor(len / 20000)); // échantillonnage : reste rapide sur les longs extraits
+      let sumSq = 0, n = 0;
+      for (let i = start; i < start + len; i += step) { const v = data[i]; sumSq += v * v; n++; }
+      return n ? Math.sqrt(sumSq / n) : null;
+    } catch (e) { return null; }
+  }
+
   // Petit bip (révélation des paroles)
   function playBeep(freq) {
     try {
@@ -281,7 +339,7 @@
     } catch (e) {}
   }
 
-  window.AudioEngine = { playAudioClip, stopAudio, preloadSong, playBeep, unlockAudio };
+  window.AudioEngine = { playAudioClip, stopAudio, preloadSong, playBeep, unlockAudio, analyzeLoudness };
   // Alias historiques
   window.playAudioClip = playAudioClip;
   window.stopAudio = stopAudio;

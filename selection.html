@@ -25,7 +25,13 @@
       color: #ffffff !important;
       -webkit-text-fill-color: #ffffff !important;
       background: #0f1a24 !important;
+      caret-color: #ffffff;
     }
+    .loud-hint { font-size: 0.82rem; margin-top: 0.4rem; padding: 0.5rem 0.7rem; border-radius: 0.7rem; display: none; }
+    .loud-hint.show { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+    .loud-hint.ok   { background: #12321f; color: #7fe0a0; }
+    .loud-hint.warn { background: #2e2510; color: #ffcf7f; }
+    .loud-hint button { width: auto; margin: 0; padding: 0.35rem 0.8rem; font-size: 0.78rem; background: #3b6eff; }
     .results-grid { display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem; max-height: 400px; overflow-y: auto; }
     .song-card { display: flex; align-items: center; background: #1a1f25; padding: 1rem; border-radius: 1.2rem; border: 2px solid #2d353e; cursor: pointer; transition: 0.2s; }
     .song-card:hover:not(.selected) { border-color: #5e9eff; transform: translateX(5px); }
@@ -117,6 +123,10 @@
 
       <label>🔊 Volume de cet extrait : <span id="volumeValue">100%</span></label>
       <input type="range" id="volumeSlider" min="70" max="150" step="5" value="100">
+      <div id="loudHint" class="loud-hint">
+        <span id="loudHintText"></span>
+        <button type="button" id="loudHintApply">Ajuster</button>
+      </div>
 
       <div id="complexControlsGroup">
         <label class="checkbox-label" style="margin-top: 1.2rem;">
@@ -285,12 +295,17 @@
       }
     }
 
+    let searchGen = 0;   // évite qu'une recherche lente n'écrase les résultats d'une recherche plus récente
+
     searchBtn.addEventListener('click', async () => {
       const term = searchInput.value.trim();
       if (!term) return;
+      const myGen = ++searchGen;
+      resultsDiv.innerHTML = '';                 // reset immédiat : jamais de mélange avec l'ancienne recherche
       searchBtn.disabled = true;
       errorMsg.innerHTML = '<div class="loading">🔎 Recherche...</div>';
       const results = await searchMusic(term);
+      if (myGen !== searchGen) return;            // une recherche plus récente a déjà démarré, on ignore ce résultat
       searchBtn.disabled = false;
       errorMsg.innerHTML = '';
       displayResults(results);
@@ -349,6 +364,50 @@
     let draftCard = null;
     let selectedVariant = 1;
     let pickedInstrumentalSource = null;
+    let draftLoudnessRms = null;
+
+    const loudHint = document.getElementById('loudHint');
+    const loudHintText = document.getElementById('loudHintText');
+    const loudHintApply = document.getElementById('loudHintApply');
+
+    // Moyenne des volumes déjà confirmés dans la partie (hôte + joueurs), pour comparaison
+    async function getReferenceLoudness() {
+      try {
+        const snap = await selectionsRef.once('value');
+        const all = snap.val() || {};
+        const vals = [];
+        Object.values(all).forEach(sel => (sel && sel.songs ? sel.songs : []).forEach(s => {
+          if (typeof s.loudnessRms === 'number' && s.loudnessRms > 0) {
+            vals.push(s.loudnessRms * ((s.customVolume != null ? s.customVolume : 100) / 100));
+          }
+        }));
+        return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+      } catch (e) { return null; }
+    }
+
+    // Mini-vérification rapide : ce son sera-t-il trop faible/fort par rapport aux autres déjà choisis ?
+    async function checkLoudness(song) {
+      loudHint.classList.remove('show', 'ok', 'warn');
+      const [ref, rms] = await Promise.all([
+        getReferenceLoudness(),
+        AudioEngine.analyzeLoudness(song.previewUrl, 3, 8)
+      ]);
+      if (draftSong !== song) return; // la modale a changé entre-temps
+      draftLoudnessRms = rms;
+      if (rms == null || ref == null) return; // pas assez de données pour comparer, on ne dérange pas
+      const ratio = rms / ref;
+      if (ratio > 0.8 && ratio < 1.25) return; // déjà équilibré : rien à signaler
+      const recommended = Math.round(Math.max(70, Math.min(150, 100 * ref / rms)) / 5) * 5;
+      loudHintText.textContent = recommended > 100
+        ? `🔊 Ce son est plus faible que les autres — monte à ${recommended}%`
+        : `🔉 Ce son est plus fort que les autres — baisse à ${recommended}%`;
+      loudHint.classList.add('show', 'warn');
+      loudHintApply.onclick = () => {
+        volumeSlider.value = recommended;
+        volumeValue.textContent = recommended + '%';
+        loudHint.classList.remove('show');
+      };
+    }
 
     advancedToggleBtn.addEventListener('click', () => {
       const isHidden = advancedSettingsContent.classList.contains('hidden');
@@ -393,6 +452,9 @@
         instrumentalCheck.checked = true;
         instrumentalVariants.classList.remove('hidden');
       }
+
+      draftLoudnessRms = null;
+      checkLoudness(song);   // mini vérification rapide, en arrière-plan
 
       modal.classList.remove('hidden');
     }
@@ -501,7 +563,8 @@
         pitch: parseInt(pitchSlider.value, 10),
         filterValue: parseInt(filterSlider.value, 10),
         radioMode: radioModeCheck.checked,
-        customVolume: parseInt(volumeSlider.value, 10)
+        customVolume: parseInt(volumeSlider.value, 10),
+        loudnessRms: draftLoudnessRms
       };
 
       modal.classList.add('hidden');
@@ -536,8 +599,7 @@
         await selectionsRef.child('host').set({ songs: hostSelected, done: hostSelected.length >= hostQuota });
         counterSpan.textContent = `${hostSelected.length} / ${hostQuota}`;
         toast(`✅ ${songData.title} ajoutée !`);
-        if (hostSelected.length >= hostQuota) window.location.href = 'waiting.html';
-        else if (card) card.remove();
+        if (hostSelected.length >= hostQuota) { window.location.href = 'waiting.html'; return; }
       } else {
         songData.ownerId = clientId;
         songData.ownerName = playerName;
@@ -545,9 +607,14 @@
         await selectionsRef.child(clientId).set({ songs: playerSelectedList, done: playerSelectedList.length >= playerQuota });
         counterSpan.textContent = `${playerSelectedList.length} / ${playerQuota}`;
         toast(`✅ ${songData.title} ajoutée !`);
-        if (playerSelectedList.length >= playerQuota) window.location.href = 'waiting.html';
-        else if (card) card.remove();
+        if (playerSelectedList.length >= playerQuota) { window.location.href = 'waiting.html'; return; }
       }
+      // Repart d'une recherche vierge : plus aucun résidu de la sélection précédente
+      searchGen++;
+      searchInput.value = '';
+      resultsDiv.innerHTML = '';
+      errorMsg.innerHTML = '';
+      searchInput.focus();
     }
 
     // PAROLES (min 1 ligne, max 30 mots)

@@ -14,9 +14,20 @@
   .g-exit { background:none; border:none; width:auto; margin:0; padding:.2rem .4rem; font-size:1.2rem; }
 
   .cover-wrap { width:190px; height:190px; margin:0 auto 1rem; position:relative; }
-  .cover-wrap img { width:100%; height:100%; object-fit:cover; border-radius:1.5rem; border:3px solid #2d3d4e;
-                    background:#0f1a24; transition:filter .8s ease; }
-  .cover-wrap.spin img { animation: slowspin 8s linear infinite; border-radius:50%; }
+  .vinyl-disc {
+    position:absolute; inset:0; border-radius:50%;
+    background: repeating-radial-gradient(circle at 50% 50%, #1b232c 0, #1b232c 3px, #131a21 3px, #131a21 6px);
+    box-shadow: 0 10px 28px rgba(0,0,0,.55), inset 0 0 0 1px #2d3d4e;
+  }
+  .cover-wrap::after {
+    content:''; position:absolute; left:50%; top:50%; width:12px; height:12px; z-index:2;
+    background:#0a0c0e; border-radius:50%; transform:translate(-50%,-50%); box-shadow:0 0 0 2px #384a5c;
+  }
+  .cover-wrap img {
+    position:absolute; left:50%; top:50%; width:58%; height:58%; transform:translate(-50%,-50%);
+    object-fit:cover; border-radius:50%; border:3px solid #10161d; background:#0f1a24;
+  }
+  .cover-wrap.spin { animation: slowspin 22s linear infinite; }
   @keyframes slowspin { to { transform: rotate(360deg); } }
 
   .timer-big { margin:.6rem 0 1rem; }
@@ -74,12 +85,11 @@
 
   <div class="g-top">
     <span class="g-round" id="roundInfo">Manche –</span>
-    <span class="g-pill" id="modePill">—</span>
-    <span class="g-pill" id="scorePill">0 pts</span>
+    <span class="g-pill hidden" id="scorePill">0 pts</span>
     <button class="g-exit" id="btnExit" title="Quitter">📲</button>
   </div>
 
-  <div class="cover-wrap" id="coverWrap"><img id="cover" alt="cover"></div>
+  <div class="cover-wrap" id="coverWrap"><div class="vinyl-disc"></div><img id="cover" alt="cover"></div>
   <div class="timer-big" id="timer">00:00.0</div>
 
   <div class="lyrics-box hidden" id="lyricsBox"></div>
@@ -99,6 +109,7 @@
     <div class="btn-row">
       <button class="primary" id="btnPlay">▶️ Lancer l'extrait</button>
       <button id="btnReveal">👁️ Révéler</button>
+      <button id="btnReplay" class="hidden">🔁 Recommencer</button>
     </div>
     <button id="btnNext" class="hidden">➡️ Chanson suivante</button>
     <p class="note" id="hostHint"></p>
@@ -146,28 +157,29 @@
 
   const $ = id => document.getElementById(id);
   const el = {
-    roundInfo:$('roundInfo'), modePill:$('modePill'), scorePill:$('scorePill'), btnExit:$('btnExit'),
+    roundInfo:$('roundInfo'), scorePill:$('scorePill'), btnExit:$('btnExit'),
     coverWrap:$('coverWrap'), cover:$('cover'), timer:$('timer'), lyricsBox:$('lyricsBox'),
     buzzBanner:$('buzzBanner'), revealCard:$('revealCard'), rvArt:$('rvArt'), rvTitle:$('rvTitle'),
     rvArtist:$('rvArtist'), rvOwner:$('rvOwner'),
-    hostZone:$('hostZone'), btnPlay:$('btnPlay'), btnReveal:$('btnReveal'), btnNext:$('btnNext'), hostHint:$('hostHint'),
+    hostZone:$('hostZone'), btnPlay:$('btnPlay'), btnReveal:$('btnReveal'), btnReplay:$('btnReplay'),
+    btnNext:$('btnNext'), hostHint:$('hostHint'),
     playerZone:$('playerZone'), btnBuzz:$('btnBuzz'), answerZone:$('answerZone'), answerInput:$('answerInput'),
     btnAnswer:$('btnAnswer'), voteZone:$('voteZone'), voteGrid:$('voteGrid'), playerStatus:$('playerStatus'),
     feed:$('feed'), board:$('board')
   };
 
-  const MODE_LABEL = { classic:'🎵 Standard', instrumental:'🎸 Instru', playlist:'🎧 Playlist', lyrics:'🎤 Paroles' };
   const LYRICS_MS  = { slow:1400, medium:900, fast:550 };
   const BLANK = 'data:image/svg+xml,' + encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="#0f1a24"/><text x="100" y="118" font-size="70" text-anchor="middle">🎵</text></svg>');
 
   let gs = {}, players = {}, songs = [], song = null, idx = -1;
   let phase = 'idle', mode = 'classic';
-  let timerInt = null, blurInt = null, lyricsInt = null, playedIndex = -1;
+  let timerInt = null, blurRaf = null, lyricsInt = null, playedIndex = -1;
   let lastFlashAt = 0, lastPhase = null;
 
   el.cover.src = BLANK;
   (isHost ? el.hostZone : el.playerZone).classList.remove('hidden');
+  if (!isHost) el.scorePill.classList.remove('hidden');
 
   /* ------------------------------------------------------------------ */
   /*  Écoute temps réel                                                  */
@@ -199,8 +211,9 @@
   }
 
   function stopAllTimers() {
-    [timerInt, blurInt, lyricsInt].forEach(t => t && clearInterval(t));
-    timerInt = blurInt = lyricsInt = null;
+    [timerInt, lyricsInt].forEach(t => t && clearInterval(t));
+    timerInt = lyricsInt = null;
+    if (blurRaf) { cancelAnimationFrame(blurRaf); blurRaf = null; }
     el.coverWrap.classList.remove('spin');
   }
 
@@ -222,13 +235,20 @@
   function render() {
     if (!songs.length) { el.roundInfo.textContent = 'Chargement…'; return; }
     el.roundInfo.textContent = `Manche ${idx + 1} / ${songs.length}`;
-    el.modePill.textContent  = MODE_LABEL[mode] || mode;
     el.scorePill.textContent = ((gs.scores || {})[clientId] || 0) + ' pts';
 
     // Pochette
     const revealed = phase === 'revealed';
-    el.cover.src = (revealed && song && song.artwork) ? song.artwork : BLANK;
-    if (revealed) el.cover.style.filter = 'none';
+    if (revealed) {
+      if (blurRaf) { cancelAnimationFrame(blurRaf); blurRaf = null; }
+      el.cover.src = song && song.artwork ? song.artwork : BLANK;
+      el.cover.style.transition = 'filter .5s ease';
+      el.cover.style.filter = 'none';
+    } else if (phase === 'idle') {
+      el.cover.src = BLANK;
+      el.cover.style.transition = 'none';
+      el.cover.style.filter = 'none';
+    }
 
     // Phase changée ?
     if (phase !== lastPhase) { lastPhase = phase; onPhaseChange(); }
@@ -262,19 +282,28 @@
     }
   }
 
-  /* --- Flou progressif de la pochette --- */
+  /* --- Flou progressif de la pochette : dégradé en continu (aucun flash,
+         aucun palier brusque), plus lent en mode Paroles --- */
   function startBlur() {
     if (!gs.blurEnabled || !song || !song.artwork) { el.cover.src = BLANK; return; }
-    el.cover.src = song.artwork;
-    const steps = [28, 18, 10, 4, 0];
-    const stepMs = mode === 'lyrics' ? 3000 : 2000;
-    let i = 0;
-    el.cover.style.filter = `blur(${steps[0]}px)`;
-    blurInt = setInterval(() => {
-      i++;
-      if (i >= steps.length) { clearInterval(blurInt); blurInt = null; return; }
-      el.cover.style.filter = `blur(${steps[i]}px)`;
-    }, stepMs);
+    const MAX_BLUR = 24;
+    const totalMs = (mode === 'lyrics' ? 16000 : 11000);
+
+    const img = new Image();
+    img.onload = () => {
+      if (phase !== 'playing') return;              // la manche a déjà changé entre-temps
+      el.cover.style.transition = 'none';
+      el.cover.style.filter = `blur(${MAX_BLUR}px)`;
+      el.cover.src = song.artwork;                    // déjà en cache : aucun flash à sharp
+      const start = performance.now();
+      const tick = (now) => {
+        const t = Math.min(1, (now - start) / totalMs);
+        el.cover.style.filter = `blur(${(MAX_BLUR * (1 - t)).toFixed(1)}px)`;
+        blurRaf = t < 1 ? requestAnimationFrame(tick) : null;
+      };
+      blurRaf = requestAnimationFrame(tick);
+    };
+    img.src = song.artwork;
   }
 
   /* --- Mode Paroles : révélation mot à mot --- */
@@ -356,6 +385,7 @@
   function renderHost() {
     el.btnPlay.classList.toggle('hidden', phase !== 'idle');
     el.btnReveal.classList.toggle('hidden', phase !== 'playing');
+    el.btnReplay.classList.toggle('hidden', phase !== 'playing' || mode === 'lyrics');
     el.btnNext.classList.toggle('hidden', phase !== 'revealed');
     el.btnReveal.classList.toggle('armed', !!gs.solved);
 
@@ -397,6 +427,16 @@
     AudioEngine.stopAudio();
     if (mode === 'playlist') await scorePlaylistVotes();
     await gsRef.update({ phase: 'revealed', buzzer: null });
+  };
+
+  // Rejoue l'extrait depuis le début, sans toucher au buzzer ni aux scores
+  el.btnReplay.onclick = async () => {
+    if (!song) return;
+    AudioEngine.stopAudio();
+    AudioEngine.playAudioClip(song);
+    if (blurRaf) { cancelAnimationFrame(blurRaf); blurRaf = null; }
+    if (mode !== 'lyrics') startBlur();
+    await gsRef.update({ roundStartTime: Date.now() });
   };
 
   el.btnNext.onclick = async () => {

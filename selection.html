@@ -18,10 +18,24 @@
       align-items: center;
     }
     .search-container { background: #1c2127; border-radius: 1.8rem; padding: 1.6rem; }
-    .search-box { display: flex; gap: 0.8rem; }
+    .search-box { display: flex; gap: 0.8rem; align-items: center; }
+    .search-box button { width: auto; flex: 0 0 auto; margin: 0; white-space: nowrap; }
+    @media (max-width: 560px) {
+      body { padding: 0.6rem; align-items: flex-start; }
+      #app { padding: 1.2rem 0.9rem; border-radius: 1.6rem; }
+      #app h1 { font-size: 1.6rem; margin-bottom: 1rem; }
+      .search-container { padding: 0.9rem; border-radius: 1.3rem; }
+      .search-box { flex-direction: column; align-items: stretch; gap: 0.5rem; }
+      .search-box input[type="text"] { width: 100%; }
+      .search-box button { width: 100%; }
+    }
     /* Correction visibilité saisie clavier */
     .search-box input[type="text"] {
-      flex: 1;
+      flex: 1 1 auto;
+      min-width: 0;
+      width: auto;
+      margin: 0;
+      font-size: 16px; /* évite le zoom automatique de Safari iOS */
       color: #ffffff !important;
       -webkit-text-fill-color: #ffffff !important;
       background: #0f1a24 !important;
@@ -281,11 +295,12 @@
       });
     }
 
-    // Trois sources lancées EN MÊME TEMPS : la première qui renvoie des morceaux gagne.
-    // (plus de recherche qui échoue parce qu'une seule source est lente ou bloquée)
+    // Plusieurs sources lancées EN MÊME TEMPS : la première qui renvoie des morceaux gagne.
+    let lastSearchInfo = { responded: false, errors: [] };
+
     function searchOnce(term) {
       const q = encodeURIComponent(term);
-      const itunesUrl = `https://itunes.apple.com/search?term=${q}&media=music&entity=song&limit=15&country=FR`;
+      const itunesUrl = `https://itunes.apple.com/search?term=${q}&media=music&entity=song&limit=15`;
       const fromItunes = d => ((d && d.results) || []).map(s => ({
         trackName: s.trackName, artistName: s.artistName,
         artworkUrl100: (s.artworkUrl100 || '').replace('100x100', '300x300'),
@@ -296,27 +311,41 @@
         artworkUrl100: s.album && (s.album.cover_big || s.album.cover_medium),
         previewUrl: s.preview
       })).filter(s => s.trackName && s.previewUrl);
+      const getJson = (u, ms) => {
+        const ac = new AbortController(); const to = setTimeout(() => ac.abort(), ms || 8000);
+        return fetch(u, { signal: ac.signal })
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+          .then(t => JSON.parse(t.trim().replace(/^[\w$.]+\(/, '').replace(/\);?$/, '')))
+          .finally(() => clearTimeout(to));
+      };
 
       const sources = [
-        () => jsonp(itunesUrl, 'callback').then(fromItunes),
-        () => jsonp(`https://api.deezer.com/search?q=${q}&output=jsonp`, 'callback').then(fromDeezer),
-        () => fetch('https://corsproxy.io/?url=' + encodeURIComponent(itunesUrl))
-                .then(r => { if (!r.ok) throw new Error('http'); return r.json(); }).then(fromItunes)
+        ['iTunes direct',  () => getJson(itunesUrl).then(fromItunes)],
+        ['iTunes JSONP',   () => jsonp(itunesUrl, 'callback').then(fromItunes)],
+        ['Deezer JSONP',   () => jsonp(`https://api.deezer.com/search?q=${q}&output=jsonp`, 'callback').then(fromDeezer)],
+        ['iTunes proxy 1', () => getJson('https://corsproxy.io/?url=' + encodeURIComponent(itunesUrl)).then(fromItunes)],
+        ['iTunes proxy 2', () => getJson('https://api.allorigins.win/raw?url=' + encodeURIComponent(itunesUrl)).then(fromItunes)]
       ];
       return new Promise(resolve => {
-        let pending = sources.length, done = false;
-        const fin = list => {
-          if (done) return;
-          if (list && list.length) { done = true; resolve({ ok: true, list }); return; }
-          if (--pending === 0) { done = true; resolve({ ok: false, list: [] }); }
-        };
-        sources.forEach(f => { try { f().then(fin, () => fin(null)); } catch (e) { fin(null); } });
+        let pending = sources.length, done = false, responded = false;
+        const errors = [];
+        const end = () => { if (--pending === 0 && !done) { done = true; resolve({ ok: false, list: [], responded, errors }); } };
+        sources.forEach(([name, f]) => {
+          let p; try { p = f(); } catch (e) { p = Promise.reject(e); }
+          p.then(list => {
+            responded = true;
+            if (done) return;
+            if (list && list.length) { done = true; resolve({ ok: true, list, responded, errors }); }
+            else end();
+          }, err => { errors.push(name + ' : ' + (err && err.message || 'échec')); end(); });
+        });
       });
     }
 
     async function searchMusic(term) {
       let r = await searchOnce(term);
-      if (!r.ok) r = await searchOnce(term);   // 2e essai automatique
+      if (!r.ok && !r.responded) r = await searchOnce(term);   // 2e essai si aucune source n'a répondu
+      lastSearchInfo = { responded: r.responded, errors: r.errors };
       return r.list;
     }
 
@@ -338,7 +367,12 @@
 
     function displayResults(results) { 
       resultsDiv.innerHTML = ''; 
-      if (results.length === 0) { resultsDiv.innerHTML = '<div class="text-center">Aucun morceau trouvé. Vérifie ta connexion ou essaie un autre mot.</div>'; return; }
+      if (results.length === 0) {
+        resultsDiv.innerHTML = lastSearchInfo.responded
+          ? '<div class="text-center">Aucun morceau trouvé pour cette recherche. Essaie un autre mot.</div>'
+          : '<div class="error-text">⚠️ Impossible de joindre les serveurs de musique. Vérifie ta connexion (ou désactive ton bloqueur de contenu) puis réessaie.<div class="hint-text" style="margin-top:.5rem">' + lastSearchInfo.errors.map(escapeHTML).join('<br>') + '</div></div>';
+        return;
+      }
       results.forEach(song => {
         const card = document.createElement('div');
         card.className = 'song-card';

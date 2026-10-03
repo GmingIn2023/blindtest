@@ -173,8 +173,8 @@
           const block = document.createElement('div');
           block.className = 'podium-block rank-' + (idx + 1);
           block.innerHTML = `
-            <div class="avatar">${p.avatar}</div>
-            <div class="pname">${p.name}</div>
+            <div class="avatar">${escapeHTML(p.avatar)}</div>
+            <div class="pname">${escapeHTML(p.name)}</div>
             <div class="pscore">${p.score} pts</div>
             <div class="podium-bar">${idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}</div>
           `;
@@ -189,7 +189,7 @@
         } else {
           rest.forEach((p, idx) => {
             const row = document.createElement('div');
-            row.innerHTML = `<span>${idx + 4}. ${p.avatar} ${p.name}</span><span>${p.score} pts</span>`;
+            row.innerHTML = `<span>${idx + 4}. ${escapeHTML(p.avatar)} ${escapeHTML(p.name)}</span><span>${p.score} pts</span>`;
             restList.appendChild(row);
           });
         }

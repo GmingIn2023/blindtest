@@ -35,3 +35,11 @@ window.generateRoomCode = generateRoomCode;
 window.normalize = normalize;
 window.formatTimer = formatTimer;
 window.shuffleArray = shuffleArray;
+
+// Échappement HTML (partagé par toutes les pages)
+function escapeHTML(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+// Horloge synchronisée sur Firebase (évite les écarts entre appareils)
+let _srvOff=0;
+if(window.db){db.ref('.info/serverTimeOffset').on('value',s=>{_srvOff=s.val()||0;});}
+function serverNow(){return Date.now()+_srvOff;}
+window.escapeHTML=escapeHTML;window.serverNow=serverNow;

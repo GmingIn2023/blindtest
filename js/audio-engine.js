@@ -65,7 +65,10 @@
     let lastErr = null;
     for (const candidate of proxies(url)) {
       try {
-        const res = await fetch(candidate);
+        const ac = new AbortController();
+        const to = setTimeout(() => ac.abort(), 8000);
+        let res;
+        try { res = await fetch(candidate, { signal: ac.signal }); } finally { clearTimeout(to); }
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const raw = await res.arrayBuffer();
         const buffer = await new Promise((resolve, reject) => {
@@ -83,7 +86,7 @@
 
   // Précharge sans jouer (appelé par game.html entre les manches)
   function preloadSong(song) {
-    if (song && song.previewUrl) loadBuffer(song.previewUrl).catch(() => {});
+    return song && song.previewUrl ? loadBuffer(song.previewUrl).then(() => true, () => false) : Promise.resolve(false);
   }
 
   // ---- Transformations de buffer ----

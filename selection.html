@@ -223,6 +223,7 @@
     const roomRef = db.ref('rooms/' + roomCode);
     const selectionsRef = roomRef.child('selections');
     const configRef = roomRef.child('config');
+    roomRef.child('status').on('value', s => { if (s.val() === 'game') window.location.href = 'game.html'; });
 
     const backToLobbyLink = document.getElementById('backToLobbyLink');
     if (backToLobbyLink) {
@@ -266,15 +267,29 @@
       }
     });
 
+    function jsonp(url) {
+      return new Promise((res, rej) => {
+        const cb = 'jp' + Math.random().toString(36).slice(2);
+        const sc = document.createElement('script');
+        const clean = () => { clearTimeout(to); delete window[cb]; sc.remove(); };
+        const to = setTimeout(() => { clean(); rej(new Error('timeout')); }, 7000);
+        window[cb] = d => { clean(); res(d); };
+        sc.onerror = () => { clean(); rej(new Error('jsonp')); };
+        sc.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb;
+        document.head.appendChild(sc);
+      });
+    }
+
     async function searchMusic(term) {
       const proxiedUrl = `https://corsproxy.io/?url=${encodeURIComponent(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=15`)}`;
       try {
-        const res = await fetch(proxiedUrl);
-        const data = await res.json();
+        let data;
+        try { data = await jsonp(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=15`); }
+        catch (e0) { data = await (await fetch(proxiedUrl)).json(); }
         return data.results.map(s => ({
           trackName: s.trackName,
           artistName: s.artistName,
-          artworkUrl100: s.artworkUrl100,
+          artworkUrl100: (s.artworkUrl100 || '').replace('100x100', '300x300'),
           previewUrl: s.previewUrl
         })).filter(s => s.previewUrl);
       } catch(e) {
@@ -637,19 +652,30 @@
 
     async function fetchLyrics(song) {
       lyricsScrollArea.classList.add('hidden');
-      document.getElementById('lyricsLoading').classList.remove('hidden');
+      const ld = document.getElementById('lyricsLoading');
+      const rb = document.getElementById('retryKaraokeLyricsBtn');
+      ld.classList.remove('hidden'); ld.textContent = '🔎 Recherche des paroles...';
+      rb.classList.add('hidden');
       confirmLyricsBtn.disabled = true;
-
-      try {
-        const proxied = `https://corsproxy.io/?url=${encodeURIComponent(`https://api.lyrics.ovh/v1/${encodeURIComponent(song.artistName)}/${encodeURIComponent(song.trackName)}`)}`;
-        const res = await fetch(proxied);
-        const data = await res.json();
-        lyricsLines = data.lyrics ? data.lyrics.split('\n').map(l => l.trim()).filter(l => l.length > 0) : [];
-        renderLyrics();
-      } catch(e) {
-        document.getElementById('lyricsLoading').textContent = "⚠️ Paroles introuvables.";
-      }
+      const a = encodeURIComponent(song.artistName), t = encodeURIComponent(song.trackName);
+      const getJson = async u => {
+        const ac = new AbortController(); const to = setTimeout(() => ac.abort(), 7000);
+        try { const r = await fetch(u, { signal: ac.signal }); if (!r.ok) throw new Error('http'); return await r.json(); }
+        finally { clearTimeout(to); }
+      };
+      const ovh = `https://api.lyrics.ovh/v1/${a}/${t}`;
+      const sources = [
+        async () => ((await getJson(`https://lrclib.net/api/search?track_name=${t}&artist_name=${a}`)) || []).map(i => i.plainLyrics).find(Boolean),
+        async () => (await getJson(ovh)).lyrics,
+        async () => (await getJson('https://corsproxy.io/?url=' + encodeURIComponent(ovh))).lyrics
+      ];
+      let text = null;
+      for (const src of sources) { try { text = await src(); if (text) break; } catch (e) {} }
+      if (!text) { ld.textContent = '⚠️ Paroles introuvables.'; rb.classList.remove('hidden'); return; }
+      lyricsLines = text.split('\n').map(l => l.trim()).filter(Boolean);
+      renderLyrics();
     }
+    document.getElementById('retryKaraokeLyricsBtn').onclick = () => fetchLyrics(draftSong);
 
     function renderLyrics() {
       document.getElementById('lyricsLoading').classList.add('hidden');

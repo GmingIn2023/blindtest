@@ -22,6 +22,7 @@
       <div id="waitingProgress" class="progress-list"></div>
       <div style="margin-top:2rem;">
         <button id="refreshBtn" class="primary">🔄 Actualiser</button>
+    <button id="forceBtn" class="primary hidden">🚀 Lancer sans attendre</button>
       </div>
     </div>
   </div>
@@ -69,7 +70,7 @@
         return result;
       }
 
-      async function mergeSelectionsIntoGameState(selections, playerList) {
+      async function mergeSelectionsIntoGameState(selections, playerList, force) {
         if (alreadyMerged || !isHost) return;
         alreadyMerged = true;
 
@@ -85,6 +86,11 @@
           if (sel && Array.isArray(sel.songs)) allSongs = allSongs.concat(sel.songs);
         });
 
+        if (!allSongs.length) {
+          alreadyMerged = false;
+          if (force) alert('Aucune chanson choisie pour le moment.');
+          return false;
+        }
         if (config.allowDuplicates) allSongs = dedupeSongs(allSongs);
 
         // Fisher-Yates Shuffle
@@ -152,14 +158,13 @@
               const playerDone = songsPerPlayer === 0 || (selections[player.id] && selections[player.id].done === true);
               if (!playerDone) allReady = false;
 
-              html += `<div class="progress-item"><span>${player.avatar} ${player.name}</span><span class="${playerDone ? 'ready-badge' : 'not-ready-badge'}">${playerDone ? '✅ Prêt' : '⏳ En cours...'}</span></div>`;
+              html += `<div class="progress-item"><span>${escapeHTML(player.avatar)} ${escapeHTML(player.name)}</span><span class="${playerDone ? 'ready-badge' : 'not-ready-badge'}">${playerDone ? '✅ Prêt' : '⏳ En cours...'}</span></div>`;
             });
 
             waitingProgress.innerHTML = html;
 
             if (allReady) {
-              await mergeSelectionsIntoGameState(selections, playerList);
-              waitForSongsThenRedirect();
+              if ((await mergeSelectionsIntoGameState(selections, playerList)) !== false) waitForSongsThenRedirect();
             }
           });
         });
@@ -179,6 +184,17 @@
       });
 
       document.getElementById('refreshBtn').onclick = updateProgress;
+      const forceBtn = document.getElementById('forceBtn');
+      if (isHost) {
+        forceBtn.classList.remove('hidden');
+        forceBtn.onclick = async () => {
+          if (!confirm('Lancer avec les chansons déjà choisies ?')) return;
+          const [ps, ss] = await Promise.all([playersRef.once('value'), selectionsRef.once('value')]);
+          const pl = Object.entries(ps.val() || {}).map(([id, d]) => ({ id, ...d }));
+          if ((await mergeSelectionsIntoGameState(ss.val() || {}, pl, true)) !== false) waitForSongsThenRedirect();
+        };
+      }
+      roomRef.child('status').on('value', s => { if (s.val() === 'game' && !isHost) waitForSongsThenRedirect(); });
     })();
   </script>
 </body>

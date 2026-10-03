@@ -221,7 +221,7 @@
               otherPlayersList.innerHTML = '<div style="color:#8aaec0;">En attente d\'autres joueurs...</div>';
             } else {
               otherPlayersList.innerHTML = others.map(p =>
-                `<span class="player-tag">${p.avatar} ${escapeHTML(p.name)}</span>`
+                `<span class="player-tag">${escapeHTML(p.avatar)} ${escapeHTML(p.name)}</span>`
               ).join('');
             }
           });
@@ -248,7 +248,7 @@
       });
 
       // Fonction utilitaire pour échapper le HTML
-      function escapeHTML(str) {
+      function escapeHTML_old(str) {
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;

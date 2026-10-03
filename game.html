@@ -207,7 +207,8 @@
     el.answerInput.value = '';
     el.lyricsBox.innerHTML = '';
     el.revealCard.classList.add('hidden');
-    if (songs[idx + 1]) AudioEngine.preloadSong(songs[idx + 1]);
+    if (isHost && songs[idx]) AudioEngine.preloadSong(songs[idx]);
+    if (isHost && songs[idx + 1]) AudioEngine.preloadSong(songs[idx + 1]);
   }
 
   function stopAllTimers() {
@@ -276,7 +277,7 @@
 
   function renderTimer() {
     if (phase === 'playing' && gs.roundStartTime) {
-      el.timer.textContent = formatTimer(Date.now() - gs.roundStartTime);
+      el.timer.textContent = formatTimer(serverNow() - gs.roundStartTime);
     } else if (phase === 'idle') {
       el.timer.textContent = '00:00.0';
     }
@@ -418,7 +419,7 @@
     if (!song) return;
     AudioEngine.unlockAudio();
     await gsRef.update({
-      phase: 'playing', roundStartTime: Date.now(),
+      phase: 'playing', roundStartTime: serverNow(),
       buzzer: null, votes: null, solved: false, solvedBy: null, attempts: null, feed: null
     });
   };
@@ -436,7 +437,7 @@
     AudioEngine.playAudioClip(song);
     if (blurRaf) { cancelAnimationFrame(blurRaf); blurRaf = null; }
     if (mode !== 'lyrics') startBlur();
-    await gsRef.update({ roundStartTime: Date.now() });
+    await gsRef.update({ roundStartTime: serverNow() });
   };
 
   el.btnNext.onclick = async () => {
@@ -507,7 +508,7 @@
     if (mine)                    { disabled = true; msg = "🤫 C'est ta chanson — laisse deviner !"; }
     else if (solvedByMe)         { disabled = true; msg = '✅ Tu as déjà trouvé !'; }
     else if (out)                { disabled = true; msg = '🚫 Plus de tentatives pour cette manche.'; }
-    else if (iHold)              { disabled = true; msg = '🎤 À toi ! Tape le titre.'; }
+    else if (iHold)              { disabled = true; msg = '🎤 À toi ! Tape le titre (20 s max).'; }
     else if (buzzer)             { disabled = !!gs.lockOthersOnBuzz; msg = `🔔 ${buzzer.name} répond…`; }
     else if (gs.solved && !gs.multipleCorrectAllowed) { disabled = true; msg = '✅ Déjà trouvé par quelqu\'un.'; }
     else                         { msg = maxA > 0 ? `${maxA - used} tentative(s) restante(s)` : 'Buzze dès que tu sais !'; }
@@ -523,7 +524,7 @@
       `<button data-id="${id}" class="${v && v.guess === id ? 'picked' : ''}" ${v ? 'disabled' : ''}>${players[id].avatar || '🎧'} ${escapeHTML(players[id].name)}</button>`
     ).join('');
     el.voteGrid.querySelectorAll('button').forEach(b => {
-      b.onclick = () => gsRef.child('votes/' + clientId).set({ guess: b.dataset.id, at: Date.now() });
+      b.onclick = () => gsRef.child('votes/' + clientId).set({ guess: b.dataset.id, at: serverNow() });
     });
   }
 
@@ -531,7 +532,7 @@
   el.btnBuzz.onclick = () => {
     if (el.btnBuzz.disabled) return;
     el.btnBuzz.disabled = true;
-    gsRef.child('buzzer').transaction(cur => (cur === null ? { id: clientId, name: myName, at: Date.now() } : undefined));
+    gsRef.child('buzzer').transaction(cur => (cur === null ? { id: clientId, name: myName, at: serverNow() } : undefined));
   };
 
   /* --- Réponse --- */
@@ -542,31 +543,50 @@
     el.answerInput.value = '';
     const good = matches(raw, song.title);
     const fresh = (await gsRef.once('value')).val() || {};   // lecture fraîche : scores à jour
-    const elapsed = Date.now() - (fresh.roundStartTime || Date.now());
+    const elapsed = serverNow() - (fresh.roundStartTime || serverNow());
     const used = (((fresh.attempts || {})[clientId]) || 0) + 1;
 
+    if (fresh.phase !== 'playing' || !fresh.buzzer || fresh.buzzer.id !== clientId) return;
     const updates = { buzzer: null };
-    const scores = Object.assign({}, fresh.scores || {});
+    let delta;
     if (good) {
       let pts = points(elapsed);
       if (mode === 'instrumental') pts = Math.round(pts * 1.5);
-      scores[clientId] = (scores[clientId] || 0) + pts;
+      delta = pts;
       updates['solved'] = true;
       updates['solvedBy/' + clientId] = true;
       pushFeed(`✅ ${myName} : "${raw}" (+${pts})`, true, updates);
     } else {
       const penalty = used <= 1 ? 10 : 20;
-      scores[clientId] = (scores[clientId] || 0) - penalty;
+      delta = -penalty;
       updates['attempts/' + clientId] = used;
       pushFeed(`❌ ${myName} : "${raw}" (−${penalty})`, false, updates);
     }
-    updates['scores'] = scores;
+    await addScore(clientId, delta);
     await gsRef.update(updates);
   };
 
   /* ------------------------------------------------------------------ */
   /*  Helpers                                                            */
   /* ------------------------------------------------------------------ */
+  function addScore(id, d) {
+    return gsRef.child('scores/' + id).transaction(v => Math.max(0, (v || 0) + d));
+  }
+
+  // L'hôte libère le buzzer si le joueur ne répond pas à temps (20 s)
+  if (isHost) setInterval(async () => {
+    const b = gs.buzzer;
+    if (phase !== 'playing' || !b || !b.at) return;
+    if (serverNow() - b.at < (gs.answerTimeLimit || 20) * 1000) return;
+    const r = await gsRef.child('buzzer').transaction(c => (c && c.id === b.id && c.at === b.at) ? null : undefined);
+    if (!r.committed) return;
+    const u = {};
+    u['attempts/' + b.id] = (((gs.attempts || {})[b.id]) || 0) + 1;
+    pushFeed(`⏱️ ${b.name} n'a pas répondu à temps (−10)`, false, u);
+    await addScore(b.id, -10);
+    await gsRef.update(u);
+  }, 1000);
+
   function points(elapsedMs) {
     const s = Math.max(0, elapsedMs) / 1000;
     let p;
@@ -592,7 +612,7 @@
   function nameOf(id) { return players[id] ? players[id].name : (id === 'host' ? "l'hôte" : '?'); }
 
   function pushFeed(text, ok, updates) {
-    updates['feed/' + Date.now() + Math.floor(Math.random() * 999)] = { text, ok, at: Date.now() };
+    updates['feed/' + serverNow() + Math.floor(Math.random() * 999)] = { text, ok, at: serverNow() };
   }
 
   function escapeHTML(s) {

@@ -563,6 +563,11 @@
           return;
         }
 
+        if (mode === 'playlist' && playerCount < 3) {
+          errorDiv.textContent = 'Le mode Playlist demande au moins 3 joueurs.';
+          return;
+        }
+
         let totalSongs, hostSongsCount, playlistSongsPerPlayer = 5;
         if (mode === 'playlist') {
           playlistSongsPerPlayer = parseInt(document.getElementById('playlistSongsPerPlayer').value, 10) || 5;
@@ -606,7 +611,9 @@
           return;
         }
 
-        const roomCode = generateRoomCode();
+        let roomCode;
+        do { roomCode = generateRoomCode(); }
+        while ((await db.ref('rooms/' + roomCode + '/createdAt').once('value')).exists());
         AppState.roomCode = roomCode;
         AppState.isHost = true;
         AppState.clientId = 'host';

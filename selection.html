@@ -267,47 +267,57 @@
       }
     });
 
-    function jsonp(url) {
+    function jsonp(url, param, ms) {
       return new Promise((res, rej) => {
         const cb = 'jp' + Math.random().toString(36).slice(2);
         const sc = document.createElement('script');
+        let to;
         const clean = () => { clearTimeout(to); delete window[cb]; sc.remove(); };
-        const to = setTimeout(() => { clean(); rej(new Error('timeout')); }, 7000);
+        to = setTimeout(() => { clean(); rej(new Error('timeout')); }, ms || 8000);
         window[cb] = d => { clean(); res(d); };
         sc.onerror = () => { clean(); rej(new Error('jsonp')); };
-        sc.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb;
+        sc.src = url + (url.includes('?') ? '&' : '?') + (param || 'callback') + '=' + cb;
         document.head.appendChild(sc);
       });
     }
 
+    // Trois sources lancées EN MÊME TEMPS : la première qui renvoie des morceaux gagne.
+    // (plus de recherche qui échoue parce qu'une seule source est lente ou bloquée)
+    function searchOnce(term) {
+      const q = encodeURIComponent(term);
+      const itunesUrl = `https://itunes.apple.com/search?term=${q}&media=music&entity=song&limit=15&country=FR`;
+      const fromItunes = d => ((d && d.results) || []).map(s => ({
+        trackName: s.trackName, artistName: s.artistName,
+        artworkUrl100: (s.artworkUrl100 || '').replace('100x100', '300x300'),
+        previewUrl: s.previewUrl
+      })).filter(s => s.trackName && s.previewUrl);
+      const fromDeezer = d => ((d && d.data) || []).map(s => ({
+        trackName: s.title, artistName: s.artist && s.artist.name,
+        artworkUrl100: s.album && (s.album.cover_big || s.album.cover_medium),
+        previewUrl: s.preview
+      })).filter(s => s.trackName && s.previewUrl);
+
+      const sources = [
+        () => jsonp(itunesUrl, 'callback').then(fromItunes),
+        () => jsonp(`https://api.deezer.com/search?q=${q}&output=jsonp`, 'callback').then(fromDeezer),
+        () => fetch('https://corsproxy.io/?url=' + encodeURIComponent(itunesUrl))
+                .then(r => { if (!r.ok) throw new Error('http'); return r.json(); }).then(fromItunes)
+      ];
+      return new Promise(resolve => {
+        let pending = sources.length, done = false;
+        const fin = list => {
+          if (done) return;
+          if (list && list.length) { done = true; resolve({ ok: true, list }); return; }
+          if (--pending === 0) { done = true; resolve({ ok: false, list: [] }); }
+        };
+        sources.forEach(f => { try { f().then(fin, () => fin(null)); } catch (e) { fin(null); } });
+      });
+    }
+
     async function searchMusic(term) {
-      const proxiedUrl = `https://corsproxy.io/?url=${encodeURIComponent(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=15`)}`;
-      try {
-        let data;
-        try { data = await jsonp(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=15`); }
-        catch (e0) { data = await (await fetch(proxiedUrl)).json(); }
-        return data.results.map(s => ({
-          trackName: s.trackName,
-          artistName: s.artistName,
-          artworkUrl100: (s.artworkUrl100 || '').replace('100x100', '300x300'),
-          previewUrl: s.previewUrl
-        })).filter(s => s.previewUrl);
-      } catch(e) {
-        try {
-          const resDz = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(`https://api.deezer.com/search?q=${encodeURIComponent(term)}&output=jsonp`)}`);
-          const text = await resDz.text();
-          const cleanText = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
-          const dataDz = JSON.parse(cleanText);
-          return dataDz.data.map(s => ({
-            trackName: s.title,
-            artistName: s.artist?.name,
-            artworkUrl100: s.album?.cover_medium,
-            previewUrl: s.preview
-          })).filter(s => s.previewUrl);
-        } catch(err) {
-          return [];
-        }
-      }
+      let r = await searchOnce(term);
+      if (!r.ok) r = await searchOnce(term);   // 2e essai automatique
+      return r.list;
     }
 
     let searchGen = 0;   // évite qu'une recherche lente n'écrase les résultats d'une recherche plus récente
@@ -328,7 +338,7 @@
 
     function displayResults(results) { 
       resultsDiv.innerHTML = ''; 
-      if (results.length === 0) { resultsDiv.innerHTML = '<div class="text-center">Aucun morceau trouvé.</div>'; return; }
+      if (results.length === 0) { resultsDiv.innerHTML = '<div class="text-center">Aucun morceau trouvé. Vérifie ta connexion ou essaie un autre mot.</div>'; return; }
       results.forEach(song => {
         const card = document.createElement('div');
         card.className = 'song-card';

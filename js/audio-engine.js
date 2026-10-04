@@ -1,14 +1,26 @@
 // js/audio-engine.js
 // Moteur audio partagé : IDENTIQUE dans selection.html (aperçu) et game.html (jeu).
-// Une seule fonction publique pour jouer : playAudioClip(song, onEnd)
+// API publique : playAudioClip(song, onEnd), stopAudio(), preloadSong(song), unlockAudio(),
+//                loadBuffer(url), renderClipPreview(song), getPeaks(buffer, n), getPlayState(), analyzeLoudness()
+//
+// Principe : on essaie d'abord WebAudio (tous les effets). Si le fichier ne peut pas être lu
+// à cause du CORS, on bascule sur un lecteur <audio> natif SANS crossOrigin (toujours du son,
+// mais sans effets de traitement) — c'était la cause du "aucun son" : crossOrigin="anonymous"
+// faisait échouer le lecteur de secours dès que le serveur n'envoyait pas d'en-tête CORS.
 
 (function () {
   let audioCtx = null;
-  let bufferCache = new Map();   // url -> AudioBuffer
-  let activeSource = null;       // AudioBufferSourceNode
-  let activeElement = null;      // HTMLAudioElement (repli)
+  const bufferCache = new Map();   // url -> AudioBuffer
+  const pendingLoads = new Map();  // url -> Promise<AudioBuffer> (évite les doubles téléchargements)
+  let activeSource = null;         // AudioBufferSourceNode
+  let activeElement = null;        // HTMLAudioElement (repli)
+  let analyser = null;
   let stopTimer = null;
-  let playToken = 0;             // annule les lectures obsolètes
+  let playToken = 0;               // annule les lectures obsolètes
+  let sharedEl = null;             // élément <audio> débloqué au 1er geste (indispensable sur iOS)
+  const play = { playing: false, mode: null, startedAt: 0, total: 0, elementStart: 0 };
+
+  const SILENT_WAV = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAAA';
 
   function getCtx() {
     if (!audioCtx) {
@@ -21,21 +33,22 @@
   // ---- Déblocage iOS / mobile : au TOUT PREMIER geste utilisateur de la page ----
   let unlocked = false;
   function unlockAudio() {
-    if (unlocked) return;
-    unlocked = true;
     try {
       const ctx = getCtx();
       if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      if (unlocked) return;
+      unlocked = true;
       const src = ctx.createBufferSource();
       src.buffer = ctx.createBuffer(1, 1, 22050);
       src.connect(ctx.destination);
       src.start(0);
-      // Débloque aussi l'élément <audio> (repli)
-      const a = new Audio();
-      a.muted = true;
-      const p = a.play();
+      // Un SEUL élément <audio>, débloqué ici puis réutilisé : sur iOS, un "new Audio()"
+      // créé plus tard (hors geste utilisateur) serait refusé.
+      sharedEl = new Audio();
+      sharedEl.src = SILENT_WAV;
+      const p = sharedEl.play();
       if (p && p.catch) p.catch(() => {});
-      setTimeout(() => { try { a.pause(); } catch (e) {} }, 0);
+      setTimeout(() => { try { sharedEl.pause(); } catch (e) {} }, 60);
     } catch (e) { /* ignore */ }
   }
   ['touchstart', 'touchend', 'mousedown', 'click', 'keydown'].forEach(ev => {
@@ -50,38 +63,56 @@
     return ctx;
   }
 
-  // ---- Chargement du son (avec replis CORS) ----
-  function proxies(url) {
-    return [
-      url,
-      'https://corsproxy.io/?url=' + encodeURIComponent(url),
-      'https://api.allorigins.win/raw?url=' + encodeURIComponent(url)
+  // ---- Chargement du son : toutes les voies en parallèle, la première qui répond gagne ----
+  function fetchBytes(url) {
+    const enc = encodeURIComponent(url);
+    const candidates = [
+      [url, 9000],
+      ['https://corsproxy.io/?url=' + enc, 12000],
+      ['https://api.allorigins.win/raw?url=' + enc, 12000],
+      ['https://api.codetabs.com/v1/proxy?quest=' + enc, 12000]
     ];
+    return new Promise((resolve, reject) => {
+      let left = candidates.length, done = false;
+      const fail = () => { if (--left === 0 && !done) reject(new Error('Chargement audio impossible')); };
+      candidates.forEach(([u, ms]) => {
+        const ac = new AbortController();
+        const to = setTimeout(() => ac.abort(), ms);
+        fetch(u, { signal: ac.signal })
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+          .then(b => {
+            clearTimeout(to);
+            if (b.byteLength < 2000) throw new Error('fichier trop court');
+            if (!done) { done = true; resolve(b); }
+          })
+          .catch(() => { clearTimeout(to); fail(); });
+      });
+    });
   }
 
-  async function loadBuffer(url) {
-    if (bufferCache.has(url)) return bufferCache.get(url);
-    const ctx = await resumeCtx();
-    let lastErr = null;
-    for (const candidate of proxies(url)) {
-      try {
-        const ac = new AbortController();
-        const to = setTimeout(() => ac.abort(), 8000);
-        let res;
-        try { res = await fetch(candidate, { signal: ac.signal }); } finally { clearTimeout(to); }
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const raw = await res.arrayBuffer();
-        const buffer = await new Promise((resolve, reject) => {
-          // forme "callback" : seule supportée par Safari iOS
-          const ret = ctx.decodeAudioData(raw, resolve, reject);
-          if (ret && ret.catch) ret.catch(() => {});   // évite une rejection non gérée
-        });
-        if (bufferCache.size > 12) bufferCache.clear();
-        bufferCache.set(url, buffer);
-        return buffer;
-      } catch (e) { lastErr = e; }
-    }
-    throw lastErr || new Error('Chargement audio impossible');
+  function decode(ctx, raw) {
+    // forme "callback" : seule supportée par les anciens Safari iOS
+    return new Promise((resolve, reject) => {
+      const ret = ctx.decodeAudioData(raw, resolve, reject);
+      if (ret && ret.catch) ret.catch(() => {});   // évite une rejection non gérée
+    });
+  }
+
+  function loadBuffer(url) {
+    if (bufferCache.has(url)) return Promise.resolve(bufferCache.get(url));
+    if (pendingLoads.has(url)) return pendingLoads.get(url);
+    const p = (async () => {
+      const ctx = await resumeCtx();
+      const raw = await fetchBytes(url);
+      const buffer = await decode(ctx, raw);
+      if (bufferCache.size > 14) bufferCache.delete(bufferCache.keys().next().value);
+      bufferCache.set(url, buffer);
+      return buffer;
+    })();
+    pendingLoads.set(url, p);
+    const clear = () => pendingLoads.delete(url);
+    p.then(clear, clear);
+    return p;
   }
 
   // Précharge sans jouer (appelé par game.html entre les manches)
@@ -124,7 +155,7 @@
     return out;
   }
 
-  // ---- Chaîne d'effets temps réel ----
+  // ---- Chaîne d'effets (identique en jeu, en aperçu et dans le rendu du dictaphone) ----
   function vocalNotch(ctx, node, intensity) {
     // Bornée : même à fond, on atténue la voix sans réduire le reste au silence.
     const gain = -8 - ((intensity == null ? 40 : intensity) / 100) * 14; // -8 à -22 dB
@@ -151,8 +182,6 @@
     }
 
     // Filtres bornés pour rester clairement audibles même au maximum
-    // (un vrai passe-haut/passe-bas trop agressif "coupe" la musique et donne
-    // l'impression qu'il n'y a plus de son).
     const fv = s.filterValue || 0;
     if (fv > 15) {
       const hp = ctx.createBiquadFilter();
@@ -179,9 +208,7 @@
     g.gain.value = Math.min(boost, 2.2);
     node.connect(g);
 
-    // Compresseur + gain de rattrapage : lisse les écarts de volume entre
-    // extraits (source d'origine plus faible, effets qui assourdissent…) pour
-    // que le son reste toujours audible sans jamais saturer.
+    // Compresseur + gain de rattrapage : lisse les écarts de volume entre extraits
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -22;
     comp.knee.value = 24;
@@ -194,8 +221,7 @@
     makeup.gain.value = 1.7;
     comp.connect(makeup);
 
-    // Limiteur final : garantit qu'aucune combinaison d'effets ne peut saturer
-    // (le mode radio et les volumes élevés peuvent dépasser 0 dBFS avant ce stade).
+    // Limiteur final : aucune combinaison d'effets ne peut saturer
     const limiter = ctx.createDynamicsCompressor();
     limiter.threshold.value = -3;
     limiter.knee.value = 0;
@@ -207,47 +233,76 @@
     return limiter;
   }
 
+  // Prépare le buffer transformé + la fenêtre de lecture (partagé par lecture et rendu)
+  function prepareClip(ctx, buffer, song) {
+    const clipStart = song.clipStart || 0;
+    const clipDuration = song.clipDuration || 10;
+    const variant = song.instrumentalVariant || 1;
+    let buf = buffer;
+    if (song.instrumental && variant !== 4 && (variant === 1 || variant === 3)) buf = phaseCancel(ctx, buf);
+    if (song.reverse) buf = reverseBuffer(ctx, buf);
+    const maxStart = Math.max(0, buf.duration - 0.5);
+    const offset = song.reverse
+      ? Math.max(0, Math.min(maxStart, buf.duration - clipStart - clipDuration))
+      : Math.min(clipStart, maxStart);
+    const realDur = Math.max(0.2, Math.min(clipDuration, buf.duration - offset));
+    return { buf, offset, realDur, rate: song.speed || 1 };
+  }
+
   // ---- API publique ----
   function stopAudio() {
     playToken++;
     if (stopTimer) { clearTimeout(stopTimer); stopTimer = null; }
     if (activeSource) { try { activeSource.stop(); } catch (e) {} activeSource = null; }
     if (activeElement) { try { activeElement.pause(); } catch (e) {} activeElement = null; }
+    play.playing = false;
   }
 
-  // Repli : élément <audio> natif (aucun effet, mais toujours du son)
+  // Repli : lecteur <audio> natif (sans effets de traitement, mais toujours du son).
+  // IMPORTANT : pas de crossOrigin ici, sinon le lecteur refuse tout fichier sans en-tête CORS.
   function playWithElement(song, token, onEnd) {
     return new Promise((resolve) => {
       const start = song.clipStart || 0;
       const dur = song.clipDuration || 10;
-      const audio = new Audio();
-      audio.crossOrigin = 'anonymous';
+      const speed = Math.min(2, Math.max(0.5, song.speed || 1));
+      const rate = Math.min(2, Math.max(0.5, speed * Math.pow(2, (song.pitch || 0) / 12)));
+      const audio = sharedEl || new Audio();
+      try { audio.pause(); } catch (e) {}
+      audio.onended = audio.onerror = audio.onloadedmetadata = null;
+      audio.muted = false;
       audio.preload = 'auto';
       audio.src = song.previewUrl;
-      audio.volume = Math.min(1, (song.customVolume || 100) / 100);
-      if (song.speed) audio.playbackRate = Math.min(2, Math.max(0.5, song.speed));
+      audio.volume = Math.min(1, Math.max(0, (song.customVolume != null ? song.customVolume : 100) / 100));
+      ['preservesPitch', 'mozPreservesPitch', 'webkitPreservesPitch'].forEach(k => {
+        if (k in audio) audio[k] = !song.pitch;   // pitch demandé : on laisse la hauteur suivre la vitesse
+      });
       activeElement = audio;
+      let started = false;
 
       const begin = () => {
-        if (token !== playToken) return;
+        if (started || token !== playToken) return;
+        started = true;
         try { audio.currentTime = Math.min(start, Math.max(0, (audio.duration || 30) - 0.5)); } catch (e) {}
-        audio.play().then(() => {
+        audio.playbackRate = rate;
+        const p = audio.play();
+        const ok = () => {
+          play.playing = true; play.mode = 'element'; play.startedAt = performance.now(); play.total = dur / rate;
           stopTimer = setTimeout(() => {
             if (token !== playToken) return;
             try { audio.pause(); } catch (e) {}
-            activeElement = null;
+            activeElement = null; play.playing = false;
             if (onEnd) onEnd();
-          }, dur * 1000);
+          }, (dur / rate) * 1000 + 100);
           resolve(true);
-        }).catch(() => resolve(false));
+        };
+        if (p && p.then) p.then(ok).catch(() => resolve(false)); else ok();
       };
 
+      audio.addEventListener('loadedmetadata', begin, { once: true });
+      audio.addEventListener('error', () => resolve(false), { once: true });
       if (audio.readyState >= 1) begin();
-      else {
-        audio.addEventListener('loadedmetadata', begin, { once: true });
-        audio.addEventListener('error', () => resolve(false), { once: true });
-        setTimeout(() => { if (audio.paused && token === playToken) begin(); }, 2500);
-      }
+      setTimeout(() => { if (!started && token === playToken) begin(); }, 3000);
+      try { audio.load(); } catch (e) {}
     });
   }
 
@@ -264,48 +319,100 @@
     if (!song || !song.previewUrl) return false;
     unlockAudio();
     const token = ++playToken;
-
-    const clipStart = song.clipStart || 0;
-    const clipDuration = song.clipDuration || 10;
     const volume = (song.customVolume != null ? song.customVolume : 100) / 100;
 
     try {
       const ctx = await resumeCtx();
-      let buffer = await loadBuffer(song.previewUrl);
+      const buffer = await loadBuffer(song.previewUrl);
       if (token !== playToken) return false;
 
-      const variant = song.instrumentalVariant || 1;
-      if (song.instrumental && variant !== 4 && (variant === 1 || variant === 3)) {
-        buffer = phaseCancel(ctx, buffer);
-      }
-      if (song.reverse) buffer = reverseBuffer(ctx, buffer);
-
+      const { buf, offset, realDur, rate } = prepareClip(ctx, buffer, song);
       const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      buildChain(ctx, source, song, volume).connect(ctx.destination);
-
-      const maxStart = Math.max(0, buffer.duration - 0.5);
-      const offset = song.reverse
-        ? Math.max(0, Math.min(maxStart, buffer.duration - clipStart - clipDuration))
-        : Math.min(clipStart, maxStart);
-      const realDur = Math.min(clipDuration, buffer.duration - offset);
+      source.buffer = buf;
+      const out = buildChain(ctx, source, song, volume);
+      if (!analyser) { analyser = ctx.createAnalyser(); analyser.fftSize = 1024; analyser.connect(ctx.destination); }
+      out.connect(analyser);
 
       source.start(0, offset, realDur);
       activeSource = source;
+      play.playing = true; play.mode = 'webaudio'; play.startedAt = ctx.currentTime; play.total = realDur / rate;
 
       stopTimer = setTimeout(() => {
         if (token !== playToken) return;
         try { source.stop(); } catch (e) {}
-        activeSource = null;
+        activeSource = null; play.playing = false;
         if (onEnd) onEnd();
-      }, (realDur / (song.speed || 1)) * 1000 + 120);
+      }, (realDur / rate) * 1000 + 120);
 
       return true;
     } catch (e) {
-      console.warn('WebAudio indisponible, repli sur le lecteur natif :', e);
+      console.warn('WebAudio indisponible (CORS ?), repli sur le lecteur natif :', e && e.message);
       if (token !== playToken) return false;
       return await playWithElement(song, token, onEnd);
     }
+  }
+
+  // État de lecture pour le dictaphone : position, durée, niveau instantané
+  function getPlayState() {
+    if (!play.playing) return { playing: false, elapsed: 0, total: play.total, level: 0, mode: play.mode };
+    let elapsed;
+    if (play.mode === 'webaudio' && audioCtx) elapsed = audioCtx.currentTime - play.startedAt;
+    else elapsed = (performance.now() - play.startedAt) / 1000;
+    let level = 0;
+    if (play.mode === 'webaudio' && analyser) {
+      const data = new Uint8Array(analyser.fftSize);
+      analyser.getByteTimeDomainData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sum += v * v; }
+      level = Math.min(1, Math.sqrt(sum / data.length) * 2.6);
+    }
+    return { playing: true, elapsed: Math.max(0, Math.min(elapsed, play.total)), total: play.total, level, mode: play.mode };
+  }
+
+  // Pics d'une forme d'onde (n barres), valeurs 0..1
+  function getPeaks(buffer, n) {
+    const peaks = new Float32Array(n);
+    const chs = [];
+    for (let c = 0; c < buffer.numberOfChannels; c++) chs.push(buffer.getChannelData(c));
+    const per = Math.max(1, Math.floor(buffer.length / n));
+    const step = Math.max(1, Math.floor(per / 48));
+    let max = 0;
+    for (let i = 0; i < n; i++) {
+      let m = 0;
+      const from = i * per, to = Math.min(buffer.length, from + per);
+      for (let j = from; j < to; j += step) for (let c = 0; c < chs.length; c++) { const v = Math.abs(chs[c][j]); if (v > m) m = v; }
+      peaks[i] = m; if (m > max) max = m;
+    }
+    return { peaks, max };
+  }
+
+  /**
+   * Rend l'extrait avec la MÊME chaîne d'effets que la lecture (volume, vitesse, pitch,
+   * filtres, radio, sans voix, inversé) pour que le dictaphone montre ce qu'on entendra.
+   * @returns {Promise<{peaks:Float32Array, duration:number}>}
+   */
+  async function renderClipPreview(song, bins) {
+    const n = bins || 160;
+    const buffer = await loadBuffer(song.previewUrl);
+    const ctx = await resumeCtx();
+    const { buf, offset, realDur, rate } = prepareClip(ctx, buffer, song);
+    const outDur = realDur / rate;
+    const sr = buf.sampleRate;
+    const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const off = new OAC(2, Math.max(256, Math.ceil(outDur * sr) + 256), sr);
+    const source = off.createBufferSource();
+    source.buffer = buf;
+    buildChain(off, source, song, (song.customVolume != null ? song.customVolume : 100) / 100).connect(off.destination);
+    source.start(0, offset, realDur);
+    const rendered = await new Promise((resolve, reject) => {
+      const r = off.startRendering();
+      if (r && r.then) r.then(resolve, reject); else off.oncomplete = e => resolve(e.renderedBuffer);
+    });
+    // On ne garde que la partie utile (le reste est du silence de marge)
+    const useful = Math.min(rendered.length, Math.ceil(outDur * sr));
+    const sub = { numberOfChannels: rendered.numberOfChannels, length: useful, getChannelData: c => rendered.getChannelData(c) };
+    const { peaks } = getPeaks(sub, n);
+    return { peaks, duration: outDur };
   }
 
   /**
@@ -342,7 +449,10 @@
     } catch (e) {}
   }
 
-  window.AudioEngine = { playAudioClip, stopAudio, preloadSong, playBeep, unlockAudio, analyzeLoudness };
+  window.AudioEngine = {
+    playAudioClip, stopAudio, preloadSong, playBeep, unlockAudio, analyzeLoudness,
+    loadBuffer, renderClipPreview, getPeaks, getPlayState
+  };
   // Alias historiques
   window.playAudioClip = playAudioClip;
   window.stopAudio = stopAudio;

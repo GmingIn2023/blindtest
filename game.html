@@ -23,10 +23,16 @@
     content:''; position:absolute; left:50%; top:50%; width:12px; height:12px; z-index:2;
     background:#0a0c0e; border-radius:50%; transform:translate(-50%,-50%); box-shadow:0 0 0 2px #384a5c;
   }
-  .cover-wrap img {
+  .cover-label {
     position:absolute; left:50%; top:50%; width:58%; height:58%; transform:translate(-50%,-50%);
-    object-fit:cover; border-radius:50%; border:3px solid #10161d; background:#0f1a24;
+    border-radius:50%; overflow:hidden; border:3px solid #10161d; background:#0f1a24; z-index:1;
+    box-shadow: 0 0 0 2px #1d2833;
   }
+  .cover-label > img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
+  .cover-sectors { position:absolute; inset:0; display:none; }
+  .cover-sectors.on { display:block; }
+  .cover-sectors .sec { position:absolute; inset:0; overflow:hidden; will-change:clip-path; }
+  .cover-sectors .sec img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; will-change:filter; }
   .cover-wrap.spin { animation: slowspin 22s linear infinite; }
   @keyframes slowspin { to { transform: rotate(360deg); } }
 
@@ -89,7 +95,7 @@
     <button class="g-exit" id="btnExit" title="Quitter">📲</button>
   </div>
 
-  <div class="cover-wrap" id="coverWrap"><div class="vinyl-disc"></div><img id="cover" alt="cover"></div>
+  <div class="cover-wrap" id="coverWrap"><div class="vinyl-disc"></div><div class="cover-label" id="coverLabel"><img id="cover" alt="cover"><div class="cover-sectors" id="coverSectors"></div></div></div>
   <div class="timer-big" id="timer">00:00.0</div>
 
   <div class="lyrics-box hidden" id="lyricsBox"></div>
@@ -158,7 +164,7 @@
   const $ = id => document.getElementById(id);
   const el = {
     roundInfo:$('roundInfo'), scorePill:$('scorePill'), btnExit:$('btnExit'),
-    coverWrap:$('coverWrap'), cover:$('cover'), timer:$('timer'), lyricsBox:$('lyricsBox'),
+    coverWrap:$('coverWrap'), cover:$('cover'), coverSectors:$('coverSectors'), timer:$('timer'), lyricsBox:$('lyricsBox'),
     buzzBanner:$('buzzBanner'), revealCard:$('revealCard'), rvArt:$('rvArt'), rvTitle:$('rvTitle'),
     rvArtist:$('rvArtist'), rvOwner:$('rvOwner'),
     hostZone:$('hostZone'), btnPlay:$('btnPlay'), btnReveal:$('btnReveal'), btnReplay:$('btnReplay'),
@@ -242,13 +248,11 @@
     const revealed = phase === 'revealed';
     if (revealed) {
       if (blurRaf) { cancelAnimationFrame(blurRaf); blurRaf = null; }
+      showSectors(false);
       el.cover.src = song && song.artwork ? song.artwork : BLANK;
-      el.cover.style.transition = 'filter .5s ease';
-      el.cover.style.filter = 'none';
     } else if (phase === 'idle') {
+      showSectors(false);
       el.cover.src = BLANK;
-      el.cover.style.transition = 'none';
-      el.cover.style.filter = 'none';
     }
 
     // Phase changée ?
@@ -283,23 +287,68 @@
     }
   }
 
-  /* --- Flou progressif de la pochette : dégradé en continu (aucun flash,
-         aucun palier brusque), plus lent en mode Paroles --- */
+  /* --- Dévoilement de la pochette : un disque (comme un vinyle) découpé en 8 secteurs qui se
+         défloutent chacun à leur rythme, en vague. Le début est un peu plus rapide, la fin plus lente. --- */
+  const SECTORS = 8;
+  function showSectors(on) {
+    el.coverSectors.classList.toggle('on', on);
+    el.cover.style.visibility = on ? 'hidden' : 'visible';
+    if (!on) el.coverSectors.innerHTML = '';
+  }
+
+  function seededRandom(seed) {       // même "hasard" sur tous les appareils pour une même manche
+    let a = seed >>> 0;
+    return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+
+  function wedgePolygon(i) {
+    const a0 = (i / SECTORS) * 2 * Math.PI - Math.PI / 2 - 0.012;
+    const a1 = ((i + 1) / SECTORS) * 2 * Math.PI - Math.PI / 2 + 0.012;
+    const am = (a0 + a1) / 2, R = 100;
+    const p = a => `${(50 + R * Math.cos(a)).toFixed(2)}% ${(50 + R * Math.sin(a)).toFixed(2)}%`;
+    return `polygon(50% 50%, ${p(a0)}, ${p(am)}, ${p(a1)})`;
+  }
+
   function startBlur() {
-    if (!gs.blurEnabled || !song || !song.artwork) { el.cover.src = BLANK; return; }
-    const MAX_BLUR = 24;
+    if (!gs.blurEnabled || !song || !song.artwork) { showSectors(false); el.cover.src = BLANK; return; }
+    const MAX_BLUR = 26;
     const totalMs = (mode === 'lyrics' ? 16000 : 11000);
+    const rnd = seededRandom(idx * 7919 + 13);
+    const first = Math.floor(rnd() * SECTORS), dir = rnd() < 0.5 ? 1 : -1;
 
     const img = new Image();
     img.onload = () => {
       if (phase !== 'playing') return;              // la manche a déjà changé entre-temps
-      el.cover.style.transition = 'none';
-      el.cover.style.filter = `blur(${MAX_BLUR}px)`;
-      el.cover.src = song.artwork;                    // déjà en cache : aucun flash à sharp
-      const start = performance.now();
+      if (blurRaf) { cancelAnimationFrame(blurRaf); blurRaf = null; }
+      showSectors(true);
+      const params = [], layers = [];
+      for (let i = 0; i < SECTORS; i++) {
+        const order = ((i - first) * dir + SECTORS) % SECTORS;               // 0 = premier à se défloutir
+        params.push({
+          delay: (order / (SECTORS - 1)) * 0.22 + rnd() * 0.05,               // vague autour du disque
+          power: 1.3 + rnd() * 0.5                                            // chacun a son rythme
+        });
+        const sec = document.createElement('div');
+        sec.className = 'sec';
+        sec.style.clipPath = sec.style.webkitClipPath = wedgePolygon(i);
+        const im = document.createElement('img');
+        im.src = song.artwork; im.alt = '';
+        im.style.filter = `blur(${MAX_BLUR}px)`;
+        sec.appendChild(im); el.coverSectors.appendChild(sec);
+        layers.push(im);
+      }
+      // synchronisé sur l'heure de départ de la manche (un joueur qui arrive en retard voit le bon état)
+      const already = gs.roundStartTime ? Math.max(0, serverNow() - gs.roundStartTime) : 0;
+      const t0 = performance.now() - already;
       const tick = (now) => {
-        const t = Math.min(1, (now - start) / totalMs);
-        el.cover.style.filter = `blur(${(MAX_BLUR * (1 - t)).toFixed(1)}px)`;
+        if (phase !== 'playing') { blurRaf = null; return; }
+        const t = Math.min(1, (now - t0) / totalMs);
+        for (let i = 0; i < SECTORS; i++) {
+          const pr = params[i];
+          const u = Math.max(0, Math.min(1, (t - pr.delay) / (1 - pr.delay)));
+          const e = 1 - Math.pow(1 - u, pr.power);                            // rapide au début, plus lent ensuite
+          layers[i].style.filter = `blur(${(MAX_BLUR * (1 - e)).toFixed(1)}px)`;
+        }
         blurRaf = t < 1 ? requestAnimationFrame(tick) : null;
       };
       blurRaf = requestAnimationFrame(tick);
@@ -436,8 +485,9 @@
     AudioEngine.stopAudio();
     AudioEngine.playAudioClip(song);
     if (blurRaf) { cancelAnimationFrame(blurRaf); blurRaf = null; }
+    gs.roundStartTime = serverNow();
     if (mode !== 'lyrics') startBlur();
-    await gsRef.update({ roundStartTime: serverNow() });
+    await gsRef.update({ roundStartTime: gs.roundStartTime });
   };
 
   el.btnNext.onclick = async () => {

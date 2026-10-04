@@ -27,39 +27,46 @@
       display: flex;
       align-items: flex-end;
       justify-content: center;
-      gap: 0.8rem;
+      gap: 0.6rem;
       margin: 2rem 0 1.5rem;
-      height: 190px;
+      height: 250px;
+      border-bottom: 3px solid #2d353e;
     }
     .podium-block {
       display: flex;
       flex-direction: column;
       align-items: center;
-      width: 30%;
-      animation: riseUp 0.7s ease-out backwards;
+      width: 31%;
     }
-    .podium-block .avatar { font-size: 2rem; }
+    .podium-block .avatar, .podium-block .pname, .podium-block .pscore { animation: dropIn 0.55s cubic-bezier(.2,.9,.3,1.2) backwards; }
+    .podium-block .avatar { font-size: 2.2rem; }
     .podium-block .pname { font-weight: 700; font-size: 0.95rem; margin-top: 0.2rem; text-align: center; word-break: break-word; }
-    .podium-block .pscore { color: #d4ffb0; font-size: 0.85rem; margin-bottom: 0.4rem; }
+    .podium-block .pscore { color: #d4ffb0; font-size: 0.85rem; margin-bottom: 0.4rem; font-variant-numeric: tabular-nums; }
     .podium-bar {
       width: 100%;
-      border-radius: 12px 12px 0 0;
+      height: var(--h);
+      border-radius: 14px 14px 0 0;
       display: flex;
       align-items: flex-start;
       justify-content: center;
-      padding-top: 0.5rem;
-      font-size: 1.6rem;
+      padding-top: 0.6rem;
+      font-size: 1.8rem;
+      box-shadow: inset 0 3px 0 rgba(255,255,255,.35), 0 -6px 18px rgba(0,0,0,.25);
+      overflow: hidden;
+      animation: growBar 1.1s cubic-bezier(.22,1,.36,1) backwards;
     }
-    .rank-1 { order: 2; } .rank-1 .podium-bar { height: 130px; background: linear-gradient(180deg,#ffd75e,#c99a1e); }
-    .rank-2 { order: 1; } .rank-2 .podium-bar { height: 95px;  background: linear-gradient(180deg,#d8dee6,#9aa4b2); }
-    .rank-3 { order: 3; } .rank-3 .podium-bar { height: 65px;  background: linear-gradient(180deg,#e0a76f,#a9713c); }
-    @keyframes riseUp {
-      0% { opacity: 0; transform: translateY(40px); }
-      100% { opacity: 1; transform: translateY(0); }
+    .rank-1 { order: 2; --h: 170px; --d: 1.6s; } .rank-1 .podium-bar { background: linear-gradient(180deg,#ffd75e,#c99a1e); }
+    .rank-2 { order: 1; --h: 125px; --d: 0.9s; } .rank-2 .podium-bar { background: linear-gradient(180deg,#d8dee6,#9aa4b2); }
+    .rank-3 { order: 3; --h: 90px;  --d: 0.2s; } .rank-3 .podium-bar { background: linear-gradient(180deg,#e0a76f,#a9713c); }
+    .podium-block .podium-bar { animation-delay: var(--d); }
+    .podium-block .avatar, .podium-block .pname, .podium-block .pscore { animation-delay: calc(var(--d) + 0.75s); }
+    .rank-1 .avatar { animation: dropIn 0.55s cubic-bezier(.2,.9,.3,1.2) backwards calc(var(--d) + 0.75s), crownBounce 1.4s ease-in-out calc(var(--d) + 1.5s) infinite; }
+    @keyframes growBar { from { height: 0; } to { height: var(--h); } }
+    @keyframes dropIn { from { opacity: 0; transform: translateY(-26px) scale(.7); } to { opacity: 1; transform: none; } }
+    @keyframes crownBounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+    @media (prefers-reduced-motion: reduce) {
+      .podium-bar, .podium-block .avatar, .podium-block .pname, .podium-block .pscore { animation: none !important; }
     }
-    .rank-2 { animation-delay: 0.05s; }
-    .rank-1 { animation-delay: 0.2s; }
-    .rank-3 { animation-delay: 0.35s; }
 
     .rest-list {
       background: #1a1f25;
@@ -113,6 +120,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
   <script src="js/firebase-init.js"></script>
+  <script src="js/utils.js"></script>
   <script src="js/state.js"></script>
   <script>
     (function() {
@@ -175,10 +183,26 @@
           block.innerHTML = `
             <div class="avatar">${escapeHTML(p.avatar)}</div>
             <div class="pname">${escapeHTML(p.name)}</div>
-            <div class="pscore">${p.score} pts</div>
+            <div class="pscore"><span class="count" data-to="${p.score}">0</span> pts</div>
             <div class="podium-bar">${idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}</div>
           `;
           stage.appendChild(block);
+        });
+
+        // Les points montent en même temps que les tours
+        stage.querySelectorAll('.podium-block').forEach(block => {
+          const span = block.querySelector('.count');
+          const to = parseInt(span.dataset.to, 10) || 0;
+          const delay = (block.classList.contains('rank-1') ? 1.6 : block.classList.contains('rank-2') ? 0.9 : 0.2) * 1000 + 700;
+          setTimeout(() => {
+            const t0 = performance.now(), dur = 900;
+            const step = now => {
+              const k = Math.min(1, (now - t0) / dur);
+              span.textContent = Math.round(to * (1 - Math.pow(1 - k, 3)));
+              if (k < 1) requestAnimationFrame(step);
+            };
+            requestAnimationFrame(step);
+          }, delay);
         });
 
         // Le reste du classement

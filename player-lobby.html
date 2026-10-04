@@ -65,6 +65,13 @@
   <div id="app">
     <h1>📱 Rejoindre une partie</h1>
     <div class="player-lobby">
+      <!-- Reprise après fermeture de l'onglet -->
+      <div id="resumeBox" class="hidden" style="background:#12321f; border:2px solid #4fd97f; border-radius:1.4rem; padding:1rem; margin-bottom:1.2rem; text-align:center;">
+        <div id="resumeText" style="font-weight:700; margin-bottom:0.4rem;"></div>
+        <button id="resumeBtn" class="primary" style="margin:0.3rem 0;">↩️ Reprendre ma partie</button>
+        <button id="resumeForget" style="margin:0.3rem 0; background:transparent; border:none; color:#8aaec0;">Non, rejoindre une autre partie</button>
+      </div>
+
       <!-- Section de connexion (visible tant que non connecté) -->
       <div id="joinSection" class="join-section">
         <div style="margin-bottom:1rem;">
@@ -153,6 +160,46 @@
         currentListeners = [];
       }
 
+      // Affiche le salon d'attente et écoute les joueurs / le statut de la partie
+      function enterLobby(roomCode, clientId) {
+        roomRef = db.ref('rooms/' + roomCode);
+                    joinSection.classList.add('hidden');
+          connectedSection.classList.remove('hidden');
+          connectedRoomCode.textContent = roomCode;
+
+          // Écouter les changements de joueurs
+          playersRef = roomRef.child('players');
+          const playersListener = playersRef.on('value', (snap) => {
+            const players = snap.val() || {};
+            // Filtrer soi-même
+            const others = Object.entries(players)
+              .filter(([id]) => id !== clientId)
+              .map(([id, data]) => ({ id, ...data }));
+            if (others.length === 0) {
+              otherPlayersList.innerHTML = '<div style="color:#8aaec0;">En attente d\'autres joueurs...</div>';
+            } else {
+              otherPlayersList.innerHTML = others.map(p =>
+                `<span class="player-tag">${escapeHTML(p.avatar)} ${escapeHTML(p.name)}</span>`
+              ).join('');
+            }
+          });
+          currentListeners.push({ref: playersRef, event: 'value'});
+
+          // Écouter le statut de la room
+          statusRef = roomRef.child('status');
+          const statusListener = statusRef.on('value', (snap) => {
+            const status = snap.val();
+            if (status === 'selection') {
+              // Rediriger vers la page de sélection
+              window.location.href = 'selection.html';
+            } else if (status === 'game') {
+              window.location.href = 'game.html';
+            }
+          });
+          currentListeners.push({ref: statusRef, event: 'value'});
+
+      }
+
       joinBtn.addEventListener('click', async () => {
         const roomCode = roomCodeInput.value.trim().toUpperCase();
         const playerName = playerNameInput.value.trim();
@@ -204,39 +251,8 @@
             joinedAt: Date.now()
           });
 
-          // Mettre à jour l'interface
-          joinSection.classList.add('hidden');
-          connectedSection.classList.remove('hidden');
-          connectedRoomCode.textContent = roomCode;
-
-          // Écouter les changements de joueurs
-          playersRef = roomRef.child('players');
-          const playersListener = playersRef.on('value', (snap) => {
-            const players = snap.val() || {};
-            // Filtrer soi-même
-            const others = Object.entries(players)
-              .filter(([id]) => id !== clientId)
-              .map(([id, data]) => ({ id, ...data }));
-            if (others.length === 0) {
-              otherPlayersList.innerHTML = '<div style="color:#8aaec0;">En attente d\'autres joueurs...</div>';
-            } else {
-              otherPlayersList.innerHTML = others.map(p =>
-                `<span class="player-tag">${escapeHTML(p.avatar)} ${escapeHTML(p.name)}</span>`
-              ).join('');
-            }
-          });
-          currentListeners.push({ref: playersRef, event: 'value'});
-
-          // Écouter le statut de la room
-          statusRef = roomRef.child('status');
-          const statusListener = statusRef.on('value', (snap) => {
-            const status = snap.val();
-            if (status === 'selection') {
-              // Rediriger vers la page de sélection
-              window.location.href = 'selection.html';
-            }
-          });
-          currentListeners.push({ref: statusRef, event: 'value'});
+          enterLobby(roomCode, clientId);
+          try { localStorage.setItem('blindtest_resume', JSON.stringify({ roomCode, clientId, name: playerName, avatar: selectedAvatar, at: Date.now() })); } catch (e) {}
 
         } catch (error) {
           console.error('Erreur connexion:', error);
@@ -246,6 +262,29 @@
           cleanupListeners();
         }
       });
+
+
+      // ---- Reprise d'une partie après fermeture de l'onglet ----
+      (async () => {
+        let info = null;
+        try { info = JSON.parse(localStorage.getItem('blindtest_resume') || 'null'); } catch (e) {}
+        if (!info || !info.roomCode || !info.clientId || Date.now() - info.at > 12 * 3600 * 1000) return;
+        try {
+          const room = (await db.ref('rooms/' + info.roomCode).once('value')).val();
+          if (!room || !room.players || !room.players[info.clientId]) { localStorage.removeItem('blindtest_resume'); return; }
+          document.getElementById('resumeText').textContent = 'Partie ' + info.roomCode + ' en cours · ' + (info.avatar || '') + ' ' + info.name;
+          document.getElementById('resumeBox').classList.remove('hidden');
+          document.getElementById('resumeForget').onclick = () => { localStorage.removeItem('blindtest_resume'); document.getElementById('resumeBox').classList.add('hidden'); };
+          document.getElementById('resumeBtn').onclick = () => {
+            AppState.roomCode = info.roomCode; AppState.clientId = info.clientId;
+            AppState.playerName = info.name; AppState.playerAvatar = info.avatar || '🐶'; AppState.isHost = false;
+            const gsn = room.gameState || {};
+            if (room.status === 'selection') window.location.href = 'selection.html';
+            else if (room.status === 'game') window.location.href = gsn.finished ? 'podium.html' : (gsn.songs && gsn.songs.length ? 'game.html' : 'waiting.html');
+            else { enterLobby(info.roomCode, info.clientId); }
+          };
+        } catch (e) { /* hors-ligne : on n'affiche rien */ }
+      })();
 
       // Fonction utilitaire pour échapper le HTML
       function escapeHTML_old(str) {

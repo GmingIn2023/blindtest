@@ -636,6 +636,7 @@
             status: 'lobby',
             createdAt: Date.now()
           });
+          try { localStorage.setItem('blindtest_host_resume', JSON.stringify({ roomCode, at: Date.now() })); } catch (e) {}
           window.location.href = 'host-lobby.html';
         } catch (error) {
           errorDiv.textContent = 'Erreur: ' + error.message;

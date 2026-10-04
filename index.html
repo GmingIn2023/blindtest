@@ -9,6 +9,10 @@
 <body>
   <div id="app">
     <h1>🎧 BLIND TEST</h1>
+    <div id="resumeHost" class="hidden" style="background:#12321f; border:2px solid #4fd97f; border-radius:1.4rem; padding:1rem; margin-bottom:1.2rem; text-align:center;">
+      <div id="resumeHostText" style="font-weight:700; margin-bottom:0.4rem;"></div>
+      <button id="resumeHostBtn" class="primary" style="margin:0.3rem 0;">↩️ Reprendre ma partie d'hôte</button>
+    </div>
     <div class="home-buttons">
       <button id="btn-host" class="primary">🎮 Créer une partie (hôte)</button>
       <button id="btn-player">📱 Rejoindre une partie (joueur)</button>
@@ -31,6 +35,26 @@
     document.getElementById('btn-player').addEventListener('click', () => {
       window.location.href = 'player-lobby.html';
     });
+
+    // Reprise d'une partie d'hôte après fermeture de l'onglet
+    (async () => {
+      let info = null;
+      try { info = JSON.parse(localStorage.getItem('blindtest_host_resume') || 'null'); } catch (e) {}
+      if (!info || !info.roomCode || Date.now() - info.at > 12 * 3600 * 1000) return;
+      try {
+        const room = (await db.ref('rooms/' + info.roomCode).once('value')).val();
+        if (!room) { localStorage.removeItem('blindtest_host_resume'); return; }
+        document.getElementById('resumeHostText').textContent = 'Ta partie ' + info.roomCode + ' est toujours ouverte';
+        document.getElementById('resumeHost').classList.remove('hidden');
+        document.getElementById('resumeHostBtn').onclick = () => {
+          AppState.roomCode = info.roomCode; AppState.isHost = true; AppState.clientId = 'host';
+          const gsn = room.gameState || {};
+          window.location.href = room.status === 'selection' ? 'selection.html?role=host'
+            : room.status === 'game' ? (gsn.finished ? 'podium.html' : (gsn.songs && gsn.songs.length ? 'game.html' : 'waiting.html'))
+            : 'host-lobby.html';
+        };
+      } catch (e) {}
+    })();
   </script>
 </body>
 </html>

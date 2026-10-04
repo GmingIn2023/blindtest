@@ -26,6 +26,15 @@ qui diffuse le son), **les joueurs** buzzent depuis leur téléphone.
 **Score** : 100 pts sous 3 s, puis dégressif jusqu'à 20 pts minimum.
 Mauvaise réponse : −10 pts (1ʳᵉ fois), −20 pts ensuite.
 
+## Nouveautés
+
+- **Dictaphone** dans l'aperçu d'un extrait : forme d'onde rendue avec tes vrais réglages
+  (volume, vitesse, pitch, filtres, radio, sans voix, inversé), durée, tête de lecture, niveau en direct.
+- **Cover ronde** (vinyle) découpée en 8 secteurs qui se défloutent en vague.
+- **Reprise de partie** : un joueur ou l'hôte qui ferme l'onglet retrouve un bouton « Reprendre ».
+- **Délai de réponse** (20 s) après un buzz, **« Lancer sans attendre »** si un joueur traîne.
+- **Son** : si le navigateur bloque les effets (CORS), repli sur un lecteur simple pour avoir toujours du son.
+
 ## Fichiers
 
 ```

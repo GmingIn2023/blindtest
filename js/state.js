@@ -19,6 +19,7 @@ function loadState(key, defaultValue = null) {
 
 function clearState() {
   sessionStorage.clear();
+  try { localStorage.removeItem('blindtest_resume'); localStorage.removeItem('blindtest_host_resume'); } catch (e) {}
 }
 
 // Objet d'état accessible globalement

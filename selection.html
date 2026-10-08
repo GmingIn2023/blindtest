@@ -90,6 +90,11 @@
     .dicta-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; }
     .dicta-time { font-variant-numeric: tabular-nums; font-size: 1.35rem; font-weight: 300; letter-spacing: 0.02em; color: #fff; }
     .dicta-time small { color: #6f8294; font-size: 0.8rem; margin-left: 0.3rem; }
+    /* Chargement : petit rond qui tourne à la place du temps */
+    .dicta-spin { display: none; width: 1.05rem; height: 1.05rem; border: 2px solid #3e5a77; border-top-color: #9fc5ff; border-radius: 50%; animation: dictaSpin 0.8s linear infinite; vertical-align: middle; margin: 0.3rem 0; }
+    .dicta.loading .dicta-spin { display: inline-block; }
+    .dicta.loading #dictaTime, .dicta.loading #dictaTotal { display: none; }
+    @keyframes dictaSpin { to { transform: rotate(360deg); } }
     .dicta-meta { font-size: 0.74rem; color: #8aaec0; text-align: right; line-height: 1.3; }
     .dicta canvas { display: block; width: 100%; }
     #dictaOverview { height: 26px; margin-top: 0.45rem; }
@@ -215,7 +220,7 @@
       <div class="modal-foot">
         <div class="dicta" id="dicta">
           <div class="dicta-head">
-            <div class="dicta-time"><span id="dictaTime">0:00.0</span><small id="dictaTotal">/ 0:10.0</small></div>
+            <div class="dicta-time"><span class="dicta-spin" id="dictaSpin"></span><span id="dictaTime">0:00.0</span><small id="dictaTotal">/ 0:10.0</small></div>
             <div class="dicta-meta" id="dictaMeta">Chargement du son…</div>
           </div>
           <canvas id="dictaOverview"></canvas>
@@ -744,6 +749,8 @@
       if (!draftSong) return;
       const settings = readSettings();
       dState.settings = settings;
+      const dictaBox = document.getElementById('dicta');
+      if (!dState.clip) dictaBox.classList.add('loading');   // 1er chargement : rond qui tourne au lieu de 0:00
       dictaLabels(); drawDicta();
       try {
         const buf = await AudioEngine.loadBuffer(settings.previewUrl);
@@ -758,6 +765,7 @@
         dState.clip = null; dState.full = null;
         dState.error = '⚠️ Forme d\'onde indisponible (réseau) — le son peut quand même se lancer.';
       }
+      dictaBox.classList.remove('loading');
       dictaLabels(); drawDicta();
     }
 
@@ -785,6 +793,7 @@
       dState.gen++; dState.full = null; dState.clip = null; dState.error = ''; dState.progress = 0; dState.settings = null;
       dEl.time.textContent = fmt(0); dEl.level.style.width = '0%';
       dEl.meta.textContent = 'Chargement du son…';
+      document.getElementById('dicta').classList.add('loading');
     }
 
     // Toute modification de réglage met à jour le dictaphone

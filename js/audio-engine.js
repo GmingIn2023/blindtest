@@ -30,13 +30,46 @@
     return audioCtx;
   }
 
-  // ---- Déblocage iOS / mobile : au TOUT PREMIER geste utilisateur de la page ----
-  let unlocked = false;
-  function unlockAudio() {
+  // ---- Déblocage iOS / mobile ----
+  // Sur iPhone, WebAudio est coupé par le bouton "silencieux" et par défaut la session audio
+  // de la page est de type "ambiante". On la passe en "lecture" (iOS 17+) et, pour les iOS plus
+  // anciens, on fait tourner en boucle un son muet dans un <audio> (astuce "unmute") qui bascule
+  // la session en mode lecture : le son sort alors même avec le bouton silencieux activé.
+  function makeSilentLoopUrl() {
+    const sr = 8000, n = sr / 2;                       // 0,5 s de silence
+    const buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+    const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    w(36, 'data'); v.setUint32(40, n * 2, true);
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  }
+  let keepAliveEl = null;
+  function setPlaybackSession() {
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
     try {
+      if (!keepAliveEl) {
+        keepAliveEl = document.createElement('audio');
+        keepAliveEl.setAttribute('playsinline', '');
+        keepAliveEl.setAttribute('x-webkit-airplay', 'deny');
+        keepAliveEl.loop = true;
+        keepAliveEl.src = makeSilentLoopUrl();
+      }
+      const p = keepAliveEl.play();
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) {}
+  }
+
+  let unlocked = false;
+  function unlockAudio(ev) {
+    try {
+      setPlaybackSession();
       const ctx = getCtx();
-      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      if (ctx.state !== 'running') ctx.resume().catch(() => {});
       if (unlocked) return;
+      // touchstart n'est PAS un geste valide pour iOS : on attend touchend/click pour valider le déblocage
+      if (ev && ev.type === 'touchstart') return;
       unlocked = true;
       const src = ctx.createBufferSource();
       src.buffer = ctx.createBuffer(1, 1, 22050);
@@ -57,8 +90,8 @@
 
   async function resumeCtx() {
     const ctx = getCtx();
-    if (ctx.state === 'suspended') {
-      try { await ctx.resume(); } catch (e) { /* ignore */ }
+    if (ctx.state !== 'running') {   // "suspended" ou "interrupted" (iOS)
+      try { await Promise.race([ctx.resume(), new Promise(r => setTimeout(r, 800))]); } catch (e) { /* ignore */ }
     }
     return ctx;
   }
@@ -230,7 +263,12 @@
     limiter.release.value = 0.06;
     makeup.connect(limiter);
 
-    return limiter;
+    // Marge de sécurité : le limiteur laisse passer de petites crêtes > 1.0, qui saturent (craquent) en sortie
+    const trim = ctx.createGain();
+    trim.gain.value = 0.8;
+    limiter.connect(trim);
+
+    return trim;
   }
 
   // Prépare le buffer transformé + la fenêtre de lecture (partagé par lecture et rendu)
@@ -325,6 +363,8 @@
       const ctx = await resumeCtx();
       const buffer = await loadBuffer(song.previewUrl);
       if (token !== playToken) return false;
+      if (ctx.state !== 'running') await resumeCtx();
+      if (ctx.state !== 'running') throw new Error('AudioContext bloqué (' + ctx.state + ')');
 
       const { buf, offset, realDur, rate } = prepareClip(ctx, buffer, song);
       const source = ctx.createBufferSource();
@@ -336,6 +376,19 @@
       source.start(0, offset, realDur);
       activeSource = source;
       play.playing = true; play.mode = 'webaudio'; play.startedAt = ctx.currentTime; play.total = realDur / rate;
+
+      // Garde-fou : si l'horloge audio n'avance pas (iOS gelé), on bascule sur le lecteur natif
+      const t0 = ctx.currentTime;
+      setTimeout(() => {
+        if (token !== playToken || play.mode !== 'webaudio') return;
+        if (ctx.currentTime - t0 < 0.05) {
+          console.warn('Horloge WebAudio figée, repli sur le lecteur natif');
+          if (stopTimer) { clearTimeout(stopTimer); stopTimer = null; }
+          try { source.stop(); } catch (e) {}
+          activeSource = null;
+          playWithElement(song, token, onEnd);
+        }
+      }, 600);
 
       stopTimer = setTimeout(() => {
         if (token !== playToken) return;

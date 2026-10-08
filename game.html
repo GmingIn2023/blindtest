@@ -31,8 +31,8 @@
   .cover-label > img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
   .cover-sectors { position:absolute; inset:0; display:none; }
   .cover-sectors.on { display:block; }
-  .cover-sectors .sec { position:absolute; inset:0; overflow:hidden; will-change:clip-path; }
-  .cover-sectors .sec img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; will-change:filter; }
+  .cover-sectors .base { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; filter:blur(22px); transform:scale(1.18); }
+  .cover-sectors canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
   .cover-wrap.spin { animation: slowspin 22s linear infinite; }
   @keyframes slowspin { to { transform: rotate(360deg); } }
 
@@ -287,9 +287,15 @@
     }
   }
 
-  /* --- Dévoilement de la pochette : un disque (comme un vinyle) découpé en 8 secteurs qui se
-         défloutent chacun à leur rythme, en vague. Le début est un peu plus rapide, la fin plus lente. --- */
-  const SECTORS = 8;
+  /* --- Dévoilement de la pochette : des taches douces et irrégulières (sans bords nets) apparaissent
+         un peu partout sur la pochette floutée et grossissent jusqu'à tout recouvrir. --- */
+  // Vitesse : "normal" = ancien rythme + 5 % plus lent ; lent / rapide = ±12,5 % autour de normal
+  const REVEAL_FACTOR = { slow: 1.125, normal: 1, fast: 0.875 };
+  function revealDuration() {
+    const base = (mode === 'lyrics' ? 16000 : 11000) * 1.05;
+    return base * (REVEAL_FACTOR[gs.revealSpeed] || 1);
+  }
+
   function showSectors(on) {
     el.coverSectors.classList.toggle('on', on);
     el.cover.style.visibility = on ? 'hidden' : 'visible';
@@ -301,54 +307,77 @@
     return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   }
 
-  function wedgePolygon(i) {
-    const a0 = (i / SECTORS) * 2 * Math.PI - Math.PI / 2 - 0.012;
-    const a1 = ((i + 1) / SECTORS) * 2 * Math.PI - Math.PI / 2 + 0.012;
-    const am = (a0 + a1) / 2, R = 100;
-    const p = a => `${(50 + R * Math.cos(a)).toFixed(2)}% ${(50 + R * Math.sin(a)).toFixed(2)}%`;
-    return `polygon(50% 50%, ${p(a0)}, ${p(am)}, ${p(a1)})`;
+  function makeSpots(rnd, size) {
+    const G = 6, cell = size / G, spots = [];
+    for (let gy = 0; gy < G; gy++) for (let gx = 0; gx < G; gx++) {
+      const x = (gx + 0.2 + rnd() * 0.6) * cell, y = (gy + 0.2 + rnd() * 0.6) * cell;
+      const r = cell * (1.05 + rnd() * 0.45);
+      const lobes = [];
+      for (let k = 0; k < 3; k++) {      // 3 lobes décalés : la tache n'est pas un rond parfait
+        const ang = rnd() * Math.PI * 2, dist = r * (0.1 + rnd() * 0.35);
+        lobes.push({ dx: Math.cos(ang) * dist, dy: Math.sin(ang) * dist, k: 0.62 + rnd() * 0.38 });
+      }
+      spots.push({ x, y, r, lobes, start: rnd() * 0.7, dur: 0.24 + rnd() * 0.06 });   // les dernières taches finissent pile à la fin
+    }
+    return spots;
   }
 
   function startBlur() {
     if (!gs.blurEnabled || !song || !song.artwork) { showSectors(false); el.cover.src = BLANK; return; }
-    const MAX_BLUR = 26;
-    const totalMs = (mode === 'lyrics' ? 16000 : 11000);
+    const totalMs = revealDuration();
     const rnd = seededRandom(idx * 7919 + 13);
-    const first = Math.floor(rnd() * SECTORS), dir = rnd() < 0.5 ? 1 : -1;
+    const SIZE = 320;
 
     const img = new Image();
     img.onload = () => {
       if (phase !== 'playing') return;              // la manche a déjà changé entre-temps
       if (blurRaf) { cancelAnimationFrame(blurRaf); blurRaf = null; }
       showSectors(true);
-      const params = [], layers = [];
-      for (let i = 0; i < SECTORS; i++) {
-        const order = ((i - first) * dir + SECTORS) % SECTORS;               // 0 = premier à se défloutir
-        params.push({
-          delay: (order / (SECTORS - 1)) * 0.22 + rnd() * 0.05,               // vague autour du disque
-          power: 1.3 + rnd() * 0.5                                            // chacun a son rythme
-        });
-        const sec = document.createElement('div');
-        sec.className = 'sec';
-        sec.style.clipPath = sec.style.webkitClipPath = wedgePolygon(i);
-        const im = document.createElement('img');
-        im.src = song.artwork; im.alt = '';
-        im.style.filter = `blur(${MAX_BLUR}px)`;
-        sec.appendChild(im); el.coverSectors.appendChild(sec);
-        layers.push(im);
-      }
+
+      const base = document.createElement('img');   // fond : pochette très floutée (fixe, donc léger)
+      base.className = 'base'; base.alt = ''; base.src = song.artwork;
+      const cv = document.createElement('canvas'); cv.width = cv.height = SIZE;
+      el.coverSectors.appendChild(base); el.coverSectors.appendChild(cv);
+      const ctx = cv.getContext('2d');
+      const mask = document.createElement('canvas'); mask.width = mask.height = SIZE;
+      const mctx = mask.getContext('2d');
+      const spots = makeSpots(rnd, SIZE);
+
+      // pochette nette, recadrée "cover" dans le carré
+      const iw = img.naturalWidth || SIZE, ih = img.naturalHeight || SIZE, sc = Math.max(SIZE / iw, SIZE / ih);
+      const dw = iw * sc, dh = ih * sc, dx = (SIZE - dw) / 2, dy = (SIZE - dh) / 2;
+
+      const draw = (t) => {
+        mctx.clearRect(0, 0, SIZE, SIZE);
+        for (const s of spots) {
+          const u = Math.max(0, Math.min(1, (t - s.start) / s.dur));
+          if (u <= 0) continue;
+          const e = u * u * (3 - 2 * u);                                       // croissance douce (smoothstep)
+          for (const l of s.lobes) {
+            const r = s.r * l.k * e, cx = s.x + l.dx, cy = s.y + l.dy;
+            if (r < 0.5) continue;
+            const g = mctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+            g.addColorStop(0, 'rgba(0,0,0,1)');
+            g.addColorStop(0.5, 'rgba(0,0,0,0.92)');
+            g.addColorStop(1, 'rgba(0,0,0,0)');                               // bord très doux : aucune ligne visible
+            mctx.fillStyle = g; mctx.beginPath(); mctx.arc(cx, cy, r, 0, Math.PI * 2); mctx.fill();
+          }
+        }
+        if (t > 0.92) { mctx.fillStyle = `rgba(0,0,0,${Math.min(1, (t - 0.92) / 0.08).toFixed(3)})`; mctx.fillRect(0, 0, SIZE, SIZE); }
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.clearRect(0, 0, SIZE, SIZE);
+        ctx.drawImage(img, dx, dy, dw, dh);
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.drawImage(mask, 0, 0);
+      };
+
       // synchronisé sur l'heure de départ de la manche (un joueur qui arrive en retard voit le bon état)
       const already = gs.roundStartTime ? Math.max(0, serverNow() - gs.roundStartTime) : 0;
       const t0 = performance.now() - already;
       const tick = (now) => {
         if (phase !== 'playing') { blurRaf = null; return; }
         const t = Math.min(1, (now - t0) / totalMs);
-        for (let i = 0; i < SECTORS; i++) {
-          const pr = params[i];
-          const u = Math.max(0, Math.min(1, (t - pr.delay) / (1 - pr.delay)));
-          const e = 1 - Math.pow(1 - u, pr.power);                            // rapide au début, plus lent ensuite
-          layers[i].style.filter = `blur(${(MAX_BLUR * (1 - e)).toFixed(1)}px)`;
-        }
+        draw(t);
         blurRaf = t < 1 ? requestAnimationFrame(tick) : null;
       };
       blurRaf = requestAnimationFrame(tick);

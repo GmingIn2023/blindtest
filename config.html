@@ -352,6 +352,14 @@
               <span class="slider"></span>
             </label>
           </div>
+          <div style="margin:0.2rem 0 0.8rem;">
+            <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem; color:#8aaec0;">⏱️ Vitesse de la révélation d'image</label>
+            <div class="radio-group">
+              <label class="radio-label"><input type="radio" name="revealSpeed" value="slow"> 🐢 Lent</label>
+              <label class="radio-label"><input type="radio" name="revealSpeed" value="normal" checked> 🚶 Normal</label>
+              <label class="radio-label"><input type="radio" name="revealSpeed" value="fast"> ⚡ Rapide</label>
+            </div>
+          </div>
           <div class="toggle-row" style="border-top: 1px solid #222c36; padding-top: 0.6rem; margin-top: 0.4rem;">
             <div class="toggle-info">
               <div id="duplicatesHint"></div>
@@ -518,6 +526,8 @@
           document.getElementById('classicModeCheck').checked = !!cfg.classicModeOnly;
           document.getElementById('maxAttempts').value = cfg.maxAttempts;
           document.getElementById('blurCheck').checked = !!cfg.blurEnabled;
+          const revealRadio = document.querySelector(`input[name="revealSpeed"][value="${cfg.revealSpeed || 'normal'}"]`);
+          if (revealRadio) revealRadio.checked = true;
           document.getElementById('lockOthersCheck').checked = !!cfg.lockOthersOnBuzz;
           document.getElementById('multipleCorrectCheck').checked = !!cfg.multipleCorrectAllowed;
           document.getElementById('allowDuplicatesCheck').checked = !!cfg.allowDuplicates;
@@ -549,6 +559,7 @@
         const classicModeOnly = document.getElementById('classicModeCheck').checked;
         const maxAttempts = parseInt(document.getElementById('maxAttempts').value, 10) || 0;
         const blurEnabled = document.getElementById('blurCheck').checked;
+        const revealSpeed = document.querySelector('input[name="revealSpeed"]:checked')?.value || 'normal';
         const lockOthersOnBuzz = document.getElementById('lockOthersCheck').checked;
         const multipleCorrectAllowed = document.getElementById('multipleCorrectCheck').checked;
         const lyricsSpeed = document.querySelector('input[name="lyricsSpeed"]:checked')?.value || 'slow';
@@ -588,6 +599,7 @@
           classicModeOnly: classicModeOnly,
           maxAttempts: maxAttempts,
           blurEnabled: blurEnabled,
+          revealSpeed: revealSpeed,
           lockOthersOnBuzz: lockOthersOnBuzz,
           multipleCorrectAllowed: multipleCorrectAllowed,
           allowDuplicates: allowDuplicates,

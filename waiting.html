@@ -2,34 +2,90 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#F3ECE0">
   <title>En attente · Blind Test</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    .waiting-room { background: #1e2a36; border-radius: 2rem; padding: 2rem; text-align: center; }
-    .progress-list { margin-top: 1.5rem; text-align: left; background: #0f1419; border-radius: 1.5rem; padding: 1.5rem; }
-    .progress-item { display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 0; border-bottom: 1px solid #2a323a; }
+    #app { max-width: 520px; }
+    .waiting-room { text-align: center; }
+    .waiting-room .vinyl { width: 132px; height: 132px; margin: 0.25rem auto 1.25rem; }
+    .waiting-room h1 { margin-bottom: 0.5rem; }
+    #waitingMessage { margin: 0 auto; }
+    .wait-count {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 1.3125rem;
+      font-variant-numeric: tabular-nums lining-nums;
+      margin: 1.5rem 0 0.75rem;
+    }
+    .wait-count:empty { display: none; }
+
+    .progress-list {
+      text-align: left;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      padding: 0.15rem 1rem;
+      margin-top: 1rem;
+    }
+    .wait-count + .progress-list { margin-top: 0; }
+    .progress-list:empty { display: none; }
+    .progress-item {
+      display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--line);
+      animation: rise-in .25s var(--ease) both;
+    }
     .progress-item:last-child { border-bottom: none; }
-    .ready-badge { background: #2f7740; color: white; padding: 0.2rem 0.8rem; border-radius: 60px; font-size: 0.9rem; }
-    .not-ready-badge { background: #77402f; color: white; padding: 0.2rem 0.8rem; border-radius: 60px; font-size: 0.9rem; }
+    .progress-item > span:first-child { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+    .ready-badge, .not-ready-badge {
+      display: inline-flex; align-items: center; gap: 0.3rem; flex: none;
+      padding: 0.2rem 0.7rem;
+      border: 1px solid transparent; border-radius: 999px;
+      font-size: 0.875rem; font-weight: 600; line-height: 1.4;
+      white-space: nowrap;
+    }
+    .ready-badge { background: var(--pine-soft); color: var(--pine); border-color: #A9CFC0; }
+    .not-ready-badge { background: var(--sunk); color: var(--ink-2); border-color: var(--line); }
+
+    .wait-actions { margin-top: 1.5rem; }
+    #forceBtn { width: auto; min-width: 240px; margin: 0 auto; }
+    .auto-hint { font-size: 0.875rem; color: var(--ink-2); margin-top: 1rem; }
   </style>
 </head>
 <body>
   <div id="app">
-    <h1>⏳ En attente des autres joueurs</h1>
     <div class="waiting-room">
-      <div id="waitingMessage" style="margin-bottom:1rem;">Certains joueurs finalisent leurs sélections...</div>
+      <svg class="vinyl is-playing" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
+        <circle class="v-disc" cx="100" cy="100" r="98"/>
+        <g class="v-grooves">
+          <circle cx="100" cy="100" r="89"/><circle cx="100" cy="100" r="81"/><circle cx="100" cy="100" r="73"/>
+          <circle cx="100" cy="100" r="65"/><circle cx="100" cy="100" r="57"/><circle cx="100" cy="100" r="49"/>
+        </g>
+        <path class="v-shine" d="M100 17a83 83 0 0 1 63 29"/>
+        <path class="v-shine" d="M100 183a83 83 0 0 1-63-29"/>
+        <g class="v-label">
+          <circle class="v-label-bg" cx="100" cy="100" r="37"/>
+          <path id="vlWait" d="M100 76a24 24 0 1 1 0 48a24 24 0 1 1 0-48" fill="none"/>
+          <text class="v-label-text"><textPath href="#vlWait">BLIND TEST · FACE A ·</textPath></text>
+          <circle class="v-hole" cx="100" cy="100" r="4"/>
+        </g>
+      </svg>
+      <h1>On attend tout le monde</h1>
+      <p id="waitingMessage" class="lede" role="status" aria-live="polite">Certains choisissent encore leurs chansons…</p>
+      <p id="waitingCount" class="wait-count"></p>
       <div id="waitingProgress" class="progress-list"></div>
-      <div style="margin-top:2rem;">
-        <button id="refreshBtn" class="primary">🔄 Actualiser</button>
-    <button id="forceBtn" class="primary hidden" style="width:75%; padding:0.64rem 1.05rem; font-size:0.75rem;">🚀 Lancer sans attendre</button>
+      <div class="wait-actions">
+        <button id="forceBtn" class="hidden">Lancer sans attendre</button>
+        <p class="auto-hint">La page se met à jour toute seule.</p>
       </div>
     </div>
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-  
+
   <script src="js/firebase-init.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/state.js"></script>
@@ -46,6 +102,7 @@
 
       const waitingProgress = document.getElementById('waitingProgress');
       const waitingMessage = document.getElementById('waitingMessage');
+      const waitingCount = document.getElementById('waitingCount');
       let alreadyMerged = false;
       let redirecting = false;
 
@@ -129,7 +186,7 @@
         } catch (e) {
           // réseau coupé pendant la fusion : on autorise une nouvelle tentative au prochain passage
           alreadyMerged = false;
-          waitingMessage.innerHTML = '⚠️ Connexion perdue, nouvelle tentative…';
+          waitingMessage.textContent = 'Connexion perdue, nouvelle tentative…';
           return false;
         }
       }
@@ -137,7 +194,7 @@
       async function waitForSongsThenRedirect() {
         if (redirecting) return;
         redirecting = true;
-        waitingMessage.innerHTML = '✅ Partie prête ! Chargement...';
+        waitingMessage.textContent = 'Tout le monde est prêt ! On lance la partie…';
         for (let i = 0; i < 15; i++) {
           try {
             const g = (await roomRef.child('gameState').once('value')).val() || {};
@@ -162,19 +219,31 @@
 
             const hostDone = selections.host && selections.host.done === true;
             let allReady = hostDone;
+            let readyCount = hostDone ? 1 : 0;
             let html = '';
 
-            html += `<div class="progress-item"><span>🎤 Hôte</span><span class="${hostDone ? 'ready-badge' : 'not-ready-badge'}">${hostDone ? '✅ Prêt' : '⏳ En cours...'}</span></div>`;
+            const badge = done => done
+              ? '<span class="ready-badge">✅ Prêt</span>'
+              : '<span class="not-ready-badge">⏳ En cours</span>';
+
+            html += `<div class="progress-item"><span>🎤 L'hôte</span>${badge(hostDone)}</div>`;
 
             playerList.forEach(player => {
               // Si le quota pour le joueur est réglé à 0, il est immédiatement considéré prêt
               const playerDone = songsPerPlayer === 0 || (selections[player.id] && selections[player.id].done === true);
               if (!playerDone) allReady = false;
+              else readyCount++;
 
-              html += `<div class="progress-item"><span>${escapeHTML(player.avatar)} ${escapeHTML(player.name)}</span><span class="${playerDone ? 'ready-badge' : 'not-ready-badge'}">${playerDone ? '✅ Prêt' : '⏳ En cours...'}</span></div>`;
+              html += `<div class="progress-item"><span>${escapeHTML(player.avatar)} ${escapeHTML(player.name)}</span>${badge(playerDone)}</div>`;
             });
 
-            waitingProgress.innerHTML = html;
+            // On ne réécrit la liste que si elle a changé (pas de clignotement toutes les 2,5 s)
+            if (waitingProgress.dataset.html !== html) {
+              waitingProgress.innerHTML = html;
+              waitingProgress.dataset.html = html;
+            }
+            const total = playerList.length + 1;
+            waitingCount.textContent = readyCount + ' sur ' + total + (readyCount > 1 ? ' sont prêts' : ' est prêt');
 
             if (allReady) {
               if ((await mergeSelectionsIntoGameState(selections, playerList)) !== false) waitForSongsThenRedirect();
@@ -183,9 +252,9 @@
         });
       }
 
-      roomRef.child('status').once('value', (statusSnap) => {
+      roomRef.child('status').once('value', async (statusSnap) => {
         if (statusSnap.val() === 'lobby') {
-          waitingMessage.innerHTML = '⏳ En attente que l\'hôte relance...';
+          waitingMessage.textContent = 'En attente que l\'hôte relance une partie…';
           waitingProgress.innerHTML = '';
           roomRef.child('status').on('value', snap => {
             if (snap.val() === 'selection') window.location.href = 'selection.html';
@@ -193,11 +262,20 @@
           return;
         }
         if (statusSnap.val() === 'game') { waitForSongsThenRedirect(); return; }   // partie déjà lancée
+        // Arrivé ici alors que SA sélection n'est pas terminée : on le renvoie la finir
+        if (statusSnap.val() === 'selection') {
+          const me = isHost ? 'host' : AppState.clientId;
+          let mine = null;
+          try { mine = me ? (await selectionsRef.child(me).once('value')).val() : null; } catch (e) {}
+          if (!mine || mine.done !== true) {
+            window.location.href = isHost ? 'selection.html?role=host' : 'selection.html';
+            return;
+          }
+        }
         updateProgress();
         setInterval(updateProgress, 2500);
       });
 
-      document.getElementById('refreshBtn').onclick = updateProgress;
       const forceBtn = document.getElementById('forceBtn');
       if (isHost) {
         forceBtn.classList.remove('hidden');

@@ -1,0 +1,29 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "fraunces",
+        "createdAt": "2026-10-22T16:23:35.487Z",
+        "reason": "Claude decided: DESIGN.md 'pochette de vinyle' brief, chosen for warm human feel"
+      },
+      {
+        "rule": "overused-font",
+        "value": "instrument sans",
+        "createdAt": "2026-10-22T16:23:35.497Z",
+        "reason": "Claude decided: DESIGN.md 'pochette de vinyle' brief, chosen for warm human feel"
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          "css/style.css"
+        ],
+        "createdAt": "2026-10-22T16:23:35.505Z",
+        "reason": "Claude decided: paper record-sleeve world per DESIGN.md"
+      }
+    ]
+  }
+}

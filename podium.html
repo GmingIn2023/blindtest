@@ -2,118 +2,148 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="color-scheme" content="dark">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#F3ECE0">
   <title>Podium · Blind Test</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    #app { max-width: 480px; }
+    #app { max-width: 520px; }
 
-    .winner-banner {
-      text-align: center;
-      margin-bottom: 1.5rem;
-      animation: winnerPop 0.6s ease-out;
-    }
-    .winner-banner .trophy { font-size: 3.5rem; display: block; }
-    .winner-banner h1 { font-size: 1.5rem; margin: 0.4rem 0 0.1rem; }
-    .winner-banner p { color: #8aaec0; margin: 0; }
-    @keyframes winnerPop {
-      0% { opacity: 0; transform: scale(0.7) translateY(-20px); }
-      60% { opacity: 1; transform: scale(1.08) translateY(0); }
-      100% { transform: scale(1); }
-    }
+    .winner-banner { text-align: center; margin-bottom: 0.5rem; animation: rise-in .4s var(--ease) both; }
+    .winner-banner .vinyl { width: 112px; height: 112px; margin: 0 auto 0.9rem; }
+    .winner-banner .vinyl .v-label { animation: vinyl-spin 2.4s var(--ease) .3s 1 both; }
+    .winner-banner h1 { font-size: clamp(1.75rem, 8vw, 2.25rem); margin: 0 0 0.25rem; overflow-wrap: anywhere; }
+    .winner-banner p { color: var(--ink-2); margin: 0; }
 
     .podium-stage {
       display: flex;
       align-items: flex-end;
       justify-content: center;
-      gap: 0.6rem;
-      margin: 2rem 0 1.5rem;
-      height: 250px;
-      border-bottom: 3px solid #2d353e;
+      gap: 0.5rem;
+      margin: 1.75rem 0 1.5rem;
+      min-height: 260px;
+      border-bottom: 2px solid var(--ink);
     }
+    .podium-stage:empty { display: none; }
     .podium-block {
       display: flex;
       flex-direction: column;
       align-items: center;
       width: 31%;
+      min-width: 0;
     }
-    .podium-block .avatar, .podium-block .pname, .podium-block .pscore { animation: dropIn 0.55s cubic-bezier(.2,.9,.3,1.2) backwards; }
-    .podium-block .avatar { font-size: 2.2rem; }
-    .podium-block .pname { font-weight: 700; font-size: 0.95rem; margin-top: 0.2rem; text-align: center; word-break: break-word; }
-    .podium-block .pscore { color: #d4ffb0; font-size: 0.85rem; margin-bottom: 0.4rem; font-variant-numeric: tabular-nums; }
+    .podium-block .avatar, .podium-block .pname, .podium-block .pscore { animation: dropIn .5s var(--ease) backwards; }
+    .podium-block .avatar { font-size: 2.2rem; line-height: 1.1; }
+    .podium-block .pname {
+      font-weight: 700; font-size: 0.95rem; line-height: 1.2;
+      margin-top: 0.25rem; text-align: center;
+      max-width: 100%; overflow-wrap: anywhere;
+    }
+    .podium-block .pscore {
+      color: var(--ink-2); font-size: 0.875rem; font-weight: 600;
+      margin: 0.1rem 0 0.45rem;
+      font-variant-numeric: tabular-nums;
+    }
     .podium-bar {
       width: 100%;
       height: var(--h);
+      border: 1.5px solid var(--ink);
+      border-bottom: 0;
       border-radius: 14px 14px 0 0;
       display: flex;
       align-items: flex-start;
       justify-content: center;
-      padding-top: 0.6rem;
-      font-size: 1.8rem;
-      box-shadow: inset 0 3px 0 rgba(255,255,255,.35), 0 -6px 18px rgba(0,0,0,.25);
+      padding-top: 0.5rem;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 2rem;
+      line-height: 1;
+      color: var(--ink);
+      font-variant-numeric: lining-nums;
       overflow: hidden;
-      animation: growBar 1.1s cubic-bezier(.22,1,.36,1) backwards;
+      animation: growBar 1s var(--ease) backwards;
     }
-    .rank-1 { order: 2; --h: 170px; --d: 1.6s; } .rank-1 .podium-bar { background: linear-gradient(180deg,#ffd75e,#c99a1e); }
-    .rank-2 { order: 1; --h: 125px; --d: 0.9s; } .rank-2 .podium-bar { background: linear-gradient(180deg,#d8dee6,#9aa4b2); }
-    .rank-3 { order: 3; --h: 90px;  --d: 0.2s; } .rank-3 .podium-bar { background: linear-gradient(180deg,#e0a76f,#a9713c); }
+    .rank-1 { order: 2; --h: 160px; --d: 1.5s; } .rank-1 .podium-bar { background: var(--mustard); font-size: 2.6rem; }
+    .rank-2 { order: 1; --h: 115px; --d: 0.85s; } .rank-2 .podium-bar { background: var(--card); }
+    .rank-3 { order: 3; --h: 82px;  --d: 0.2s; } .rank-3 .podium-bar { background: var(--tomato-soft); }
+    .rank-1 .pscore { color: var(--ink); }
     .podium-block .podium-bar { animation-delay: var(--d); }
-    .podium-block .avatar, .podium-block .pname, .podium-block .pscore { animation-delay: calc(var(--d) + 0.75s); }
-    .rank-1 .avatar { animation: dropIn 0.55s cubic-bezier(.2,.9,.3,1.2) backwards calc(var(--d) + 0.75s), crownBounce 1.4s ease-in-out calc(var(--d) + 1.5s) infinite; }
+    .podium-block .avatar, .podium-block .pname, .podium-block .pscore { animation-delay: calc(var(--d) + 0.7s); }
     @keyframes growBar { from { height: 0; } to { height: var(--h); } }
-    @keyframes dropIn { from { opacity: 0; transform: translateY(-26px) scale(.7); } to { opacity: 1; transform: none; } }
-    @keyframes crownBounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+    @keyframes dropIn { from { opacity: 0; transform: translateY(-18px); } to { opacity: 1; transform: none; } }
     @media (prefers-reduced-motion: reduce) {
       .podium-bar, .podium-block .avatar, .podium-block .pname, .podium-block .pscore { animation: none !important; }
     }
 
     .rest-list {
-      background: #1a1f25;
-      border-radius: 1rem;
-      padding: 0.5rem 1rem;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      padding: 0.15rem 1rem;
       margin-bottom: 1.5rem;
     }
-    .rest-list div {
-      display: flex;
-      justify-content: space-between;
-      padding: 0.5rem 0;
-      border-bottom: 1px solid #2d353e;
-      font-size: 0.9rem;
+    .rest-list .rest-row {
+      display: grid;
+      grid-template-columns: 1.75rem 1fr auto;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--line);
     }
-    .rest-list div:last-child { border-bottom: none; }
+    .rest-list .rest-row:last-child { border-bottom: none; }
+    .rest-row .rk { font-family: var(--font-display); font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums lining-nums; }
+    .rest-row .who { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+    .rest-row .pts { color: var(--ink-2); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-    .confetti-emoji {
+    /* Confettis de papier */
+    .confetti {
       position: fixed;
-      top: -40px;
-      font-size: 1.4rem;
-      animation: confettiFall linear forwards;
+      top: -24px;
+      width: 8px; height: 14px;
+      border-radius: 2px;
       pointer-events: none;
       z-index: 999;
+      animation: confettiFall linear forwards;
     }
     @keyframes confettiFall {
-      to { transform: translateY(110vh) rotate(360deg); opacity: 0.2; }
+      0% { transform: translate3d(0, 0, 0) rotate(0); opacity: 1; }
+      100% { transform: translate3d(var(--dx, 0px), 105vh, 0) rotate(var(--r, 540deg)); opacity: .9; }
     }
 
-    #restartBtn { width: 100%; margin-top: 0.5rem; }
-    #waitingForHost { text-align: center; color: #8aaec0; margin-top: 1rem; }
+    #restartBtn { width: 100%; margin-top: 0.5rem; min-height: 56px; font-size: 1.0625rem; }
+    #restartBtn:disabled { background: var(--sunk); color: var(--ink-2); border-color: var(--line); box-shadow: none; opacity: 1; }
+    #waitingForHost { text-align: center; color: var(--ink-2); margin-top: 1rem; }
   </style>
 </head>
 <body>
   <div id="app">
     <div class="winner-banner">
-      <span class="trophy">🏆</span>
-      <h1 id="winnerText">Calcul des résultats...</h1>
-      <p>Fin de la partie</p>
+      <svg class="vinyl gold" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
+        <circle class="v-disc" cx="100" cy="100" r="97"/>
+        <g class="v-grooves">
+          <circle cx="100" cy="100" r="89"/><circle cx="100" cy="100" r="81"/><circle cx="100" cy="100" r="73"/>
+          <circle cx="100" cy="100" r="65"/><circle cx="100" cy="100" r="57"/><circle cx="100" cy="100" r="49"/>
+        </g>
+        <path class="v-shine" d="M100 17a83 83 0 0 1 63 29"/>
+        <path class="v-shine" d="M100 183a83 83 0 0 1-63-29"/>
+        <g class="v-label">
+          <circle class="v-label-bg" cx="100" cy="100" r="37"/>
+          <path id="vlGold" d="M100 76a24 24 0 1 1 0 48a24 24 0 1 1 0-48" fill="none"/>
+          <text class="v-label-text"><textPath href="#vlGold">DISQUE D'OR · BRAVO ·</textPath></text>
+          <circle class="v-hole" cx="100" cy="100" r="4"/>
+        </g>
+      </svg>
+      <h1 id="winnerText">Calcul des résultats…</h1>
+      <p>Fin de la partie. Merci d'avoir joué !</p>
     </div>
 
     <div class="podium-stage" id="podiumStage"></div>
     <div class="rest-list" id="restList"></div>
 
-    <button id="restartBtn" class="primary hidden">🔁 Recommencer (même code)</button>
-    <p id="waitingForHost" class="hidden">En attente que l'hôte relance une partie...</p>
-    <p style="text-align:center; margin-top:1rem;">
-      <a href="index.html" style="color:#8aaec0;">← Quitter</a>
+    <button id="restartBtn" class="primary hidden">Rejouer avec le même code</button>
+    <p id="waitingForHost" class="hidden">L'hôte va peut-être relancer une partie. Reste là !</p>
+    <p class="page-foot">
+      <a href="index.html" class="back-link">Quitter</a>
     </p>
   </div>
 
@@ -135,17 +165,23 @@
 
       const roomRef = db.ref('rooms/' + roomCode);
 
+      // Confettis en papier (couleurs de la pochette), sauf si l'utilisateur limite les animations
       function spawnConfetti() {
-        const emojis = ['🎉', '🎊', '⭐', '🎵'];
-        for (let i = 0; i < 24; i++) {
+        try { if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; } catch (e) {}
+        const colors = ['var(--tomato)', 'var(--mustard)', 'var(--pine)', 'var(--ink)', 'var(--tomato-soft)'];
+        for (let i = 0; i < 36; i++) {
           const el = document.createElement('div');
-          el.className = 'confetti-emoji';
-          el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+          el.className = 'confetti';
+          el.style.background = colors[i % colors.length];
           el.style.left = Math.random() * 100 + 'vw';
-          el.style.animationDuration = (2 + Math.random() * 1.5) + 's';
-          el.style.animationDelay = (Math.random() * 0.6) + 's';
+          el.style.width = (6 + Math.random() * 5) + 'px';
+          el.style.height = (10 + Math.random() * 8) + 'px';
+          el.style.setProperty('--dx', ((Math.random() - 0.5) * 120).toFixed(0) + 'px');
+          el.style.setProperty('--r', ((Math.random() < 0.5 ? -1 : 1) * (360 + Math.random() * 540)).toFixed(0) + 'deg');
+          el.style.animationDuration = (2.4 + Math.random() * 1.6) + 's';
+          el.style.animationDelay = (Math.random() * 0.8) + 's';
           document.body.appendChild(el);
-          setTimeout(() => el.remove(), 4000);
+          setTimeout(() => el.remove(), 5000);
         }
       }
 
@@ -168,7 +204,7 @@
         const winner = ranked[0];
         const winnerText = document.getElementById('winnerText');
         if (clientId === winner.id) {
-          winnerText.textContent = `Bravo, tu as gagné ! 🎉`;
+          winnerText.textContent = `Bravo, tu as gagné !`;
         } else {
           winnerText.textContent = `${winner.avatar} ${winner.name} a gagné !`;
         }
@@ -181,10 +217,10 @@
           const block = document.createElement('div');
           block.className = 'podium-block rank-' + (idx + 1);
           block.innerHTML = `
-            <div class="avatar">${escapeHTML(p.avatar)}</div>
+            <div class="avatar" aria-hidden="true">${escapeHTML(p.avatar)}</div>
             <div class="pname">${escapeHTML(p.name)}</div>
             <div class="pscore"><span class="count" data-to="${p.score}">0</span> pts</div>
-            <div class="podium-bar">${idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}</div>
+            <div class="podium-bar">${idx + 1}</div>
           `;
           stage.appendChild(block);
         });
@@ -193,7 +229,7 @@
         stage.querySelectorAll('.podium-block').forEach(block => {
           const span = block.querySelector('.count');
           const to = parseInt(span.dataset.to, 10) || 0;
-          const delay = (block.classList.contains('rank-1') ? 1.6 : block.classList.contains('rank-2') ? 0.9 : 0.2) * 1000 + 700;
+          const delay = (block.classList.contains('rank-1') ? 1.5 : block.classList.contains('rank-2') ? 0.85 : 0.2) * 1000 + 700;
           setTimeout(() => {
             const t0 = performance.now(), dur = 900;
             const step = now => {
@@ -213,7 +249,8 @@
         } else {
           rest.forEach((p, idx) => {
             const row = document.createElement('div');
-            row.innerHTML = `<span>${idx + 4}. ${escapeHTML(p.avatar)} ${escapeHTML(p.name)}</span><span>${p.score} pts</span>`;
+            row.className = 'rest-row';
+            row.innerHTML = `<span class="rk">${idx + 4}</span><span class="who">${escapeHTML(p.avatar)} ${escapeHTML(p.name)}</span><span class="pts">${p.score} pts</span>`;
             restList.appendChild(row);
           });
         }
@@ -227,7 +264,7 @@
         restartBtn.classList.remove('hidden');
         restartBtn.addEventListener('click', async () => {
           restartBtn.disabled = true;
-          restartBtn.textContent = 'Redémarrage...';
+          restartBtn.textContent = 'On remet les disques en place…';
           // On garde la config (réglages) telle quelle, on remet tout le
           // reste à zéro, et on renvoie tout le monde dans un lobby — c'est
           // l'hôte qui décide ensuite quand relancer la sélection.

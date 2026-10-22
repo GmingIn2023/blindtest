@@ -16,7 +16,7 @@ function _showNetBanner(text, id) {
     b = document.createElement('div');
     b.id = id;
     b.style.cssText = 'position:fixed;left:50%;top:.6rem;transform:translateX(-50%);z-index:5000;max-width:92vw;' +
-      'background:#5a1e1e;border:1px solid #ff6b6b;color:#fff;padding:.5rem 1rem;border-radius:60px;' +
+      'background:#1E1A16;border:1.5px solid #1E1A16;color:#FFFBF4;padding:.5rem 1rem;border-radius:60px;' +
       'font:600 .85rem -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.6)';
     (document.body || document.documentElement).appendChild(b);
   }

@@ -2,119 +2,160 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#F3ECE0">
   <title>Rejoindre · Blind Test</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* Styles supplémentaires pour cette page */
-    .player-lobby {
-      background: #1c2128;
-      border-radius: 2rem;
-      padding: 1.8rem;
-    }
-    .join-section {
-      background: #0f1419;
-      border-radius: 1.5rem;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-    }
-    .avatar-selector {
-      display: flex;
-      gap: 0.5rem;
-      margin-top: 0.5rem;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    .avatar-option {
-      font-size: 2rem;
-      cursor: pointer;
-      padding: 0.3rem;
-      border-radius: 50%;
-      background: #1e2a36;
-      width: 3rem;
-      height: 3rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: 0.2s;
-    }
-    .avatar-option:hover {
-      transform: scale(1.1);
-    }
-    .avatar-option.selected {
-      background: #3b6eff;
-      box-shadow: 0 0 15px rgba(59,110,255,0.6);
-    }
-    .waiting-message {
+    #app { max-width: 520px; }
+    .join-head h1 { text-align: left; margin-bottom: 0.4rem; }
+    .join-head .lede { margin-bottom: 1.4rem; }
+
+    /* Reprise après fermeture de l'onglet */
+    #resumeBox { background: var(--pine-soft); border-color: #A9CFC0; flex-wrap: wrap; }
+    #resumeBox #resumeText { flex: 1 1 12rem; }
+    .resume-actions { display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; }
+    #resumeForget { margin: 0; color: var(--ink-2); font-size: 0.9375rem; }
+
+    .field { margin-bottom: 1.1rem; }
+    .field label { margin: 0 0 0.35rem; }
+    #roomCodeInput {
+      font-family: var(--font-display);
+      font-size: 1.75rem; font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
       text-align: center;
-      color: #8aaec0;
-      margin: 2rem 0;
+      font-variant-numeric: lining-nums;
+      padding: 0.55rem 0.6rem;
+      min-height: 60px;
     }
-    .player-tag {
-      display: inline-flex;
-      align-items: center;
-      background: #2a3743;
-      padding: 0.5rem 1.2rem;
-      border-radius: 60px;
-      margin: 0.3rem;
-      gap: 0.5rem;
+    #roomCodeInput::placeholder { font-family: var(--font-body); font-size: 1.0625rem; font-weight: 400; letter-spacing: 0; }
+
+    .avatar-selector { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
+    button.avatar-option {
+      width: 100%; min-height: 0; height: 60px; margin: 0; padding: 0;
+      font-size: 1.9rem; line-height: 1;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--r-sm);
+      transition: transform .14s var(--ease), border-color .14s var(--ease), background-color .14s var(--ease);
     }
+    button.avatar-option:hover:not(:disabled) { background: var(--card); border-color: var(--ink); }
+    button.avatar-option.selected {
+      background: var(--mustard-soft);
+      border: 1.5px solid var(--ink);
+      box-shadow: 0 2px 0 var(--ink);
+      transform: translateY(-2px);
+    }
+
+    #joinBtn { margin-top: 0.4rem; min-height: 56px; font-size: 1.0625rem; }
+    #joinError { min-height: 1.5em; margin-top: 0.6rem; text-align: center; font-weight: 600; color: var(--berry); }
+    #joinError[data-tone="info"] { color: var(--ink-2); font-weight: 500; }
+
+    /* Une fois dans la partie */
+    .joined-head { text-align: center; }
+    .joined-head .vinyl { width: 112px; height: 112px; margin: 0.25rem auto 1rem; }
+    .joined-head h1 { margin-bottom: 0.4rem; }
+    .joined-head .lede { margin: 0 auto; }
+    .code-chip {
+      display: inline-block;
+      font-family: var(--font-display); font-weight: 700;
+      letter-spacing: 0.1em; font-variant-numeric: lining-nums;
+      background: var(--mustard); color: var(--ink);
+      border: 1px solid var(--ink); border-radius: 8px;
+      padding: 0 0.45rem 0 0.55rem;
+    }
+    .me-row { display: flex; justify-content: center; margin: 1.25rem 0 0.25rem; }
+    #meTag { font-size: 1.0625rem; padding: 0.55rem 1.1rem 0.55rem 0.85rem; border: 1.5px solid var(--ink); animation: none; }
+    #meTag .av, #otherPlayersList .av { font-size: 1.25rem; line-height: 1; }
+    .others .section-title { font-size: 1.0625rem; margin-bottom: 0.7rem; }
+    #otherPlayersList { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    #otherPlayersList .player-tag { margin: 0; }
+    #otherPlayersList .player-tag:not(.is-new) { animation: none; }
+    .others-empty { color: var(--ink-2); }
+    .waiting-message { text-align: center; color: var(--ink-2); margin: 1.5rem auto 0.5rem; max-width: 30ch; text-wrap: pretty; }
   </style>
 </head>
 <body>
   <div id="app">
-    <h1>📱 Rejoindre une partie</h1>
     <div class="player-lobby">
-      <!-- Reprise après fermeture de l'onglet -->
-      <div id="resumeBox" class="hidden" style="background:#12321f; border:2px solid #4fd97f; border-radius:1.4rem; padding:1rem; margin-bottom:1.2rem; text-align:center;">
-        <div id="resumeText" style="font-weight:700; margin-bottom:0.4rem;"></div>
-        <button id="resumeBtn" class="primary" style="margin:0.3rem 0; width:60%; padding:0.51rem 0.84rem; font-size:0.8rem;">↩️ Reprendre ma partie</button>
-        <button id="resumeForget" style="margin:0.3rem 0; background:transparent; border:none; color:#8aaec0;">Non, rejoindre une autre partie</button>
-      </div>
-
       <!-- Section de connexion (visible tant que non connecté) -->
       <div id="joinSection" class="join-section">
-        <div style="margin-bottom:1rem;">
-          <label style="display:block; margin-bottom:0.5rem; font-weight:600;">Code de la partie :</label>
-          <input type="text" id="roomCodeInput" placeholder="Ex: AB12" style="text-transform: uppercase;">
+        <div class="join-head">
+          <h1>Rejoindre la partie</h1>
+          <p class="lede">Tape le code affiché sur l'écran de l'hôte, choisis ton pseudo, et c'est parti.</p>
         </div>
-        <div style="margin-bottom:1rem;">
-          <label style="display:block; margin-bottom:0.5rem; font-weight:600;">Ton pseudo :</label>
-          <input type="text" id="playerNameInput" placeholder="Entre ton nom" value="Joueur">
-        </div>
-        <div style="margin-bottom:1rem;">
-          <label style="display:block; margin-bottom:0.5rem; font-weight:600;">Choisis ton avatar :</label>
-          <div class="avatar-selector" id="avatarSelector">
-            <span class="avatar-option selected" data-avatar="🐶">🐶</span>
-            <span class="avatar-option" data-avatar="🐱">🐱</span>
-            <span class="avatar-option" data-avatar="🐼">🐼</span>
-            <span class="avatar-option" data-avatar="🦊">🦊</span>
-            <span class="avatar-option" data-avatar="🐸">🐸</span>
-            <span class="avatar-option" data-avatar="🦁">🦁</span>
-            <span class="avatar-option" data-avatar="🐯">🐯</span>
-            <span class="avatar-option" data-avatar="🐨">🐨</span>
+
+        <!-- Reprise après fermeture de l'onglet -->
+        <div id="resumeBox" class="hidden note-card">
+          <div id="resumeText"></div>
+          <div class="resume-actions">
+            <button id="resumeBtn" class="btn-sm">Reprendre ma partie</button>
+            <button id="resumeForget" class="btn-link">Non, une autre</button>
           </div>
         </div>
-        <button id="joinBtn" class="primary">🚀 Rejoindre</button>
-        <div id="joinError" style="color:#ffaa33; margin-top:1rem; text-align:center;"></div>
+
+        <div class="field">
+          <label for="roomCodeInput">Code de la partie</label>
+          <input type="text" id="roomCodeInput" placeholder="Ex. : K7BX2Q" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="next">
+        </div>
+        <div class="field">
+          <label for="playerNameInput">Ton pseudo</label>
+          <input type="text" id="playerNameInput" placeholder="Ex. : Camille" maxlength="20" autocomplete="nickname" enterkeyhint="go">
+        </div>
+        <div class="field">
+          <label id="avatarLabel">Ton avatar</label>
+          <div class="avatar-selector" id="avatarSelector" role="group" aria-labelledby="avatarLabel">
+            <button type="button" class="avatar-option selected" data-avatar="🐶" aria-pressed="true" aria-label="Chien">🐶</button>
+            <button type="button" class="avatar-option" data-avatar="🐱" aria-pressed="false" aria-label="Chat">🐱</button>
+            <button type="button" class="avatar-option" data-avatar="🐼" aria-pressed="false" aria-label="Panda">🐼</button>
+            <button type="button" class="avatar-option" data-avatar="🦊" aria-pressed="false" aria-label="Renard">🦊</button>
+            <button type="button" class="avatar-option" data-avatar="🐸" aria-pressed="false" aria-label="Grenouille">🐸</button>
+            <button type="button" class="avatar-option" data-avatar="🦁" aria-pressed="false" aria-label="Lion">🦁</button>
+            <button type="button" class="avatar-option" data-avatar="🐯" aria-pressed="false" aria-label="Tigre">🐯</button>
+            <button type="button" class="avatar-option" data-avatar="🐨" aria-pressed="false" aria-label="Koala">🐨</button>
+          </div>
+        </div>
+        <button id="joinBtn" class="primary">Rejoindre</button>
+        <div id="joinError" role="status" aria-live="polite"></div>
       </div>
 
       <!-- Section après connexion (visible une fois connecté) -->
       <div id="connectedSection" class="hidden">
-        <div style="background:#0f1419; border-radius:1.5rem; padding:1rem; margin-bottom:1rem;">
-          <div style="font-weight:700; text-align:center;">Code salon : <span id="connectedRoomCode"></span></div>
+        <div class="joined-head">
+          <svg class="vinyl is-playing" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
+            <circle class="v-disc" cx="100" cy="100" r="98"/>
+            <g class="v-grooves">
+              <circle cx="100" cy="100" r="89"/><circle cx="100" cy="100" r="81"/><circle cx="100" cy="100" r="73"/>
+              <circle cx="100" cy="100" r="65"/><circle cx="100" cy="100" r="57"/><circle cx="100" cy="100" r="49"/>
+            </g>
+            <path class="v-shine" d="M100 17a83 83 0 0 1 63 29"/>
+            <path class="v-shine" d="M100 183a83 83 0 0 1-63-29"/>
+            <g class="v-label">
+              <circle class="v-label-bg" cx="100" cy="100" r="37"/>
+              <path id="vlJoin" d="M100 76a24 24 0 1 1 0 48a24 24 0 1 1 0-48" fill="none"/>
+              <text class="v-label-text"><textPath href="#vlJoin">BLIND TEST · FACE A ·</textPath></text>
+              <circle class="v-hole" cx="100" cy="100" r="4"/>
+            </g>
+          </svg>
+          <h1>Tu es dans la partie !</h1>
+          <p class="lede">Partie <span id="connectedRoomCode" class="code-chip"></span></p>
         </div>
-        <div style="margin-top:2rem;">
-          <div style="font-weight:700; margin-bottom:1rem;">👥 Autres joueurs connectés :</div>
-          <div id="otherPlayersList" style="display: flex; flex-wrap: wrap; gap:0.5rem;"></div>
+        <div class="me-row"><span id="meTag" class="player-tag"></span></div>
+        <div class="player-list others">
+          <h2 class="section-title">Avec toi</h2>
+          <div id="otherPlayersList"></div>
         </div>
         <div class="waiting-message" id="waitingMessage">
-          ⏳ En attente que l'hôte commence la sélection...
+          L'hôte va bientôt lancer le choix des chansons. Garde ton téléphone sous la main.
         </div>
       </div>
     </div>
-    <p style="text-align:center; margin-top:1.5rem;">
-      <a href="index.html" style="color:#8aaec0;">← Retour à l'accueil</a>
+    <p class="page-foot">
+      <a href="index.html" class="back-link">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+        Accueil
+      </a>
     </p>
   </div>
 
@@ -137,15 +178,58 @@
       const joinError = document.getElementById('joinError');
       const connectedRoomCode = document.getElementById('connectedRoomCode');
       const otherPlayersList = document.getElementById('otherPlayersList');
+      const meTag = document.getElementById('meTag');
+
+      // Message sous le bouton : erreur (par défaut) ou simple info
+      function say(text, tone) {
+        joinError.textContent = text || '';
+        joinError.dataset.tone = tone || 'error';
+      }
 
       // Gestion des avatars
       let selectedAvatar = '🐶';
-      document.querySelectorAll('.avatar-option').forEach(el => {
-        el.addEventListener('click', () => {
-          document.querySelectorAll('.avatar-option').forEach(e => e.classList.remove('selected'));
-          el.classList.add('selected');
-          selectedAvatar = el.dataset.avatar;
+      function selectAvatar(av) {
+        const options = document.querySelectorAll('.avatar-option');
+        if (![...options].some(e => e.dataset.avatar === av)) return;
+        options.forEach(e => {
+          const on = e.dataset.avatar === av;
+          e.classList.toggle('selected', on);
+          e.setAttribute('aria-pressed', on ? 'true' : 'false');
         });
+        selectedAvatar = av;
+      }
+      document.querySelectorAll('.avatar-option').forEach(el => {
+        el.addEventListener('click', () => selectAvatar(el.dataset.avatar));
+      });
+
+      // Dernier pseudo et avatar utilisés sur ce téléphone
+      const PROFILE_KEY = 'blindtest_profile';
+      let profile = null;
+      try { profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); } catch (e) {}
+      if (profile && typeof profile === 'object') {
+        if (profile.name) playerNameInput.value = String(profile.name).slice(0, 20);
+        if (profile.avatar) selectAvatar(String(profile.avatar));
+      }
+      function saveProfile(name, avatar) {
+        try { localStorage.setItem(PROFILE_KEY, JSON.stringify({ name, avatar })); } catch (e) {}
+      }
+
+      // Arrivé par le lien partagé ou le QR code : le code est déjà là, on passe au pseudo
+      let codeFromLink = '';
+      try { codeFromLink = cleanRoomCode(new URLSearchParams(location.search).get('code')); } catch (e) {}
+      if (codeFromLink) {
+        roomCodeInput.value = codeFromLink;
+        playerNameInput.focus();
+        const end = playerNameInput.value.length;
+        try { playerNameInput.setSelectionRange(end, end); } catch (e) {}
+      }
+
+      // Entrée : code → pseudo → rejoindre
+      roomCodeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); playerNameInput.focus(); }
+      });
+      playerNameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); joinBtn.click(); }
       });
 
       // Références Firebase
@@ -154,6 +238,7 @@
       let gameStateRef = null;
       let statusRef = null;
       let currentListeners = [];
+      const seenOthers = new Set();
 
       function cleanupListeners() {
         currentListeners.forEach(({ref, event}) => ref.off(event));
@@ -167,6 +252,7 @@
         joinSection.classList.add('hidden');
         connectedSection.classList.remove('hidden');
         connectedRoomCode.textContent = roomCode;
+        meTag.innerHTML = `<span class="av" aria-hidden="true">${escapeHTML(AppState.playerAvatar || '🐶')}</span><span>${escapeHTML(AppState.playerName || '')}</span>`;
 
         // Écouter les changements de joueurs
         playersRef = roomRef.child('players');
@@ -176,12 +262,18 @@
           const others = Object.entries(players)
             .filter(([id]) => id !== clientId)
             .map(([id, data]) => ({ id, ...data }));
+          // Renommé par l'hôte ? On met sa propre pastille à jour
+          if (players[clientId] && players[clientId].name) {
+            meTag.lastElementChild.textContent = players[clientId].name;
+          }
           if (others.length === 0) {
-            otherPlayersList.innerHTML = '<div style="color:#8aaec0;">En attente d\'autres joueurs...</div>';
+            otherPlayersList.innerHTML = '<p class="others-empty">Personne d\'autre pour l\'instant…</p>';
           } else {
-            otherPlayersList.innerHTML = others.map(p =>
-              `<span class="player-tag">${escapeHTML(p.avatar)} ${escapeHTML(p.name)}</span>`
-            ).join('');
+            otherPlayersList.innerHTML = others.map(p => {
+              const isNew = !seenOthers.has(p.id);
+              seenOthers.add(p.id);
+              return `<span class="player-tag${isNew ? ' is-new' : ''}"><span class="av" aria-hidden="true">${escapeHTML(p.avatar)}</span>${escapeHTML(p.name)}</span>`;
+            }).join('');
           }
         });
         currentListeners.push({ref: playersRef, event: 'value'});
@@ -201,7 +293,7 @@
         });
         currentListeners.push({ref: statusRef, event: 'value'});
 
-        // Expulsé par l'hôte (appui long dans son salon) ? On le dit et on revient au formulaire.
+        // Expulsé par l'hôte ? On le dit et on revient au formulaire.
         let seenMe = false;
         const meRef = roomRef.child('players/' + clientId);
         meRef.on('value', (snap) => {
@@ -218,7 +310,7 @@
         connectedSection.classList.add('hidden');
         joinSection.classList.remove('hidden');
         joinBtn.disabled = false;
-        joinError.textContent = message || '';
+        say(message || '');
       }
 
       const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('Connexion trop lente. Vérifie ta connexion et réessaie.')), ms))]);
@@ -234,23 +326,25 @@
         const playerName = playerNameInput.value.trim().slice(0, 20);
 
         if (!roomCode) {
-          joinError.textContent = 'Veuillez entrer un code.';
+          say('Tape le code de la partie.');
+          roomCodeInput.focus();
           return;
         }
         if (!playerName) {
-          joinError.textContent = 'Veuillez entrer un pseudo.';
+          say('Choisis un pseudo.');
+          playerNameInput.focus();
           return;
         }
 
         joinBtn.disabled = true;
-        joinError.textContent = 'Connexion en cours...';
+        say('Connexion…', 'info');
 
         try {
           // Vérifier si la room existe
           roomRef = db.ref('rooms/' + roomCode);
           const snapshot = await withTimeout(roomRef.once('value'), 12000);
           if (!snapshot.exists()) {
-            throw new Error('Partie introuvable.');
+            throw new Error('Partie introuvable. Vérifie le code.');
           }
           const roomData = snapshot.val();
           if (roomData.status !== 'lobby') {
@@ -269,7 +363,7 @@
             cur[clientId] = { name: playerName, avatar: selectedAvatar, joinedAt: Date.now() };
             return cur;
           }), 12000);
-          if (!tx.committed) throw new Error('Le nombre maximum de joueurs est atteint.');
+          if (!tx.committed) throw new Error('La partie est complète : nombre maximum de joueurs atteint.');
 
           AppState.clientId = clientId;
           AppState.playerName = playerName;
@@ -279,11 +373,12 @@
 
           enterLobby(roomCode, clientId);
           try { localStorage.setItem('blindtest_resume', JSON.stringify({ roomCode, clientId, name: playerName, avatar: selectedAvatar, at: Date.now() })); } catch (e) {}
-          joinError.textContent = '';
+          saveProfile(playerName, selectedAvatar);
+          say('');
 
         } catch (error) {
           console.warn('Connexion refusée :', error.message);
-          joinError.textContent = error.message;
+          say(error.message);
           joinBtn.disabled = false;
           // Nettoyer les listeners si nécessaire
           cleanupListeners();
@@ -312,13 +407,6 @@
           };
         } catch (e) { /* hors-ligne : on n'affiche rien */ }
       })();
-
-      // Fonction utilitaire pour échapper le HTML
-      function escapeHTML_old(str) {
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
-      }
 
       // Nettoyage en cas de départ
       window.addEventListener('beforeunload', () => {

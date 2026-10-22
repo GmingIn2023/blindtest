@@ -72,11 +72,12 @@
 
     /* Ordinateur / télé : code et QR à gauche, joueurs à droite */
     @media (min-width: 900px) {
-      #app.lobby { max-width: 1040px; padding: 40px 48px 32px; }
+      #app.lobby { max-width: 1040px; padding: 32px 48px 28px; }
+      body { padding-top: 32px; }
       .host-head h1 { font-size: 2.25rem; }
       .lobby-grid { display: grid; grid-template-columns: minmax(340px, 400px) 1fr; gap: 48px; align-items: start; }
       #roomCodeDisplay { font-size: 4.25rem; }
-      #qrCode, #qrCode img, #qrCode canvas { width: 200px !important; height: 200px !important; }
+      #qrCode, #qrCode img, #qrCode canvas { width: 184px !important; height: 184px !important; }
       .players-panel .player-list { margin-top: 0; min-height: 260px; }
     }
   </style>
@@ -92,7 +93,7 @@
 
     <div class="lobby-grid">
       <section class="join-panel" aria-label="Rejoindre la partie">
-        <p class="join-hint">Scanne le QR code avec ton téléphone, ou tape ce code dans « Rejoindre ».</p>
+        <p class="join-hint">Scanne le QR code avec ton téléphone, ou tape ce code dans « Rejoindre ».</p>
         <div class="room-code" id="roomCodeDisplay"></div>
         <div id="qrBox" class="qr-box">
           <div id="qrCode" role="img" aria-label="QR code pour rejoindre la partie"></div>
@@ -196,7 +197,7 @@
           const siteHint = document.getElementById('siteHint');
           const strong = document.createElement('strong');
           strong.textContent = (site.host + site.pathname).replace(/\/$/, '');
-          siteHint.append('Sans QR code : va sur ', strong, ', puis « Rejoindre ».');
+          siteHint.append('Sans QR code : va sur ', strong, ', puis « Rejoindre ».');
           siteHint.classList.remove('hidden');
         }
       } catch (e) {}

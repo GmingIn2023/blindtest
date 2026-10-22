@@ -13,16 +13,16 @@
 
     .setup-header { text-align: center; margin-bottom: 1.5rem; }
     .setup-header h1 { margin-bottom: 0.35rem; }
-    .setup-header p { font-size: 15px; color: var(--ink-2); }
+    .setup-header .lede { margin: 0 auto; text-wrap: balance; }
 
     fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
-    .field-legend {
-      font-family: var(--font-display);
-      font-weight: 600;
-      font-size: 17px;
-      color: var(--ink);
-      padding: 0;
-      margin-bottom: 0.7rem;
+    /* Légende lue par les lecteurs d'écran, les cartes parlent d'elles-mêmes */
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0 0 0 0);
+      white-space: nowrap; border: 0;
     }
 
     /* ---------- Cartes de mode ---------- */
@@ -75,7 +75,6 @@
       stroke-linecap: round;
       stroke-linejoin: round;
     }
-    .mode-icon .fill { fill: currentColor; stroke: none; }
     .mode-name {
       font-family: var(--font-display);
       font-weight: 600;
@@ -260,7 +259,6 @@
     .error-message { color: var(--berry); font-weight: 600; text-align: center; margin-top: 0.8rem; font-size: 15px; }
     .error-message:empty { display: none; }
 
-    .back-link { text-align: center; margin-top: 1.4rem; font-size: 15px; }
 
     @media (max-width: 380px) {
       .card-design { min-height: 84px; padding: 12px 6px 10px; }
@@ -272,13 +270,13 @@
   <div id="app" class="setup-container">
     <header class="setup-header">
       <h1>Ta partie</h1>
-      <p>Choisis un mode et le nombre de joueurs.</p>
+      <p class="lede">Choisis un mode et le nombre de joueurs.</p>
     </header>
 
     <form id="config-form" novalidate>
       <!-- Mode de jeu -->
       <fieldset class="mode-field">
-        <legend class="field-legend">Mode de jeu</legend>
+        <legend class="visually-hidden">Mode de jeu</legend>
         <div class="mode-grid">
           <label class="mode-card">
             <input type="radio" name="gameMode" value="classic" checked>
@@ -292,7 +290,7 @@
             <input type="radio" name="gameMode" value="instrumental">
             <span class="card-design">
               <span class="mode-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
-              <svg class="mode-icon" viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="8" width="24" height="16" rx="2.2"/><rect class="fill" x="8.6" y="8" width="2.8" height="8.5" rx=".6"/><rect class="fill" x="20.6" y="8" width="2.8" height="8.5" rx=".6"/><path d="M10 17v7M16 8v16M22 17v7"/></svg>
+              <svg class="mode-icon" viewBox="0 0 32 32" aria-hidden="true"><rect x="12.5" y="4" width="7" height="13" rx="3.5"/><path d="M8.5 14.5a7.5 7.5 0 0 0 15 0M16 22v4.5M12 26.5h8"/><path d="M6 5.5l20 21"/></svg>
               <span class="mode-name">Instru</span>
             </span>
           </label>
@@ -326,18 +324,18 @@
         <p id="playlistModeNote" class="row-note hidden">Il faut au moins 3 joueurs. Chacun apporte ses chansons, toi tu animes.</p>
 
         <div id="playlistSongsPerPlayerGroup" class="control-row hidden">
-          <label for="playlistSongsPerPlayer">Chansons par joueur<span class="row-sub">De 2 à 5</span></label>
+          <label for="playlistSongsPerPlayer">Chansons par joueur</label>
           <input type="number" id="playlistSongsPerPlayer" min="2" max="5" value="5" inputmode="numeric">
         </div>
 
         <div class="control-row" id="songsPerPlayerGroup">
-          <label for="songsPerPlayer">Chansons par joueur<span class="row-sub">De 0 à 5</span></label>
+          <label for="songsPerPlayer">Chansons par joueur</label>
           <input type="number" id="songsPerPlayer" min="0" max="5" value="1" inputmode="numeric">
         </div>
 
         <div class="control-row control-stack" id="totalSongsGroup">
           <div class="control-line">
-            <label for="totalSongs">Chansons au total<span class="row-sub">De 1 à 30</span></label>
+            <label for="totalSongs">Chansons au total</label>
             <input type="number" id="totalSongs" min="1" max="30" value="5" inputmode="numeric">
           </div>
           <p id="songsSplitHint" class="row-note" aria-live="polite"></p>
@@ -467,8 +465,8 @@
       <button type="submit" class="primary">🚀 Créer la partie</button>
       <div id="configError" class="error-message" role="alert"></div>
     </form>
-    <p class="back-link">
-      <a href="index.html">← Retour à l'accueil</a>
+    <p class="page-foot">
+      <a href="index.html" class="back-link"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>Retour à l'accueil</a>
     </p>
   </div>
 
@@ -543,7 +541,7 @@
         if (hostTotal < 0) {
           songsSplitHint.innerHTML = `<span class="split-warn">Il faut au moins ${playersTotal} chansons au total : une part pour chaque joueur.</span>`;
         } else {
-          songsSplitHint.innerHTML = `Les joueurs en apportent <b>${playersTotal}</b>, tu complètes avec <b>${hostTotal}</b>.`;
+          songsSplitHint.innerHTML = `Les joueurs en apportent <b>${playersTotal}</b>, toi <b>${hostTotal}</b>.`;
         }
       }
       totalSongsInput.addEventListener('input', updateSongsSplitHint);

@@ -3,424 +3,472 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
   <title>Configuration · Blind Test</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    .setup-container {
-      max-width: 650px;
-      margin: 0 auto;
+    /* ===== Configuration — « Pochette de vinyle » (voir DESIGN.md) ===== */
+    ::selection { background: var(--mustard-soft); color: var(--ink); }
+    input { caret-color: var(--tomato); }
+
+    .setup-header { text-align: center; margin-bottom: 1.5rem; }
+    .setup-header h1 { margin-bottom: 0.35rem; }
+    .setup-header p { font-size: 15px; color: var(--ink-2); }
+
+    fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+    .field-legend {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 17px;
+      color: var(--ink);
+      padding: 0;
+      margin-bottom: 0.7rem;
     }
-    .setup-header {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-    .setup-header p {
-      color: #8aaec0;
-      margin-top: 0.5rem;
-      font-size: 0.95rem;
-    }
-    /* Compact Mode Grid (Smaller Squares) */
+
+    /* ---------- Cartes de mode ---------- */
     .mode-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 0.6rem;
-      margin-bottom: 1.5rem;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
     }
-    @media (max-width: 580px) {
-      .mode-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
+    @media (min-width: 600px) {
+      .mode-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     }
     .mode-card {
-      cursor: pointer;
       position: relative;
+      display: block;
+      margin: 0;
+      font-weight: inherit;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
     }
     .mode-card input[type="radio"] {
       position: absolute;
       opacity: 0;
-      width: 0;
-      height: 0;
+      width: 1px;
+      height: 1px;
+      margin: 0;
+      pointer-events: none;
     }
     .card-design {
-      background: #141a22;
-      border: 2px solid #2b3542;
-      border-radius: 0.8rem;
-      padding: 0.8rem 0.5rem;
+      position: relative;
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 92px;
+      padding: 14px 8px 12px;
+      background: var(--card);
+      border: 1.5px solid var(--line);
+      border-radius: var(--r-md);
+      color: var(--ink);
       text-align: center;
-      transition: all 0.25s ease;
-      height: 100%;
+      transition: border-color .14s var(--ease), background-color .14s var(--ease), transform .14s var(--ease);
     }
-    .card-design .icon {
-      font-size: 1.5rem;
-      margin-bottom: 0.3rem;
+    .mode-icon {
+      width: 30px;
+      height: 30px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
-    .card-design h3 {
-      font-size: 0.92rem;
-      font-weight: 700;
-      color: #fff;
-      margin-bottom: 0.2rem;
+    .mode-icon .fill { fill: currentColor; stroke: none; }
+    .mode-name {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 17px;
+      line-height: 1.2;
     }
-    .card-design p {
-      font-size: 0.72rem;
-      color: #8aaec0;
-      line-height: 1.25;
+    .mode-check {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--ink);
+      display: grid;
+      place-items: center;
+      opacity: 0;
+      transform: scale(.6);
+      transition: opacity .14s var(--ease), transform .18s var(--ease);
     }
-    .mode-card input[type="radio"]:checked + .card-design {
-      border-color: #3b6eff;
-      background: #172435;
-      box-shadow: 0 0 15px rgba(59, 110, 255, 0.25);
-      transform: translateY(-2px);
+    .mode-check svg { width: 13px; height: 13px; fill: none; stroke: var(--card); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .mode-card:hover .card-design { border-color: var(--ink-3); }
+    .mode-card:active .card-design { transform: scale(.98); }
+    .mode-card input:checked + .card-design {
+      border-color: var(--ink);
+      background: var(--mustard-soft);
     }
-    /* Compact Control Rows */
+    .mode-card input:checked + .card-design .mode-check { opacity: 1; transform: none; }
+    .mode-card input:focus-visible + .card-design { outline: 3px solid var(--mustard); outline-offset: 2px; }
+
+    .mode-help {
+      text-align: center;
+      margin: 0.75rem 0 0;
+      font-size: 15px;
+      color: var(--ink-2);
+      min-height: 1.45em;
+    }
+
+    /* ---------- L'essentiel : joueurs et chansons ---------- */
+    .essentials { margin: 1.4rem 0 1.2rem; border-top: 1px solid var(--line); }
     .control-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: #141a22;
-      border: 1px solid #2b3542;
-      padding: 1rem 1.2rem;
-      border-radius: 1rem;
-      margin-bottom: 1rem;
       gap: 1rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--line);
     }
-    .control-row label {
-      margin-bottom: 0;
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #cfe0ea;
-    }
-    .control-row input[type="number"] {
-      width: 80px;
+    .control-row label { margin: 0; font-size: 17px; font-weight: 600; }
+    .row-sub { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2); margin-top: 1px; }
+    .control-stack { flex-direction: column; align-items: stretch; gap: 0.35rem; }
+    .control-line { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+    .row-note { margin: 0; font-size: 15px; line-height: 1.4; color: var(--ink-2); }
+    .row-note b { color: var(--ink); font-weight: 700; }
+    .split-warn { color: var(--berry); font-weight: 600; }
+    #playlistModeNote { padding: 0.6rem 0 0.75rem; border-bottom: 1px solid var(--line); }
+
+    /* Champs numériques : gros chiffre lisible */
+    #config-form input[type="number"] {
+      width: 76px;
+      flex: 0 0 76px;
       margin: 0;
-      padding: 0.5rem;
+      padding: 0.45rem 0.3rem;
       text-align: center;
-      background: #0d1218;
-      border: 1px solid #2b3542;
-      border-radius: 10px;
-      color: #fff;
-      font-size: 1rem;
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 21px;
+      font-variant-numeric: tabular-nums;
+      -moz-appearance: textfield;
+      appearance: textfield;
     }
-    /* Accordion Customization */
-    .accordion-header {
-      background: #141a22;
-      border: 1px solid #2b3542;
-      border-radius: 1rem;
-      padding: 1.2rem;
-      display: flex;
+    #config-form input[type="number"]::-webkit-inner-spin-button,
+    #config-form input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+    /* ---------- Bloc repliable « Plus de réglages » ---------- */
+    #toggleParams {
       justify-content: space-between;
-      align-items: center;
-      cursor: pointer;
-      user-select: none;
-      transition: background 0.2s;
-      margin-bottom: 1rem;
-    }
-    .accordion-header:hover {
-      background: #1a222c;
-    }
-    .accordion-header h3 {
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: #e0f0ff;
-    }
-    .toggle-list {
-      display: flex;
-      flex-direction: column;
+      text-align: left;
       gap: 0.8rem;
-      padding: 1.2rem;
-      background: #0e1319;
-      border: 1px solid #2b3542;
-      border-top: none;
-      border-radius: 0 0 1rem 1rem;
-      margin-top: -1.5rem;
-      margin-bottom: 1.5rem;
+      margin: 0;
+      padding: 0.7rem 0.8rem 0.7rem 1rem;
+      min-height: 60px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--r-sm);
+      font-weight: 600;
     }
-    /* Thematic Groups Inside Accordion */
-    .subtheme-group {
-      background: #11161d;
-      border: 1px solid #222c36;
-      border-radius: 0.8rem;
-      padding: 0.8rem 1rem;
+    #toggleParams:hover:not(:disabled) { background: var(--sunk); }
+    #toggleParams[aria-expanded="true"] { border-color: var(--ink); background: var(--card); }
+    .more-title { display: block; font-size: 17px; color: var(--ink); }
+    .more-sub { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2); margin-top: 2px; }
+    #paramsArrow {
+      flex: 0 0 32px;
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--card);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      transition: transform .18s var(--ease);
+    }
+    #paramsArrow svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+    #toggleParams[aria-expanded="true"] #paramsArrow { transform: rotate(180deg); }
+
+    .more-panel { padding: 0.2rem 0.1rem 0; animation: rise-in .2s var(--ease) both; }
+    .set-group { padding: 1.1rem 0 0.4rem; border-bottom: 1px solid var(--line); }
+    .set-group:last-child { border-bottom: 0; }
+    .set-title {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 17px;
+      color: var(--ink);
       margin-bottom: 0.2rem;
-    }
-    .subtheme-title {
-      font-size: 0.8rem;
-      font-weight: 700;
-      color: #3b6eff;
-      text-transform: uppercase;
-      letter-spacing: 0.05rem;
-      margin-bottom: 0.8rem;
-      border-bottom: 1px solid #222c36;
-      padding-bottom: 0.3rem;
     }
     .toggle-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0.5rem 0;
-      transition: opacity 0.25s ease;
+      gap: 1rem;
+      padding: 0.6rem 0;
+      margin: 0;
+      font-size: inherit;
+      font-weight: inherit;
+      transition: opacity .2s var(--ease);
     }
-    .toggle-info {
-      padding-right: 1rem;
-    }
-    .toggle-info h4 {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: #fff;
-    }
-    .toggle-info p {
-      font-size: 0.75rem;
-      color: #8aaec0;
-      margin-top: 0.15rem;
-    }
-    /* Switch Styles */
-    .switch {
-      position: relative;
-      display: inline-block;
-      width: 48px;
-      height: 24px;
-      flex-shrink: 0;
-    }
+    label.toggle-row { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .toggle-info { min-width: 0; margin: 0; font-weight: inherit; font-size: inherit; }
+    .t-title { display: block; font-size: 16px; font-weight: 600; color: var(--ink); line-height: 1.3; }
+    .t-desc { display: block; font-size: 14px; color: var(--ink-2); line-height: 1.35; margin-top: 2px; }
+    .sub-label { font-size: 14px; font-weight: 600; color: var(--ink-2); margin: 0.3rem 0 0.4rem; }
+
+    /* Interrupteur (case à cocher habillée) */
+    .switch { position: relative; display: inline-block; width: 48px; height: 28px; flex-shrink: 0; }
     .switch input {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
       opacity: 0;
-      width: 0;
-      height: 0;
+      cursor: pointer;
     }
     .slider {
       position: absolute;
-      cursor: pointer;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background-color: #2b3542;
-      transition: .25s;
-      border-radius: 24px;
+      inset: 0;
+      background: var(--card);
+      border: 1.5px solid var(--ink-2);
+      border-radius: 999px;
+      pointer-events: none;
+      transition: background-color .16s var(--ease), border-color .16s var(--ease);
     }
-    .slider:before {
-      position: absolute;
+    .slider::before {
       content: "";
-      height: 18px; width: 18px;
-      left: 3px; bottom: 3px;
-      background-color: white;
-      transition: .25s;
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 3.5px;
+      top: 3.5px;
+      background: var(--ink-2);
       border-radius: 50%;
+      transition: transform .16s var(--ease), background-color .16s var(--ease);
     }
-    input:checked + .slider {
-      background-color: #3b6eff;
+    .switch input:checked + .slider { background: var(--pine); border-color: var(--pine); }
+    .switch input:checked + .slider::before { transform: translateX(20px); background: var(--card); }
+    .switch input:focus-visible + .slider { outline: 3px solid var(--mustard); outline-offset: 2px; }
+    .switch input:disabled { cursor: not-allowed; }
+
+    /* Choix Lent / Normal / Rapide */
+    .seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 0.6rem; }
+    .seg .radio-label { justify-content: center; min-height: 44px; padding: 0.5rem 0.4rem; font-size: 15px; }
+    .seg .radio-label input { width: 18px; height: 18px; margin: 0; flex-shrink: 0; }
+
+    /* ---------- Action principale ---------- */
+    #config-form button[type="submit"] {
+      margin: 1.4rem 0 0;
+      min-height: 58px;
+      font-size: 1.1rem;
+      font-weight: 700;
     }
-    input:checked + .slider:before {
-      transform: translateX(24px);
-    }
-    .hint-alert {
-      background: #251e15;
-      border-left: 4px solid #f5a623;
-      padding: 0.8rem 1.2rem;
-      border-radius: 0.75rem;
-      font-size: 0.85rem;
-      color: #fdd594;
-      margin-top: 1rem;
-    }
-    .hidden {
-      display: none !important;
+    .error-message { color: var(--berry); font-weight: 600; text-align: center; margin-top: 0.8rem; font-size: 15px; }
+    .error-message:empty { display: none; }
+
+    .back-link { text-align: center; margin-top: 1.4rem; font-size: 15px; }
+
+    @media (max-width: 380px) {
+      .card-design { min-height: 84px; padding: 12px 6px 10px; }
+      .mode-name { font-size: 16px; }
     }
   </style>
 </head>
 <body>
   <div id="app" class="setup-container">
-    <div class="setup-header">
-      <h1>⚙️ Configuration</h1>
-      <p>Configurez les règles de votre partie</p>
-    </div>
+    <header class="setup-header">
+      <h1>Ta partie</h1>
+      <p>Choisis un mode et le nombre de joueurs.</p>
+    </header>
 
-    <form id="config-form">
-      <!-- Game Mode Cards -->
-      <div class="config-group" style="border:none; background:transparent; padding:0; margin-bottom:1.5rem;">
-        <div class="config-title" style="margin-bottom:1rem;">🎮 Mode de jeu</div>
+    <form id="config-form" novalidate>
+      <!-- Mode de jeu -->
+      <fieldset class="mode-field">
+        <legend class="field-legend">Mode de jeu</legend>
         <div class="mode-grid">
           <label class="mode-card">
             <input type="radio" name="gameMode" value="classic" checked>
-            <div class="card-design">
-              <span class="icon">🎵</span>
-              <h3>Standard</h3>
-            </div>
+            <span class="card-design">
+              <span class="mode-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+              <svg class="mode-icon" viewBox="0 0 32 32" aria-hidden="true"><path d="M8.5 21a7.5 7.5 0 0 1 15 0"/><rect x="5" y="21" width="22" height="5.5" rx="1.8"/><path d="M16 5.5V9M9.2 8l2 2.6M22.8 8l-2 2.6"/></svg>
+              <span class="mode-name">Standard</span>
+            </span>
           </label>
           <label class="mode-card">
             <input type="radio" name="gameMode" value="instrumental">
-            <div class="card-design">
-              <span class="icon">🎸</span>
-              <h3>Instru</h3>
-            </div>
+            <span class="card-design">
+              <span class="mode-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+              <svg class="mode-icon" viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="8" width="24" height="16" rx="2.2"/><rect class="fill" x="8.6" y="8" width="2.8" height="8.5" rx=".6"/><rect class="fill" x="20.6" y="8" width="2.8" height="8.5" rx=".6"/><path d="M10 17v7M16 8v16M22 17v7"/></svg>
+              <span class="mode-name">Instru</span>
+            </span>
           </label>
           <label class="mode-card">
             <input type="radio" name="gameMode" value="playlist">
-            <div class="card-design">
-              <span class="icon">🎧</span>
-              <h3>Playlist</h3>
-            </div>
+            <span class="card-design">
+              <span class="mode-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+              <svg class="mode-icon" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 9h13M5 15h13M5 21h8"/><path d="M25 21.5V7l3.2 1.6"/><ellipse cx="21.6" cy="21.8" rx="3.4" ry="2.7"/></svg>
+              <span class="mode-name">Playlist</span>
+            </span>
           </label>
           <label class="mode-card">
             <input type="radio" name="gameMode" value="lyrics">
-            <div class="card-design">
-              <span class="icon">🎤</span>
-              <h3>Paroles</h3>
-            </div>
+            <span class="card-design">
+              <span class="mode-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+              <svg class="mode-icon" viewBox="0 0 32 32" aria-hidden="true"><path d="M7 6.5h18a2.5 2.5 0 0 1 2.5 2.5v10a2.5 2.5 0 0 1-2.5 2.5H14l-5.5 4.5v-4.5H7A2.5 2.5 0 0 1 4.5 19V9A2.5 2.5 0 0 1 7 6.5z"/><path d="M10 12.5h12M10 16.5h8"/></svg>
+              <span class="mode-name">Paroles</span>
+            </span>
           </label>
         </div>
+        <p id="modeHelp" class="mode-help" aria-live="polite">Buzze et tape le titre.</p>
+      </fieldset>
 
-        <!-- Playlist Mode Rules Info -->
-        <div id="playlistModeNote" class="hint-alert hidden">
-          ⚠️ <b>Mode Playlist :</b> Demande au moins 3 joueurs. Chaque participant soumet sa mini-sélection, l'hôte est observateur.
+      <!-- L'essentiel -->
+      <div class="essentials">
+        <div class="control-row">
+          <label for="playerCount">Joueurs<span class="row-sub">Sans te compter</span></label>
+          <input type="number" id="playerCount" min="1" max="8" value="2" inputmode="numeric">
         </div>
 
-        <div id="playlistSongsPerPlayerGroup" class="control-row hidden" style="margin-top:0.8rem;">
-          <label>Chansons par joueur (mode Playlist)</label>
-          <input type="number" id="playlistSongsPerPlayer" min="2" max="5" value="5">
+        <p id="playlistModeNote" class="row-note hidden">Il faut au moins 3 joueurs. Chacun apporte ses chansons, toi tu animes.</p>
+
+        <div id="playlistSongsPerPlayerGroup" class="control-row hidden">
+          <label for="playlistSongsPerPlayer">Chansons par joueur<span class="row-sub">De 2 à 5</span></label>
+          <input type="number" id="playlistSongsPerPlayer" min="2" max="5" value="5" inputmode="numeric">
         </div>
 
-        <!-- Lyrics Controls -->
-        <div id="lyricsModeGroup" class="hidden" style="margin-top:0.8rem; background: #141a22; border: 1px solid #2b3542; border-radius: 1rem; padding: 1.2rem;">
-          <label style="display:block; margin-bottom:0.8rem;">⏱️ Vitesse d'apparition des paroles</label>
-          <div class="radio-group" style="margin-bottom:1rem;">
-            <label class="radio-label"><input type="radio" name="lyricsSpeed" value="slow" checked> 🐢 Lent</label>
-            <label class="radio-label"><input type="radio" name="lyricsSpeed" value="medium"> 🚶 Moyen</label>
-            <label class="radio-label"><input type="radio" name="lyricsSpeed" value="fast"> ⚡ Rapide</label>
+        <div class="control-row" id="songsPerPlayerGroup">
+          <label for="songsPerPlayer">Chansons par joueur<span class="row-sub">De 0 à 5</span></label>
+          <input type="number" id="songsPerPlayer" min="0" max="5" value="1" inputmode="numeric">
+        </div>
+
+        <div class="control-row control-stack" id="totalSongsGroup">
+          <div class="control-line">
+            <label for="totalSongs">Chansons au total<span class="row-sub">De 1 à 30</span></label>
+            <input type="number" id="totalSongs" min="1" max="30" value="5" inputmode="numeric">
           </div>
-          <div class="toggle-row" style="border-top:1px solid #2b3542; padding-top:0.8rem; margin:0;">
-            <div class="toggle-info">
-              <h4>Mots masqués</h4>
-              <p>Certaines lettres restent cachées pour plus de difficulté</p>
-            </div>
-            <label class="switch">
+          <p id="songsSplitHint" class="row-note" aria-live="polite"></p>
+        </div>
+      </div>
+
+      <!-- Plus de réglages (fermé par défaut) -->
+      <button type="button" id="toggleParams" aria-expanded="false" aria-controls="paramsContent">
+        <span class="more-text">
+          <span class="more-title">Plus de réglages</span>
+          <span class="more-sub">Tentatives, buzz, pochette, doublons…</span>
+        </span>
+        <span id="paramsArrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+      </button>
+
+      <div id="paramsContent" class="hidden more-panel">
+
+        <!-- Paroles (seulement en mode Paroles) -->
+        <section id="lyricsModeGroup" class="set-group hidden">
+          <h3 class="set-title">Paroles</h3>
+          <p class="sub-label" id="lyricsSpeedLabel">Vitesse d'apparition</p>
+          <div class="radio-group seg" role="radiogroup" aria-labelledby="lyricsSpeedLabel">
+            <label class="radio-label"><input type="radio" name="lyricsSpeed" value="slow" checked> Lent</label>
+            <label class="radio-label"><input type="radio" name="lyricsSpeed" value="medium"> Moyen</label>
+            <label class="radio-label"><input type="radio" name="lyricsSpeed" value="fast"> Rapide</label>
+          </div>
+          <label class="toggle-row">
+            <span class="toggle-info">
+              <span class="t-title">Lettres cachées</span>
+              <span class="t-desc">Certaines lettres restent masquées.</span>
+            </span>
+            <span class="switch">
               <input type="checkbox" id="lyricsSkipWordsCheck">
               <span class="slider"></span>
-            </label>
-          </div>
-        </div>
-      </div>
+            </span>
+          </label>
+        </section>
 
-      <!-- Accordéon Paramètres -->
-      <div class="accordion-header" id="toggleParams">
-        <h3>🎚️ Options de difficulté & Paramètres</h3>
-        <span id="paramsArrow" style="font-size: 1.2rem; color: #8aaec0;">⬇️</span>
-      </div>
-
-      <!-- Organisé par Thèmes -->
-      <div id="paramsContent" class="hidden toggle-list">
-        
-        <!-- Thème 1 : Déroulement du jeu -->
-        <div class="subtheme-group">
-          <div class="subtheme-title">🏆 Déroulement du jeu</div>
+        <!-- Pendant la manche -->
+        <section class="set-group">
+          <h3 class="set-title">Pendant la manche</h3>
           <div class="toggle-row">
-            <div class="toggle-info">
-              <h4>Tentatives maximales</h4>
-              <p>Nombre d'essais max autorisés par joueur (0 = illimité)</p>
-            </div>
-            <input type="number" id="maxAttempts" min="0" max="10" value="3" style="width: 80px; text-align: center; background: #0d1218; border: 1px solid #2b3542; border-radius: 10px; color:#fff;">
+            <label class="toggle-info" for="maxAttempts">
+              <span class="t-title">Essais par joueur</span>
+              <span class="t-desc">0 = sans limite.</span>
+            </label>
+            <input type="number" id="maxAttempts" min="0" max="10" value="3" inputmode="numeric">
           </div>
-          <div class="toggle-row" style="border-top: 1px solid #222c36; padding-top: 0.6rem; margin-top: 0.4rem;">
-            <div class="toggle-info">
-              <h4>Blocage des adversaires</h4>
-              <p>Verrouiller les autres participants pendant qu'un joueur répond</p>
-            </div>
-            <label class="switch">
+          <label class="toggle-row">
+            <span class="toggle-info">
+              <span class="t-title">Un seul à la fois</span>
+              <span class="t-desc">Quand quelqu'un buzze, les autres attendent.</span>
+            </span>
+            <span class="switch">
               <input type="checkbox" id="lockOthersCheck" checked>
               <span class="slider"></span>
-            </label>
-          </div>
-          <div class="toggle-row" style="border-top: 1px solid #222c36; padding-top: 0.6rem; margin-top: 0.4rem;">
-            <div class="toggle-info">
-              <h4>Multi-vainqueurs</h4>
-              <p>Accepter plusieurs bonnes réponses d'affilée par manche</p>
-            </div>
-            <label class="switch">
+            </span>
+          </label>
+          <label class="toggle-row">
+            <span class="toggle-info">
+              <span class="t-title">Plusieurs gagnants</span>
+              <span class="t-desc">La manche continue après une bonne réponse.</span>
+            </span>
+            <span class="switch">
               <input type="checkbox" id="multipleCorrectCheck">
               <span class="slider"></span>
-            </label>
-          </div>
-        </div>
+            </span>
+          </label>
+        </section>
 
-        <!-- Thème 2 : Visuel & Contenu -->
-        <div class="subtheme-group">
-          <div class="subtheme-title">🎨 Visuel & Contenu</div>
-          <div class="toggle-row">
-            <div class="toggle-info">
-              <h4>Révélation d'image</h4>
-              <p>Flouter la couverture d'album et la révéler progressivement</p>
-            </div>
-            <label class="switch">
+        <!-- Pochette -->
+        <section class="set-group">
+          <h3 class="set-title">Pochette</h3>
+          <label class="toggle-row">
+            <span class="toggle-info">
+              <span class="t-title">Pochette floue</span>
+              <span class="t-desc">Elle se dévoile peu à peu.</span>
+            </span>
+            <span class="switch">
               <input type="checkbox" id="blurCheck">
               <span class="slider"></span>
-            </label>
-          </div>
-          <div style="margin:0.2rem 0 0.8rem;">
-            <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem; color:#8aaec0;">⏱️ Vitesse de la révélation d'image</label>
-            <div class="radio-group">
-              <label class="radio-label"><input type="radio" name="revealSpeed" value="slow"> 🐢 Lent</label>
-              <label class="radio-label"><input type="radio" name="revealSpeed" value="normal" checked> 🚶 Normal</label>
-              <label class="radio-label"><input type="radio" name="revealSpeed" value="fast"> ⚡ Rapide</label>
+            </span>
+          </label>
+          <div class="reveal-speed">
+            <p class="sub-label" id="revealSpeedLabel">Vitesse du dévoilement</p>
+            <div class="radio-group seg" role="radiogroup" aria-labelledby="revealSpeedLabel">
+              <label class="radio-label"><input type="radio" name="revealSpeed" value="slow"> Lent</label>
+              <label class="radio-label"><input type="radio" name="revealSpeed" value="normal" checked> Normal</label>
+              <label class="radio-label"><input type="radio" name="revealSpeed" value="fast"> Rapide</label>
             </div>
           </div>
-          <div class="toggle-row" style="border-top: 1px solid #222c36; padding-top: 0.6rem; margin-top: 0.4rem;">
-            <div class="toggle-info">
-              <div id="duplicatesHint"></div>
-            </div>
-            <label class="switch">
+        </section>
+
+        <!-- Choix des chansons -->
+        <section class="set-group">
+          <h3 class="set-title">Choix des chansons</h3>
+          <label class="toggle-row">
+            <span class="toggle-info" id="duplicatesHint"></span>
+            <span class="switch">
               <input type="checkbox" id="allowDuplicatesCheck">
               <span class="slider"></span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Thème 3 : Options de Sélection -->
-        <div class="subtheme-group">
-          <div class="subtheme-title">🛠️ Options de Sélection</div>
-          <div class="toggle-row">
-            <div class="toggle-info">
-              <h4>Mode Classique Simple</h4>
-              <p>Désactive les filtres audio complexes lors de la sélection des morceaux</p>
-            </div>
-            <label class="switch">
+            </span>
+          </label>
+          <label class="toggle-row">
+            <span class="toggle-info">
+              <span class="t-title">Mode classique</span>
+              <span class="t-desc">Pas d'effets sur le son au moment du choix.</span>
+            </span>
+            <span class="switch">
               <input type="checkbox" id="classicModeCheck">
               <span class="slider"></span>
-            </label>
-          </div>
-          <div class="toggle-row" style="border-top: 1px solid #222c36; padding-top: 0.6rem; margin-top: 0.4rem;">
-            <div class="toggle-info">
-              <h4>Modifications avancées</h4>
-              <p>Donner accès au pitch et aux filtres lors de la sélection (Incompatible Mode Classique)</p>
-            </div>
-            <label class="switch">
+            </span>
+          </label>
+          <label class="toggle-row">
+            <span class="toggle-info">
+              <span class="t-title">Réglages avancés</span>
+              <span class="t-desc">Tonalité et filtres au moment du choix. Pas avec le mode classique.</span>
+            </span>
+            <span class="switch">
               <input type="checkbox" id="advancedSettingsCheck">
               <span class="slider"></span>
-            </label>
-          </div>
-        </div>
-
+            </span>
+          </label>
+        </section>
       </div>
 
-      <div class="control-row">
-        <label>👥 Nombre de joueurs attendus</label>
-        <input type="number" id="playerCount" min="1" max="8" value="2">
-      </div>
-
-      <div class="control-row" id="songsPerPlayerGroup">
-        <label>🎵 Chansons à choisir par joueur</label>
-        <input type="number" id="songsPerPlayer" min="0" max="5" value="1">
-      </div>
-
-      <div class="control-row" id="totalSongsGroup" style="flex-direction:column; align-items:stretch;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <label>🏆 Nombre total de chansons de la partie</label>
-          <input type="number" id="totalSongs" min="1" max="30" value="5">
-        </div>
-        <p id="songsSplitHint" style="color:#8aaec0; margin-top:0.6rem; font-size:0.82rem; line-height:1.3;"></p>
-      </div>
-
-      <button type="submit" class="primary" style="width:100%; padding:1.2rem; border-radius:60px; font-size:1.05rem;">🚀 Créer la partie</button>
-      <div id="configError" class="error-message"></div>
+      <button type="submit" class="primary">🚀 Créer la partie</button>
+      <div id="configError" class="error-message" role="alert"></div>
     </form>
-    <p style="text-align:center; margin-top:1.5rem;">
-      <a href="index.html" style="color:#8aaec0; font-size:0.92rem;">← Retour à l'accueil</a>
+    <p class="back-link">
+      <a href="index.html">← Retour à l'accueil</a>
     </p>
   </div>
 
@@ -436,20 +484,31 @@
       const isEditMode = new URLSearchParams(window.location.search).get('edit') === '1';
       const submitBtn = document.getElementById('config-form').querySelector('button[type="submit"]');
 
+      // Bloc « Plus de réglages » : fermé par défaut, la flèche tourne via aria-expanded
       const toggleParams = document.getElementById('toggleParams');
       const paramsContent = document.getElementById('paramsContent');
       const paramsArrow = document.getElementById('paramsArrow');
       toggleParams.addEventListener('click', () => {
         const isHidden = paramsContent.classList.contains('hidden');
         paramsContent.classList.toggle('hidden', !isHidden);
-        paramsArrow.textContent = isHidden ? '🔼' : '⬇️';
+        toggleParams.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+        paramsArrow.classList.toggle('open', isHidden);
       });
 
       const totalSongsGroup = document.getElementById('totalSongsGroup');
       const songsPerPlayerGroup = document.getElementById('songsPerPlayerGroup');
       const playlistModeNote = document.getElementById('playlistModeNote');
       const playlistSongsPerPlayerGroup = document.getElementById('playlistSongsPerPlayerGroup');
-      
+
+      // Une phrase d'aide sous le mode choisi
+      const modeHelp = document.getElementById('modeHelp');
+      const MODE_HELP = {
+        classic: 'Buzze et tape le titre.',
+        instrumental: 'Sans la voix. Points ×1,5.',
+        playlist: 'Devine qui a choisi la chanson.',
+        lyrics: 'Les mots s\'affichent un à un.'
+      };
+
       function updateModeUI() {
         const mode = document.querySelector('input[name="gameMode"]:checked')?.value;
         if (mode === 'playlist') {
@@ -464,6 +523,7 @@
           playlistSongsPerPlayerGroup.classList.add('hidden');
         }
         document.getElementById('lyricsModeGroup').classList.toggle('hidden', mode !== 'lyrics');
+        if (modeHelp) modeHelp.textContent = MODE_HELP[mode] || '';
         updateSongsSplitHint();
       }
       document.querySelectorAll('input[name="gameMode"]').forEach(r => r.addEventListener('change', updateModeUI));
@@ -481,9 +541,9 @@
         const hostTotal = total - playersTotal;
 
         if (hostTotal < 0) {
-          songsSplitHint.innerHTML = `<span style="color:#ff9999;">⚠️ Configuration impossible : le nombre total de chansons doit couvrir les sélections des joueurs (${playersTotal} au total).</span>`;
+          songsSplitHint.innerHTML = `<span class="split-warn">Il faut au moins ${playersTotal} chansons au total : une part pour chaque joueur.</span>`;
         } else {
-          songsSplitHint.innerHTML = `Les joueurs choisiront au total <b>${playersTotal}</b> chanson(s), et l'hôte complètera avec <b>${hostTotal}</b> chanson(s).`;
+          songsSplitHint.innerHTML = `Les joueurs en apportent <b>${playersTotal}</b>, tu complètes avec <b>${hostTotal}</b>.`;
         }
       }
       totalSongsInput.addEventListener('input', updateSongsSplitHint);
@@ -495,8 +555,8 @@
       const duplicatesHint = document.getElementById('duplicatesHint');
       function updateDuplicatesHint() {
         duplicatesHint.innerHTML = allowDuplicatesCheck.checked
-          ? '<h4>Autoriser les doublons</h4><p>Plusieurs joueurs peuvent soumettre la même musique sans être bloqués.</p>'
-          : '<h4>Autoriser les doublons</h4><p>Le second joueur à soumettre une musique déjà prise devra en choisir une autre.</p>';
+          ? '<span class="t-title">Doublons autorisés</span><span class="t-desc">Deux joueurs peuvent choisir la même chanson.</span>'
+          : '<span class="t-title">Doublons autorisés</span><span class="t-desc">Non : une chanson déjà prise est refusée.</span>';
       }
       allowDuplicatesCheck.addEventListener('change', updateDuplicatesHint);
       updateDuplicatesHint();
@@ -504,7 +564,7 @@
       // Mode Classique / Advanced Interdependence Logic
       const classicModeCheck = document.getElementById('classicModeCheck');
       const advancedSettingsCheck = document.getElementById('advancedSettingsCheck');
-      
+
       function handleClassicModeInterdependence() {
         if (classicModeCheck.checked) {
           advancedSettingsCheck.checked = false;
@@ -539,7 +599,7 @@
           const speedRadio = document.querySelector(`input[name="lyricsSpeed"][value="${cfg.lyricsSpeed || 'slow'}"]`);
           if (speedRadio) speedRadio.checked = true;
           document.getElementById('lyricsSkipWordsCheck').checked = !!cfg.lyricsSkipWords;
-          
+
           handleClassicModeInterdependence();
           updateModeUI();
           updateDuplicatesHint();
@@ -553,7 +613,7 @@
 
         const mode = document.querySelector('input[name="gameMode"]:checked')?.value;
         if (!mode) {
-          errorDiv.textContent = 'Veuillez choisir un mode.';
+          errorDiv.textContent = 'Choisis un mode de jeu.';
           return;
         }
         const classicModeOnly = document.getElementById('classicModeCheck').checked;
@@ -598,7 +658,7 @@
           }
           const playersTotal = playerCount * songsPerPlayer;
           if (totalSongs < playersTotal) {
-            errorDiv.textContent = `Erreur : les joueurs choisissent un total de ${playersTotal} chansons. Le total global de la partie doit être plus élevé.`;
+            errorDiv.textContent = `Il faut au moins ${playersTotal} chansons au total : les joueurs en choisissent ${playersTotal}.`;
             return;
           }
           hostSongsCount = totalSongs - playersTotal;

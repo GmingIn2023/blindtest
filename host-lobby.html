@@ -2,61 +2,155 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lobby hôte · Blind Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#F3ECE0">
+  <title>Salon · Blind Test</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    .room-code {
-      font-size: 2.8rem;
-      font-weight: 800;
-      letter-spacing: 0.5rem;
-      background: #0f1318;
-      padding: 1rem;
-      border-radius: 1.5rem;
-      color: #d4ffb0;
-      border: 2px solid #5e9eff;
-      text-align: center;
-      margin: 1rem 0;
+    .host-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1.25rem; }
+    .host-head h1 { margin: 0; text-align: left; font-size: 1.75rem; }
+
+    .join-panel { text-align: center; }
+    .join-hint { color: var(--ink-2); max-width: 32ch; margin: 0 auto 0.75rem; text-wrap: pretty; }
+    #roomCodeDisplay {
+      font-size: clamp(2.5rem, 13vw, 3.5rem);
+      letter-spacing: 0.14em;
+      padding: 0.55rem 0.2rem 0.45rem 0.34em;
+      margin: 0 auto 1.1rem;
+      font-variant-numeric: lining-nums;
     }
-    .player-list {
-      background: #0f1419;
-      border-radius: 1.5rem;
-      padding: 1.2rem;
-      margin: 1.5rem 0;
+
+    .qr-box {
+      display: inline-flex; flex-direction: column; align-items: center; gap: 0.5rem;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      box-shadow: var(--shadow-paper);
+      padding: 14px 14px 10px;
+      margin: 0 auto 0.5rem;
     }
-    .player-tag {
-      display: inline-block;
-      background: #2a3743;
-      padding: 0.5rem 1.2rem;
-      border-radius: 60px;
-      margin: 0.3rem;
-      font-size: 1rem;
+    #qrCode { width: 170px; height: 170px; border-radius: 4px; background: var(--sunk); overflow: hidden; }
+    #qrCode.ready { background: var(--card); }
+    #qrCode img, #qrCode canvas { width: 170px !important; height: 170px !important; image-rendering: pixelated; }
+    .qr-caption { font-size: 0.9375rem; color: var(--ink-2); }
+    .site-hint { font-size: 0.9375rem; color: var(--ink-2); margin: 0.6rem auto 0; max-width: 34ch; overflow-wrap: anywhere; }
+    .site-hint strong { color: var(--ink); font-weight: 600; }
+    #copyCodeBtn { width: auto; min-width: 220px; margin: 0.9rem auto 0; }
+
+    .players-panel .player-list { margin: 1.5rem 0 1rem; }
+    .players-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.8rem; }
+    .players-count { font-family: var(--font-display); font-weight: 700; font-size: 1.3125rem; font-variant-numeric: tabular-nums lining-nums; color: var(--ink-2); }
+    .players-count.is-full { color: var(--pine); }
+    #connectedPlayersList { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    button.player-tag {
+      width: auto; min-height: 44px; margin: 0;
+      padding: 0.4rem 0.95rem 0.4rem 0.7rem;
+      border: 1px solid var(--line); border-radius: 999px;
+      background: var(--card); color: var(--ink);
+      font-weight: 600; font-size: 1rem;
+      max-width: 100%;
     }
-    .copy-btn {
-      background: #2a3b4c;
-      border: 1px solid #5e9eff;
-      margin: 0.5rem 0;
+    button.player-tag:hover:not(:disabled) { background: var(--card); border-color: var(--ink); }
+    button.player-tag .av { font-size: 1.3rem; line-height: 1; }
+    button.player-tag .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #connectedPlayersList .player-tag:not(.is-new) { animation: none; }
+    .empty-players { color: var(--ink-2); padding: 0.4rem 0 0.2rem; text-wrap: pretty; }
+    .tap-hint { font-size: 0.875rem; color: var(--ink-2); margin-top: 0.8rem; }
+
+    #startSelectionBtn { min-height: 56px; font-size: 1.0625rem; }
+    #startSelectionBtn:disabled { background: var(--sunk); color: var(--ink-2); border-color: var(--line); box-shadow: none; opacity: 1; }
+
+    /* Feuille d'action joueur */
+    .sheet-who { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1rem; }
+    .sheet-who .av { font-size: 2rem; line-height: 1; }
+    .sheet-who h2 { font-size: 1.3125rem; overflow-wrap: anywhere; }
+    .sheet-actions button { justify-content: flex-start; }
+    .sheet-actions button.btn-link { justify-content: center; display: flex; margin: 0.25rem auto 0; }
+    #sheetRenameForm label { margin-top: 0; }
+    .sheet-row { display: flex; gap: 0.6rem; margin-top: 0.5rem; }
+    .sheet-row button { margin: 0; }
+
+    /* Ordinateur / télé : code et QR à gauche, joueurs à droite */
+    @media (min-width: 900px) {
+      #app.lobby { max-width: 1040px; padding: 40px 48px 32px; }
+      .host-head h1 { font-size: 2.25rem; }
+      .lobby-grid { display: grid; grid-template-columns: minmax(340px, 400px) 1fr; gap: 48px; align-items: start; }
+      #roomCodeDisplay { font-size: 4.25rem; }
+      #qrCode, #qrCode img, #qrCode canvas { width: 200px !important; height: 200px !important; }
+      .players-panel .player-list { margin-top: 0; min-height: 260px; }
     }
   </style>
 </head>
 <body>
-  <div id="app">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-      <a href="config.html?edit=1&return=host-lobby.html" title="Modifier les réglages" style="font-size:1.4rem; text-decoration:none;">ℹ️</a>
-      <h1 style="margin:0;">📱 Salon hôte</h1>
-      <span style="width:1.4rem;"></span>
+  <div id="app" class="lobby">
+    <header class="host-head">
+      <h1>Le salon est ouvert</h1>
+      <a class="icon-btn" href="config.html?edit=1&amp;return=host-lobby.html" title="Modifier les réglages" aria-label="Modifier les réglages">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+      </a>
+    </header>
+
+    <div class="lobby-grid">
+      <section class="join-panel" aria-label="Rejoindre la partie">
+        <p class="join-hint">Scanne le QR code avec ton téléphone, ou tape ce code dans « Rejoindre ».</p>
+        <div class="room-code" id="roomCodeDisplay"></div>
+        <div id="qrBox" class="qr-box">
+          <div id="qrCode" role="img" aria-label="QR code pour rejoindre la partie"></div>
+          <span class="qr-caption">Scanne pour rejoindre</span>
+        </div>
+        <p id="siteHint" class="site-hint hidden"></p>
+        <button id="copyCodeBtn">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7.5 7.5 12 3l4.5 4.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
+          <span>Partager le lien</span>
+        </button>
+      </section>
+
+      <section class="players-panel" aria-labelledby="playersTitle">
+        <div class="player-list">
+          <div class="players-head">
+            <h2 id="playersTitle" class="section-title">Joueurs</h2>
+            <span id="playersCounter" class="players-count" aria-live="polite"></span>
+          </div>
+          <div id="connectedPlayersList"></div>
+          <p id="tapHint" class="tap-hint hidden">Touche un joueur pour le renommer ou le retirer.</p>
+        </div>
+        <button id="startSelectionBtn" class="primary" disabled>En attente…</button>
+        <p class="page-foot">
+          <a href="index.html" class="back-link">Annuler la partie</a>
+        </p>
+      </section>
     </div>
-    <div class="room-code" id="roomCodeDisplay"></div>
-    <button id="copyCodeBtn" class="copy-btn">📋 Copier le code</button>
-    <div class="player-list">
-      <div style="font-weight:700; margin-bottom:0.8rem;">👥 Joueurs connectés</div>
-      <div id="connectedPlayersList"></div>
-    </div>
-    <button id="startSelectionBtn" class="primary" style="width:100%;" disabled>⏳ En attente...</button>
-    <p style="text-align:center; margin-top:1.5rem;">
-      <a href="index.html" style="color:#8aaec0;">← Annuler et retourner à l'accueil</a>
-    </p>
   </div>
+
+  <!-- Feuille d'action : renommer / retirer un joueur -->
+  <dialog id="playerSheet" class="sheet" aria-labelledby="sheetName">
+    <div class="sheet-body">
+      <div class="sheet-grip" aria-hidden="true"></div>
+      <div class="sheet-who">
+        <span id="sheetAvatar" class="av" aria-hidden="true"></span>
+        <h2 id="sheetName"></h2>
+      </div>
+      <div id="sheetActions" class="sheet-actions">
+        <button type="button" id="sheetRenameBtn">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>
+          Renommer
+        </button>
+        <button type="button" id="sheetKickBtn" class="danger">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="8" r="4"/><path d="M3 20a7 7 0 0 1 14 0"/><path d="M17 11h5"/></svg>
+          Retirer de la partie
+        </button>
+        <button type="button" id="sheetCancelBtn" class="btn-link">Annuler</button>
+      </div>
+      <form id="sheetRenameForm" class="hidden" novalidate>
+        <label for="sheetNameInput">Nouveau nom</label>
+        <input type="text" id="sheetNameInput" maxlength="20" autocomplete="off" enterkeyhint="done">
+        <div class="sheet-row">
+          <button type="button" id="sheetRenameCancel">Annuler</button>
+          <button type="submit" class="primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -86,107 +180,194 @@
       const connectedPlayersList = document.getElementById('connectedPlayersList');
       const startBtn = document.getElementById('startSelectionBtn');
       const copyBtn = document.getElementById('copyCodeBtn');
+      const playersCounter = document.getElementById('playersCounter');
+      const tapHint = document.getElementById('tapHint');
 
       // Afficher le code
       roomCodeDisplay.textContent = roomCode;
 
+      // Lien direct vers le formulaire du joueur, code déjà rempli
+      const joinUrl = new URL('player-lobby.html?code=' + encodeURIComponent(roomCode), location.href).href;
+
+      // Adresse du site, pour ceux qui ne peuvent pas scanner
+      try {
+        const site = new URL('.', location.href);
+        if (/^https?:$/.test(site.protocol)) {
+          const siteHint = document.getElementById('siteHint');
+          const strong = document.createElement('strong');
+          strong.textContent = (site.host + site.pathname).replace(/\/$/, '');
+          siteHint.append('Sans QR code : va sur ', strong, ', puis « Rejoindre ».');
+          siteHint.classList.remove('hidden');
+        }
+      } catch (e) {}
+
+      // QR code (qrcodejs, chargé à part) ; s'il ne charge pas, on retire simplement la case
+      (function loadQR() {
+        const box = document.getElementById('qrBox');
+        const target = document.getElementById('qrCode');
+        const hide = () => box.classList.add('hidden');
+        const draw = () => {
+          try {
+            if (typeof QRCode === 'undefined') return hide();
+            new QRCode(target, { text: joinUrl, width: 400, height: 400, colorDark: '#1E1A16', colorLight: '#FFFBF4', correctLevel: QRCode.CorrectLevel.M });
+            target.removeAttribute('title');
+            target.classList.add('ready');
+          } catch (e) { hide(); }
+        };
+        if (typeof QRCode !== 'undefined') return draw();
+        try {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+          s.integrity = 'sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==';
+          s.crossOrigin = 'anonymous';
+          s.referrerPolicy = 'no-referrer';
+          s.onload = draw;
+          s.onerror = hide;
+          document.head.appendChild(s);
+        } catch (e) { hide(); }
+      })();
+
       // Écouter les changements de la liste des joueurs
+      const seenPlayers = new Set();
+      let latestPlayers = {};
       playersRef.on('value', (snapshot) => {
         const players = snapshot.val() || {};
+        latestPlayers = players;
         const playerArray = Object.entries(players).map(([id, data]) => ({ id, ...data }));
 
         // Mettre à jour l'affichage
         if (playerArray.length === 0) {
-          connectedPlayersList.innerHTML = '<div style="color:#8aaec0; text-align:center; padding:1rem;">Aucun joueur connecté</div>';
+          connectedPlayersList.innerHTML = '<p class="empty-players">Personne pour l\'instant. Scanne le QR code pour arriver ici.</p>';
         } else {
-          connectedPlayersList.innerHTML = playerArray.map(p => 
-            `<span class="player-tag" data-id="${p.id}" data-name="${escapeHTML(p.name)}">${escapeHTML(p.avatar || '🐶')} ${escapeHTML(p.name)}</span>`
-          ).join('');
+          connectedPlayersList.innerHTML = playerArray.map(p => {
+            const isNew = !seenPlayers.has(p.id);
+            seenPlayers.add(p.id);
+            return `<button type="button" class="player-tag${isNew ? ' is-new' : ''}" data-id="${escapeHTML(p.id)}" data-name="${escapeHTML(p.name)}" data-avatar="${escapeHTML(p.avatar || '🐶')}" aria-haspopup="dialog"><span class="av" aria-hidden="true">${escapeHTML(p.avatar || '🐶')}</span><span class="nm">${escapeHTML(p.name)}</span></button>`;
+          }).join('');
         }
+        tapHint.classList.toggle('hidden', playerArray.length === 0);
+        syncSheet(players);
 
         // Récupérer le nombre de joueurs attendu depuis la config
         configRef.once('value', (configSnap) => {
           const config = configSnap.val() || {};
           const expected = config.expectedPlayerCount || 1;
 
+          playersCounter.textContent = playerArray.length + ' / ' + expected;
+          playersCounter.classList.toggle('is-full', playerArray.length >= expected);
+
           if (playerArray.length >= expected) {
             startBtn.disabled = false;
-            startBtn.textContent = '🎮 Lancer la sélection';
+            startBtn.textContent = 'Lancer la sélection';
           } else {
+            const missing = expected - playerArray.length;
             startBtn.disabled = true;
-            startBtn.textContent = `⏳ En attente de ${expected - playerArray.length} joueur(s)...`;
+            startBtn.textContent = `En attente de ${missing} joueur${missing > 1 ? 's' : ''}…`;
           }
         });
       });
 
-      // Fonction pour échapper le HTML (simple)
-      function escapeHTML_old(str) {
-        return String(str).replace(/[&<>]/g, function(c) {
-          if (c === '&') return '&amp;';
-          if (c === '<') return '&lt;';
-          if (c === '>') return '&gt;';
-          return c;
-        });
-      }
-
-      // Copier le code
-      copyBtn.addEventListener('click', () => {
-        const ok = () => {
-          copyBtn.textContent = '✅ Copié !';
-          setTimeout(() => copyBtn.textContent = '📋 Copier le code', 2000);
-        };
+      // Partager le lien (feuille de partage du téléphone, sinon copie du lien)
+      const shareLabel = copyBtn.innerHTML;
+      let shareTimer = null;
+      const flash = (text) => {
+        copyBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span></span>';
+        copyBtn.querySelector('span').textContent = text;
+        clearTimeout(shareTimer);
+        shareTimer = setTimeout(() => { copyBtn.innerHTML = shareLabel; }, 2200);
+      };
+      const copyLink = () => {
+        const ok = () => flash('Lien copié !');
         const legacy = () => {   // navigateurs sans API presse-papiers (ou page non sécurisée)
           try {
             const t = document.createElement('textarea');
-            t.value = roomCode; t.style.cssText = 'position:fixed;opacity:0';
+            t.value = joinUrl; t.setAttribute('readonly', ''); t.style.cssText = 'position:fixed;opacity:0';
             document.body.appendChild(t); t.select();
             const done = document.execCommand('copy');
             t.remove();
             if (done) ok();
           } catch (e) {}
         };
-        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(roomCode).then(ok, legacy);
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(joinUrl).then(ok, legacy);
         else legacy();
+      };
+      copyBtn.addEventListener('click', async () => {
+        if (navigator.share) {
+          try {
+            await navigator.share({ title: 'Blind Test', text: 'Viens jouer au blind test ! Code : ' + roomCode, url: joinUrl });
+          } catch (e) {
+            if (!e || e.name !== 'AbortError') copyLink();
+          }
+        } else {
+          copyLink();
+        }
       });
 
-      // Appui long sur un joueur : le renommer ou l'expulser de la lobby
-      let pressTimer = null;
-      let longPressTriggered = false;
+      // ---- Toucher un joueur : feuille d'action (renommer / retirer / annuler) ----
+      const sheet = document.getElementById('playerSheet');
+      const sheetName = document.getElementById('sheetName');
+      const sheetAvatar = document.getElementById('sheetAvatar');
+      const sheetActions = document.getElementById('sheetActions');
+      const renameForm = document.getElementById('sheetRenameForm');
+      const renameInput = document.getElementById('sheetNameInput');
+      let sheetPlayerId = null;
 
-      function showPlayerActions(playerId, playerName) {
-        const choice = prompt(
-          `${playerName}\n\nTape un nouveau nom pour le renommer, ou écris EXPULSER pour le retirer de la lobby.`,
-          playerName
-        );
-        if (choice === null) return;
-        const trimmed = choice.trim();
-        if (trimmed.toUpperCase() === 'EXPULSER') {
-          if (confirm(`Expulser ${playerName} de la lobby ?`)) {
-            playersRef.child(playerId).remove();
-          }
-        } else if (trimmed && trimmed !== playerName) {
-          playersRef.child(playerId).update({ name: trimmed });
-        }
+      function openSheet(playerId) {
+        const p = latestPlayers[playerId];
+        if (!p) return;
+        sheetPlayerId = playerId;
+        sheetName.textContent = p.name;
+        sheetAvatar.textContent = p.avatar || '🐶';
+        sheetActions.classList.remove('hidden');
+        renameForm.classList.add('hidden');
+        if (typeof sheet.showModal === 'function') { if (!sheet.open) sheet.showModal(); }
+        else sheet.setAttribute('open', '');
+      }
+      function closeSheet() {
+        sheetPlayerId = null;
+        if (typeof sheet.close === 'function') { if (sheet.open) sheet.close(); }
+        else sheet.removeAttribute('open');
+      }
+      // Le joueur est parti (ou a été renommé) pendant que la feuille est ouverte
+      function syncSheet(players) {
+        if (!sheetPlayerId) return;
+        const p = players[sheetPlayerId];
+        if (!p) closeSheet();
+        else sheetName.textContent = p.name;
       }
 
-      function startPress(e) {
+      connectedPlayersList.addEventListener('click', (e) => {
         const tag = e.target.closest('.player-tag');
-        if (!tag) return;
-        longPressTriggered = false;
-        pressTimer = setTimeout(() => {
-          longPressTriggered = true;
-          showPlayerActions(tag.dataset.id, tag.dataset.name);
-        }, 550);
-      }
-      function cancelPress() {
-        if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-      }
-      connectedPlayersList.addEventListener('touchstart', startPress);
-      connectedPlayersList.addEventListener('touchend', cancelPress);
-      connectedPlayersList.addEventListener('touchmove', cancelPress);
-      connectedPlayersList.addEventListener('mousedown', startPress);
-      connectedPlayersList.addEventListener('mouseup', cancelPress);
-      connectedPlayersList.addEventListener('mouseleave', cancelPress);
+        if (tag) openSheet(tag.dataset.id);
+      });
+      // Clic sur le fond assombri : on ferme
+      sheet.addEventListener('click', (e) => { if (e.target === sheet) closeSheet(); });
+      sheet.addEventListener('close', () => { sheetPlayerId = null; });
+
+      document.getElementById('sheetCancelBtn').addEventListener('click', closeSheet);
+      document.getElementById('sheetKickBtn').addEventListener('click', () => {
+        if (sheetPlayerId) playersRef.child(sheetPlayerId).remove();
+        closeSheet();
+      });
+      document.getElementById('sheetRenameBtn').addEventListener('click', () => {
+        sheetActions.classList.add('hidden');
+        renameForm.classList.remove('hidden');
+        renameInput.value = (latestPlayers[sheetPlayerId] || {}).name || '';
+        renameInput.focus();
+        renameInput.select();
+      });
+      document.getElementById('sheetRenameCancel').addEventListener('click', () => {
+        renameForm.classList.add('hidden');
+        sheetActions.classList.remove('hidden');
+      });
+      renameForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const id = sheetPlayerId;
+        const current = (latestPlayers[id] || {}).name;
+        const trimmed = renameInput.value.trim().slice(0, 20);
+        if (id && trimmed && trimmed !== current) playersRef.child(id).update({ name: trimmed });
+        closeSheet();
+      });
 
       // Lancer la sélection
       startBtn.addEventListener('click', async () => {

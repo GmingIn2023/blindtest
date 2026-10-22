@@ -557,7 +557,8 @@
           return;
         }
         const classicModeOnly = document.getElementById('classicModeCheck').checked;
-        const maxAttempts = parseInt(document.getElementById('maxAttempts').value, 10) || 0;
+        const maxAttemptsRaw = parseInt(document.getElementById('maxAttempts').value, 10);
+        const maxAttempts = isNaN(maxAttemptsRaw) ? 3 : Math.max(0, Math.min(10, maxAttemptsRaw));
         const blurEnabled = document.getElementById('blurCheck').checked;
         const revealSpeed = document.querySelector('input[name="revealSpeed"]:checked')?.value || 'normal';
         const lockOthersOnBuzz = document.getElementById('lockOthersCheck').checked;
@@ -567,10 +568,15 @@
         const allowDuplicates = document.getElementById('allowDuplicatesCheck').checked;
         const advancedSettings = document.getElementById('advancedSettingsCheck').checked;
         const playerCount = parseInt(document.getElementById('playerCount').value, 10);
-        const songsPerPlayer = parseInt(document.getElementById('songsPerPlayer').value, 10);
+        const songsPerPlayerRaw = parseInt(document.getElementById('songsPerPlayer').value, 10);
+        const songsPerPlayer = isNaN(songsPerPlayerRaw) ? (mode === 'playlist' ? 0 : NaN) : Math.max(0, Math.min(5, songsPerPlayerRaw));
 
-        if (isNaN(playerCount) || playerCount < 1) {
-          errorDiv.textContent = 'Le nombre de joueurs doit être au moins 1.';
+        if (isNaN(playerCount) || playerCount < 1 || playerCount > 8) {
+          errorDiv.textContent = 'Le nombre de joueurs doit être entre 1 et 8.';
+          return;
+        }
+        if (mode !== 'playlist' && isNaN(songsPerPlayer)) {
+          errorDiv.textContent = 'Indique combien de chansons chaque joueur choisit (0 à 5).';
           return;
         }
 
@@ -581,11 +587,15 @@
 
         let totalSongs, hostSongsCount, playlistSongsPerPlayer = 5;
         if (mode === 'playlist') {
-          playlistSongsPerPlayer = parseInt(document.getElementById('playlistSongsPerPlayer').value, 10) || 5;
+          playlistSongsPerPlayer = Math.max(2, Math.min(5, parseInt(document.getElementById('playlistSongsPerPlayer').value, 10) || 5));
           totalSongs = playerCount * playlistSongsPerPlayer;
           hostSongsCount = 0;
         } else {
           totalSongs = parseInt(document.getElementById('totalSongs').value, 10);
+          if (isNaN(totalSongs) || totalSongs < 1 || totalSongs > 30) {
+            errorDiv.textContent = 'Le nombre total de chansons doit être entre 1 et 30.';
+            return;
+          }
           const playersTotal = playerCount * songsPerPlayer;
           if (totalSongs < playersTotal) {
             errorDiv.textContent = `Erreur : les joueurs choisissent un total de ${playersTotal} chansons. Le total global de la partie doit être plus élevé.`;

@@ -162,47 +162,76 @@
 
       // Affiche le salon d'attente et écoute les joueurs / le statut de la partie
       function enterLobby(roomCode, clientId) {
+        cleanupListeners();
         roomRef = db.ref('rooms/' + roomCode);
-                    joinSection.classList.add('hidden');
-          connectedSection.classList.remove('hidden');
-          connectedRoomCode.textContent = roomCode;
+        joinSection.classList.add('hidden');
+        connectedSection.classList.remove('hidden');
+        connectedRoomCode.textContent = roomCode;
 
-          // Écouter les changements de joueurs
-          playersRef = roomRef.child('players');
-          const playersListener = playersRef.on('value', (snap) => {
-            const players = snap.val() || {};
-            // Filtrer soi-même
-            const others = Object.entries(players)
-              .filter(([id]) => id !== clientId)
-              .map(([id, data]) => ({ id, ...data }));
-            if (others.length === 0) {
-              otherPlayersList.innerHTML = '<div style="color:#8aaec0;">En attente d\'autres joueurs...</div>';
-            } else {
-              otherPlayersList.innerHTML = others.map(p =>
-                `<span class="player-tag">${escapeHTML(p.avatar)} ${escapeHTML(p.name)}</span>`
-              ).join('');
-            }
-          });
-          currentListeners.push({ref: playersRef, event: 'value'});
+        // Écouter les changements de joueurs
+        playersRef = roomRef.child('players');
+        playersRef.on('value', (snap) => {
+          const players = snap.val() || {};
+          // Filtrer soi-même
+          const others = Object.entries(players)
+            .filter(([id]) => id !== clientId)
+            .map(([id, data]) => ({ id, ...data }));
+          if (others.length === 0) {
+            otherPlayersList.innerHTML = '<div style="color:#8aaec0;">En attente d\'autres joueurs...</div>';
+          } else {
+            otherPlayersList.innerHTML = others.map(p =>
+              `<span class="player-tag">${escapeHTML(p.avatar)} ${escapeHTML(p.name)}</span>`
+            ).join('');
+          }
+        });
+        currentListeners.push({ref: playersRef, event: 'value'});
 
-          // Écouter le statut de la room
-          statusRef = roomRef.child('status');
-          const statusListener = statusRef.on('value', (snap) => {
-            const status = snap.val();
-            if (status === 'selection') {
-              // Rediriger vers la page de sélection
-              window.location.href = 'selection.html';
-            } else if (status === 'game') {
-              window.location.href = 'game.html';
-            }
-          });
-          currentListeners.push({ref: statusRef, event: 'value'});
+        // Écouter le statut de la room
+        statusRef = roomRef.child('status');
+        statusRef.on('value', (snap) => {
+          const status = snap.val();
+          if (status === 'selection') {
+            // Rediriger vers la page de sélection
+            window.location.href = 'selection.html';
+          } else if (status === 'game') {
+            window.location.href = 'game.html';
+          } else if (status === null) {
+            leaveLobby('La partie a été fermée par l\'hôte.');
+          }
+        });
+        currentListeners.push({ref: statusRef, event: 'value'});
 
+        // Expulsé par l'hôte (appui long dans son salon) ? On le dit et on revient au formulaire.
+        let seenMe = false;
+        const meRef = roomRef.child('players/' + clientId);
+        meRef.on('value', (snap) => {
+          if (snap.val() !== null) { seenMe = true; return; }
+          if (seenMe) leaveLobby('Tu as été retiré de la partie par l\'hôte.');
+        });
+        currentListeners.push({ref: meRef, event: 'value'});
       }
 
+      // Retour au formulaire (expulsion, partie fermée)
+      function leaveLobby(message) {
+        cleanupListeners();
+        try { AppState.clear(); } catch (e) {}
+        connectedSection.classList.add('hidden');
+        joinSection.classList.remove('hidden');
+        joinBtn.disabled = false;
+        joinError.textContent = message || '';
+      }
+
+      const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('Connexion trop lente. Vérifie ta connexion et réessaie.')), ms))]);
+
+      roomCodeInput.addEventListener('input', () => {
+        const c = cleanRoomCode(roomCodeInput.value);
+        if (c !== roomCodeInput.value.toUpperCase()) roomCodeInput.value = c;
+      });
+
       joinBtn.addEventListener('click', async () => {
-        const roomCode = roomCodeInput.value.trim().toUpperCase();
-        const playerName = playerNameInput.value.trim();
+        if (joinBtn.disabled) return;
+        const roomCode = cleanRoomCode(roomCodeInput.value);
+        const playerName = playerNameInput.value.trim().slice(0, 20);
 
         if (!roomCode) {
           joinError.textContent = 'Veuillez entrer un code.';
@@ -219,7 +248,7 @@
         try {
           // Vérifier si la room existe
           roomRef = db.ref('rooms/' + roomCode);
-          const snapshot = await roomRef.once('value');
+          const snapshot = await withTimeout(roomRef.once('value'), 12000);
           if (!snapshot.exists()) {
             throw new Error('Partie introuvable.');
           }
@@ -227,35 +256,33 @@
           if (roomData.status !== 'lobby') {
             throw new Error('Cette partie a déjà commencé.');
           }
-
-          // Vérifier le nombre de joueurs déjà connectés
-          const playersSnap = await roomRef.child('players').once('value');
-          const currentPlayers = playersSnap.val() || {};
           const expected = roomData.config?.expectedPlayerCount || 1;
-          if (Object.keys(currentPlayers).length >= expected) {
-            throw new Error('Le nombre maximum de joueurs est atteint.');
-          }
 
           // Générer un ID client unique
           const clientId = 'player_' + Date.now() + '_' + Math.random().toString(36).substring(2);
+
+          // Ajouter le joueur dans Firebase : la limite de joueurs est vérifiée de façon atomique
+          // (deux personnes qui rejoignent en même temps ne peuvent plus dépasser le maximum)
+          const tx = await withTimeout(roomRef.child('players').transaction(cur => {
+            cur = cur || {};
+            if (Object.keys(cur).length >= expected) return;   // abandon : salle pleine
+            cur[clientId] = { name: playerName, avatar: selectedAvatar, joinedAt: Date.now() };
+            return cur;
+          }), 12000);
+          if (!tx.committed) throw new Error('Le nombre maximum de joueurs est atteint.');
+
           AppState.clientId = clientId;
           AppState.playerName = playerName;
           AppState.playerAvatar = selectedAvatar;
           AppState.roomCode = roomCode;
           AppState.isHost = false;
 
-          // Ajouter le joueur dans Firebase
-          await roomRef.child('players/' + clientId).set({
-            name: playerName,
-            avatar: selectedAvatar,
-            joinedAt: Date.now()
-          });
-
           enterLobby(roomCode, clientId);
           try { localStorage.setItem('blindtest_resume', JSON.stringify({ roomCode, clientId, name: playerName, avatar: selectedAvatar, at: Date.now() })); } catch (e) {}
+          joinError.textContent = '';
 
         } catch (error) {
-          console.error('Erreur connexion:', error);
+          console.warn('Connexion refusée :', error.message);
           joinError.textContent = error.message;
           joinBtn.disabled = false;
           // Nettoyer les listeners si nécessaire

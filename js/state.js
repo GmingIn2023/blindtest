@@ -1,4 +1,5 @@
 // Gestion de l'état local avec sessionStorage
+// (robuste : si le stockage est indisponible ou corrompu — navigation privée, quota — on garde l'état en mémoire)
 
 const STATE_KEYS = {
   ROOM_CODE: 'blindtest_roomCode',
@@ -8,17 +9,24 @@ const STATE_KEYS = {
   PLAYER_AVATAR: 'blindtest_playerAvatar',
 };
 
+const _memState = {};
+
 function saveState(key, value) {
-  sessionStorage.setItem(key, JSON.stringify(value));
+  _memState[key] = value;
+  try { sessionStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
 }
 
 function loadState(key, defaultValue = null) {
-  const val = sessionStorage.getItem(key);
-  return val ? JSON.parse(val) : defaultValue;
+  try {
+    const val = sessionStorage.getItem(key);
+    if (val !== null && val !== undefined) return JSON.parse(val);
+  } catch (e) {}
+  return Object.prototype.hasOwnProperty.call(_memState, key) ? _memState[key] : defaultValue;
 }
 
 function clearState() {
-  sessionStorage.clear();
+  Object.keys(_memState).forEach(k => delete _memState[k]);
+  try { sessionStorage.clear(); } catch (e) {}
   try { localStorage.removeItem('blindtest_resume'); localStorage.removeItem('blindtest_host_resume'); } catch (e) {}
 }
 

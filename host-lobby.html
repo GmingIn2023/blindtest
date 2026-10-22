@@ -131,10 +131,22 @@
 
       // Copier le code
       copyBtn.addEventListener('click', () => {
-        navigator.clipboard.writeText(roomCode).then(() => {
+        const ok = () => {
           copyBtn.textContent = '✅ Copié !';
           setTimeout(() => copyBtn.textContent = '📋 Copier le code', 2000);
-        });
+        };
+        const legacy = () => {   // navigateurs sans API presse-papiers (ou page non sécurisée)
+          try {
+            const t = document.createElement('textarea');
+            t.value = roomCode; t.style.cssText = 'position:fixed;opacity:0';
+            document.body.appendChild(t); t.select();
+            const done = document.execCommand('copy');
+            t.remove();
+            if (done) ok();
+          } catch (e) {}
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(roomCode).then(ok, legacy);
+        else legacy();
       });
 
       // Appui long sur un joueur : le renommer ou l'expulser de la lobby
@@ -178,10 +190,20 @@
 
       // Lancer la sélection
       startBtn.addEventListener('click', async () => {
-        // Changer le statut de la room pour passer en phase de sélection
-        await roomRef.update({ status: 'selection' });
-        // Rediriger vers la page de sélection (avec rôle hôte)
-        window.location.href = 'selection.html?role=host';
+        if (startBtn.dataset.busy) return;
+        startBtn.dataset.busy = '1';
+        try {
+          // On repart de zéro seulement depuis le salon : une sélection déjà en cours n'est jamais effacée
+          const status = (await roomRef.child('status').once('value')).val();
+          const upd = { status: 'selection' };
+          if (status === 'lobby') upd.selections = null;
+          await roomRef.update(upd);
+          // Rediriger vers la page de sélection (avec rôle hôte)
+          window.location.href = 'selection.html?role=host';
+        } catch (e) {
+          delete startBtn.dataset.busy;
+          alert('Connexion perdue : réessaie dans un instant.');
+        }
       });
 
       // Nettoyer l'écouteur si on quitte la page

@@ -181,9 +181,11 @@
   let gs = {}, players = {}, songs = [], song = null, idx = -1;
   let phase = 'idle', mode = 'classic';
   let timerInt = null, blurRaf = null, lyricsInt = null, playedIndex = -1;
-  let lastFlashAt = 0, lastPhase = null;
+  let lastFlashAt = 0, lastPhase = null, lastRoundStart = 0;
+  let audioNote = '', gestureRetryArmed = false, revealing = false, answering = false, buzzPending = null;
 
   el.cover.src = BLANK;
+  el.btnBuzz.classList.add('hidden');          // affiché seulement quand la manche est chargée et lancée
   (isHost ? el.hostZone : el.playerZone).classList.remove('hidden');
   if (!isHost) el.scorePill.classList.remove('hidden');
 
@@ -199,9 +201,17 @@
     songs = gs.songs || [];
     mode  = gs.mode || 'classic';
     const newIdx = gs.currentSongIndex || 0;
-    if (newIdx !== idx) { idx = newIdx; onNewSong(); }
+    if (newIdx !== idx) { idx = newIdx; songs = gs.songs || []; onNewSong(); }
     song  = songs[idx] || null;
     phase = gs.phase || 'idle';
+
+    // L'hôte a relancé l'extrait (🔁) : les joueurs resynchronisent la pochette sur le nouveau départ
+    const rs = gs.roundStartTime || 0;
+    if (phase === 'playing' && lastPhase === 'playing' && rs && lastRoundStart && rs !== lastRoundStart && !isHost && mode !== 'lyrics') {
+      if (blurRaf) { cancelAnimationFrame(blurRaf); blurRaf = null; }
+      startBlur();
+    }
+    lastRoundStart = rs;
 
     render();
   });
@@ -210,9 +220,12 @@
     stopAllTimers();
     AudioEngine.stopAudio();
     playedIndex = -1;
+    audioNote = ''; revealing = false;
     el.answerInput.value = '';
     el.lyricsBox.innerHTML = '';
+    el.lyricsBox.classList.add('hidden');
     el.revealCard.classList.add('hidden');
+    // L'hôte prépare (télécharge + rend) l'extrait en avance : le son part sans attente
     if (isHost && songs[idx]) AudioEngine.preloadSong(songs[idx]);
     if (isHost && songs[idx + 1]) AudioEngine.preloadSong(songs[idx + 1]);
   }
@@ -240,7 +253,11 @@
   }
 
   function render() {
-    if (!songs.length) { el.roundInfo.textContent = 'Chargement…'; return; }
+    if (!songs.length) {
+      el.roundInfo.textContent = 'Chargement…';
+      el.btnBuzz.classList.add('hidden'); el.answerZone.classList.add('hidden'); el.voteZone.classList.add('hidden');
+      return;
+    }
     el.roundInfo.textContent = `Manche ${idx + 1} / ${songs.length}`;
     el.scorePill.textContent = ((gs.scores || {})[clientId] || 0) + ' pts';
 
@@ -468,11 +485,14 @@
     el.btnNext.classList.toggle('hidden', phase !== 'revealed');
     el.btnReveal.classList.toggle('armed', !!gs.solved);
 
-    if (phase === 'idle')      el.hostHint.textContent = "Appuie sur ▶️ quand tout le monde est prêt.";
-    else if (phase === 'playing') el.hostHint.textContent = mode === 'playlist'
+    let hint = '';
+    if (phase === 'idle')      hint = "Appuie sur ▶️ quand tout le monde est prêt.";
+    else if (phase === 'playing') hint = mode === 'playlist'
         ? `Votes : ${Object.keys(gs.votes || {}).length} / ${votersFor(song).length}`
         : (gs.solved ? '✅ Bonne réponse trouvée — tu peux révéler.' : 'Manche en cours…');
-    else el.hostHint.textContent = idx + 1 >= songs.length ? 'Dernière chanson — passe au podium !' : '';
+    else hint = idx + 1 >= songs.length ? 'Dernière chanson — passe au podium !' : '';
+    if (phase === 'playing' && audioNote) hint += (hint ? ' ' : '') + audioNote;
+    el.hostHint.textContent = hint;
 
     if (phase === 'revealed' && idx + 1 >= songs.length) el.btnNext.textContent = '🏆 Voir le podium';
     else el.btnNext.textContent = '➡️ Chanson suivante';
@@ -481,55 +501,99 @@
     if (phase === 'playing' && gs.buzzer && mode !== 'lyrics') {
       AudioEngine.stopAudio();
       playedIndex = -1;                     // l'extrait reprendra si la réponse est fausse
+      audioNote = '';
     }
 
     // Lecture du son (hôte uniquement)
     const roundOver = gs.solved && !gs.multipleCorrectAllowed;
     if (phase === 'playing' && !gs.buzzer && !roundOver && playedIndex !== idx && mode !== 'lyrics') {
       playedIndex = idx;
-      AudioEngine.playAudioClip(song).then(ok => {
-        if (!ok) el.hostHint.textContent = '⚠️ Audio indisponible pour cette chanson.';
-      });
+      startClip();
     }
+    if (phase !== 'playing') audioNote = '';
+  }
+
+  // Lance l'extrait (hôte). Si le navigateur refuse (pas encore de geste), on invite à toucher l'écran puis on relance.
+  function startClip() {
+    if (!song) return;
+    const myIdx = idx;
+    audioNote = '⏳ Chargement du son…';
+    AudioEngine.playAudioClip(song).then(ok => {
+      if (myIdx !== idx) return;
+      if (ok) audioNote = '';
+      else if (AudioEngine.lastError === 'blocked') { audioNote = '👆 Touche l\'écran pour activer le son.'; armGestureRetry(); }
+      else audioNote = '⚠️ Audio indisponible pour cette chanson (🔁 pour réessayer).';
+      if (phase === 'playing') renderHost();
+    });
+  }
+
+  function armGestureRetry() {
+    if (gestureRetryArmed) return;
+    gestureRetryArmed = true;
+    const evs = ['click', 'touchend', 'keydown'];
+    const h = () => {
+      evs.forEach(e => document.removeEventListener(e, h, true));
+      gestureRetryArmed = false;
+      if (phase === 'playing' && !gs.buzzer && mode !== 'lyrics') startClip();
+    };
+    evs.forEach(e => document.addEventListener(e, h, true));
   }
 
   el.btnPlay.onclick = async () => {
     if (!song) return;
     AudioEngine.unlockAudio();
-    await gsRef.update({
-      phase: 'playing', roundStartTime: serverNow(),
-      buzzer: null, votes: null, solved: false, solvedBy: null, attempts: null, feed: null
-    });
+    try {
+      await gsRef.update({
+        phase: 'playing', roundStartTime: serverNow(),
+        buzzer: null, votes: null, solved: false, solvedBy: null, attempts: null, feed: null
+      });
+    } catch (e) { el.hostHint.textContent = '⚠️ Connexion perdue, réessaie.'; }
   };
 
   el.btnReveal.onclick = async () => {
+    if (revealing) return;                  // évite le double clic (double attribution des points en Playlist)
+    revealing = true;
     AudioEngine.stopAudio();
-    if (mode === 'playlist') await scorePlaylistVotes();
-    await gsRef.update({ phase: 'revealed', buzzer: null });
+    try {
+      if (mode === 'playlist') await scorePlaylistVotes();
+      else await gsRef.update({ phase: 'revealed', buzzer: null });
+    } catch (e) {
+      revealing = false;
+      el.hostHint.textContent = '⚠️ Connexion perdue, réessaie.';
+    }
   };
 
   // Rejoue l'extrait depuis le début, sans toucher au buzzer ni aux scores
   el.btnReplay.onclick = async () => {
     if (!song) return;
     AudioEngine.stopAudio();
-    AudioEngine.playAudioClip(song);
+    playedIndex = idx;
+    startClip();
     if (blurRaf) { cancelAnimationFrame(blurRaf); blurRaf = null; }
     gs.roundStartTime = serverNow();
+    lastRoundStart = gs.roundStartTime;
     if (mode !== 'lyrics') startBlur();
-    await gsRef.update({ roundStartTime: gs.roundStartTime });
+    try { await gsRef.update({ roundStartTime: gs.roundStartTime }); } catch (e) {}
   };
 
   el.btnNext.onclick = async () => {
-    if (idx + 1 >= songs.length) { await gsRef.update({ finished: true }); return; }
-    await gsRef.update({
-      currentSongIndex: idx + 1, phase: 'idle', buzzer: null,
-      votes: null, solved: false, solvedBy: null, attempts: null, feed: null, roundStartTime: 0
-    });
+    if (el.btnNext.dataset.busy) return;
+    el.btnNext.dataset.busy = '1';
+    try {
+      if (idx + 1 >= songs.length) { await gsRef.update({ finished: true }); return; }
+      await gsRef.update({
+        currentSongIndex: idx + 1, phase: 'idle', buzzer: null,
+        votes: null, solved: false, solvedBy: null, attempts: null, feed: null, roundStartTime: 0
+      });
+    } catch (e) {
+      el.hostHint.textContent = '⚠️ Connexion perdue, réessaie.';
+    } finally { delete el.btnNext.dataset.busy; }
   };
 
-  // Attribution des points du mode Playlist (fait par l'hôte à la révélation)
+  // Attribution des points du mode Playlist + passage à "révélé" en UNE seule écriture (atomique)
   async function scorePlaylistVotes() {
     const fresh = (await gsRef.once('value')).val() || {};   // lecture fraîche : tous les votes
+    if (fresh.phase !== 'playing') return;                    // déjà révélé : on ne compte jamais deux fois
     const votes = fresh.votes || {};
     const owners = song.ownerIds || (song.ownerId ? [song.ownerId] : []);
     const updates = {};
@@ -540,6 +604,8 @@
       pushFeed(`${good ? '✅' : '❌'} ${nameOf(voter)} → ${nameOf(v.guess)}`, good, updates);
     });
     updates['scores'] = scores;
+    updates['phase'] = 'revealed';
+    updates['buzzer'] = null;
     await gsRef.update(updates);
   }
 
@@ -609,40 +675,58 @@
 
   /* --- Buzzer : transaction, premier arrivé premier servi --- */
   el.btnBuzz.onclick = () => {
-    if (el.btnBuzz.disabled) return;
+    if (el.btnBuzz.disabled || phase !== 'playing' || !song) return;   // jamais de buzz avant le chargement de la manche
     el.btnBuzz.disabled = true;
-    gsRef.child('buzzer').transaction(cur => (cur === null ? { id: clientId, name: myName, at: serverNow() } : undefined));
+    // Sur iPhone le clavier ne s'ouvre que dans le geste du doigt : on affiche et on cible le champ tout de suite.
+    // Si quelqu'un d'autre a buzzé avant nous, render() remet tout en ordre.
+    el.answerZone.classList.remove('hidden');
+    try { el.answerInput.focus(); } catch (e) {}
+    const tx = gsRef.child('buzzer')
+      .transaction(cur => (cur === null ? { id: clientId, name: myName, at: serverNow() } : undefined));
+    buzzPending = tx.then(r => r, () => null);
+    tx.then(r => { if (!r.committed) render(); }, () => render())
+      .then(() => { buzzPending = null; });
   };
 
   /* --- Réponse --- */
   el.answerInput.addEventListener('keydown', e => { if (e.key === 'Enter') el.btnAnswer.click(); });
   el.btnAnswer.onclick = async () => {
     const raw = el.answerInput.value.trim();
-    if (!raw || !song) return;
-    el.answerInput.value = '';
-    const good = matches(raw, song.title);
-    const fresh = (await gsRef.once('value')).val() || {};   // lecture fraîche : scores à jour
-    const elapsed = serverNow() - (fresh.roundStartTime || serverNow());
-    const used = (((fresh.attempts || {})[clientId]) || 0) + 1;
+    if (!raw || !song || answering) return;
+    answering = true;
+    try {
+      // Réponse tapée très vite (ou réseau lent) : on attend que le buzz soit confirmé avant de la traiter
+      if (buzzPending) await buzzPending;
+      const good = matches(raw, song.title);
+      const fresh = (await gsRef.once('value')).val() || {};   // lecture fraîche : scores à jour
+      const elapsed = serverNow() - (fresh.roundStartTime || serverNow());
+      const used = (((fresh.attempts || {})[clientId]) || 0) + 1;
 
-    if (fresh.phase !== 'playing' || !fresh.buzzer || fresh.buzzer.id !== clientId) return;
-    const updates = { buzzer: null };
-    let delta;
-    if (good) {
-      let pts = points(elapsed);
-      if (mode === 'instrumental') pts = Math.round(pts * 1.5);
-      delta = pts;
-      updates['solved'] = true;
-      updates['solvedBy/' + clientId] = true;
-      pushFeed(`✅ ${myName} : "${raw}" (+${pts})`, true, updates);
-    } else {
-      const penalty = used <= 1 ? 10 : 20;
-      delta = -penalty;
-      updates['attempts/' + clientId] = used;
-      pushFeed(`❌ ${myName} : "${raw}" (−${penalty})`, false, updates);
-    }
-    await addScore(clientId, delta);
-    await gsRef.update(updates);
+      if (fresh.phase !== 'playing' || !fresh.buzzer || fresh.buzzer.id !== clientId) {
+        el.playerStatus.textContent = '⏱️ Trop tard : ta réponse n\'a pas été prise en compte.';
+        return;
+      }
+      el.answerInput.value = '';
+      const updates = { buzzer: null };
+      let delta;
+      if (good) {
+        let pts = points(elapsed);
+        if (mode === 'instrumental') pts = Math.round(pts * 1.5);
+        delta = pts;
+        updates['solved'] = true;
+        updates['solvedBy/' + clientId] = true;
+        pushFeed(`✅ ${myName} : "${raw}" (+${pts})`, true, updates);
+      } else {
+        const penalty = used <= 1 ? 10 : 20;
+        delta = -penalty;
+        updates['attempts/' + clientId] = used;
+        pushFeed(`❌ ${myName} : "${raw}" (−${penalty})`, false, updates);
+      }
+      await addScore(clientId, delta);
+      await gsRef.update(updates);
+    } catch (e) {
+      el.playerStatus.textContent = '⚠️ Connexion perdue, réessaie.';
+    } finally { answering = false; }
   };
 
   /* ------------------------------------------------------------------ */
@@ -694,21 +778,23 @@
     updates['feed/' + serverNow() + Math.floor(Math.random() * 999)] = { text, ok, at: serverNow() };
   }
 
-  function escapeHTML(s) {
-    return String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
-  }
-
   /* --- Sortie --- */
   el.btnExit.onclick = async () => {
     if (isHost) {
       if (!confirm('Terminer la partie et revenir au salon ?')) return;
       AudioEngine.stopAudio();
-      await roomRef.update({ status: 'lobby' });
-      await gsRef.update({ finished: false, phase: 'idle', songs: [] });
+      try {
+        // Remise à zéro complète (sélections, scores, manche) : la prochaine partie repart d'une page blanche
+        await roomRef.update({
+          status: 'lobby',
+          selections: null,
+          gameState: { currentSongIndex: 0, songs: [], scores: {}, buzzer: null, solved: false, phase: 'idle', finished: false, roundStartTime: 0 }
+        });
+      } catch (e) { alert('Connexion perdue : réessaie dans un instant.'); return; }
       location.href = 'host-lobby.html';
     } else {
       if (!confirm('Quitter la partie ?')) return;
-      await roomRef.child('players/' + clientId).remove();
+      try { await roomRef.child('players/' + clientId).remove(); } catch (e) {}
       AppState.clear();
       location.href = 'index.html';
     }

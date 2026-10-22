@@ -73,6 +73,11 @@
       async function mergeSelectionsIntoGameState(selections, playerList, force) {
         if (alreadyMerged || !isHost) return;
         alreadyMerged = true;
+        try {
+        // Garde-fou : si la partie est déjà lancée, on ne la réinitialise surtout pas (scores, manche…)
+        const [stSnap, gsSnap] = await Promise.all([roomRef.child('status').once('value'), roomRef.child('gameState').once('value')]);
+        const curGs = gsSnap.val() || {};
+        if (stSnap.val() === 'game' && Array.isArray(curGs.songs) && curGs.songs.length) return;
 
         const configSnap = await roomRef.child('config').once('value');
         const config = configSnap.val() || {};
@@ -121,17 +126,24 @@
           lyricsSkipWords: !!config.lyricsSkipWords
         });
         await roomRef.child('status').set('game');
+        } catch (e) {
+          // réseau coupé pendant la fusion : on autorise une nouvelle tentative au prochain passage
+          alreadyMerged = false;
+          waitingMessage.innerHTML = '⚠️ Connexion perdue, nouvelle tentative…';
+          return false;
+        }
       }
 
       async function waitForSongsThenRedirect() {
         if (redirecting) return;
         redirecting = true;
         waitingMessage.innerHTML = '✅ Partie prête ! Chargement...';
-        for (let i = 0; i < 10; i++) {
-          const snap = await roomRef.child('gameState/songs').once('value');
-          if (Array.isArray(snap.val()) && snap.val().length > 0) {
-            window.location.href = 'game.html'; return;
-          }
+        for (let i = 0; i < 15; i++) {
+          try {
+            const g = (await roomRef.child('gameState').once('value')).val() || {};
+            if (g.finished) { window.location.href = 'podium.html'; return; }
+            if (Array.isArray(g.songs) && g.songs.length > 0) { window.location.href = 'game.html'; return; }
+          } catch (e) {}
           await new Promise(r => setTimeout(r, 400));
         }
         window.location.href = 'game.html';
@@ -180,6 +192,7 @@
           });
           return;
         }
+        if (statusSnap.val() === 'game') { waitForSongsThenRedirect(); return; }   // partie déjà lancée
         updateProgress();
         setInterval(updateProgress, 2500);
       });

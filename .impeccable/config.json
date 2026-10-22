@@ -23,6 +23,51 @@
         ],
         "createdAt": "2026-10-22T16:23:35.505Z",
         "reason": "Claude decided: paper record-sleeve world per DESIGN.md"
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          "config.html"
+        ],
+        "createdAt": "2026-10-22T16:23:55.470Z",
+        "reason": "Claude decided: paper record-sleeve world per DESIGN.md"
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          "player-lobby.html"
+        ],
+        "createdAt": "2026-10-22T16:23:55.479Z",
+        "reason": "Claude decided: paper record-sleeve world per DESIGN.md"
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          "waiting.html"
+        ],
+        "createdAt": "2026-10-22T16:23:55.488Z",
+        "reason": "Claude decided: paper record-sleeve world per DESIGN.md"
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          "podium.html"
+        ],
+        "createdAt": "2026-10-22T16:23:55.498Z",
+        "reason": "Claude decided: paper record-sleeve world per DESIGN.md"
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          "selection.html"
+        ],
+        "createdAt": "2026-10-22T16:23:55.508Z",
+        "reason": "Claude decided: paper record-sleeve world per DESIGN.md"
       }
     ]
   }
